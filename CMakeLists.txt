@@ -2,6 +2,8 @@ cmake_minimum_required (VERSION 2.6)
 
 project (flecs C)
 
+set(CMAKE_DEBUG_POSTFIX _d)
+
 file(GLOB flecs_SRC "src/*.c")
 
 include_directories("include")
