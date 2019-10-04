@@ -77,7 +77,8 @@
                 "on_add_different_overlapping_origin",
                 "on_add_different_overlapping_origin_reorder",
                 "on_set_different_origin",
-                "on_remove_different_origin"
+                "on_remove_different_origin",
+                "existing_different_type_out_of_order"
             ]
         }, {
             "id": "Add",
@@ -442,7 +443,8 @@
                 "not_from_singleton",
                 "not_from_entity",
                 "sys_context",
-                "get_sys_context_from_param"
+                "get_sys_context_from_param",
+                "use_field_w_0_size"
             ]
         }, {
             "id": "SystemCascade",

@@ -69,6 +69,7 @@ void Set_w_data_on_add_different_overlapping_origin(void);
 void Set_w_data_on_add_different_overlapping_origin_reorder(void);
 void Set_w_data_on_set_different_origin(void);
 void Set_w_data_on_remove_different_origin(void);
+void Set_w_data_existing_different_type_out_of_order(void);
 
 // Testsuite 'Add'
 void Add_zero(void);
@@ -400,6 +401,7 @@ void SystemOnFrame_not_from_singleton(void);
 void SystemOnFrame_not_from_entity(void);
 void SystemOnFrame_sys_context(void);
 void SystemOnFrame_get_sys_context_from_param(void);
+void SystemOnFrame_use_field_w_0_size(void);
 
 // Testsuite 'SystemCascade'
 void SystemCascade_cascade_depth_1(void);
@@ -902,7 +904,7 @@ static bake_test_suite suites[] = {
     },
     {
         .id = "Set_w_data",
-        .testcase_count = 33,
+        .testcase_count = 34,
         .testcases = (bake_test_case[]){
             {
                 .id = "1_column_3_rows",
@@ -1035,6 +1037,10 @@ static bake_test_suite suites[] = {
             {
                 .id = "on_remove_different_origin",
                 .function = Set_w_data_on_remove_different_origin
+            },
+            {
+                .id = "existing_different_type_out_of_order",
+                .function = Set_w_data_existing_different_type_out_of_order
             }
         }
     },
@@ -2148,7 +2154,7 @@ static bake_test_suite suites[] = {
     },
     {
         .id = "SystemOnFrame",
-        .testcase_count = 44,
+        .testcase_count = 45,
         .testcases = (bake_test_case[]){
             {
                 .id = "1_type_1_component",
@@ -2325,6 +2331,10 @@ static bake_test_suite suites[] = {
             {
                 .id = "get_sys_context_from_param",
                 .function = SystemOnFrame_get_sys_context_from_param
+            },
+            {
+                .id = "use_field_w_0_size",
+                .function = SystemOnFrame_use_field_w_0_size
             }
         }
     },
