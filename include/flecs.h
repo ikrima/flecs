@@ -41,7 +41,6 @@ typedef struct ecs_time_t {
 #include <flecs/util/vector.h>
 #include <flecs/util/chunked.h>
 #include <flecs/util/map.h>
-#include <flecs/util/stats.h>
 #include <flecs/util/os_api.h>
 
 /** -- Builtin module flags -- */
@@ -117,6 +116,7 @@ typedef struct ecs_rows_t {
     float delta_time;            /* Time elapsed since last frame */
     float world_time;            /* Time elapsed since start of simulation */
     uint32_t frame_offset;       /* Offset relative to frame */
+    uint32_t table_offset;       /* Current active table being processed */
     uint32_t offset;             /* Offset relative to current table */
     uint32_t count;              /* Number of rows to process by system */
 
@@ -176,6 +176,21 @@ typedef struct ecs_type_filter_t {
 typedef void (*ecs_system_action_t)(
     ecs_rows_t *data);
 
+/** System enable action callback bitmask */
+typedef enum ecs_system_status_t {
+    EcsSystemStatusNone = 0,
+    EcsSystemEnabled,
+    EcsSystemDisabled,
+    EcsSystemActivated,
+    EcsSystemDeactivated
+} ecs_system_status_t;
+
+typedef void (*ecs_system_status_action_t)(
+    ecs_world_t *world,
+    ecs_entity_t system,
+    ecs_system_status_t status,
+    void *ctx);
+
 /** Initialization function signature of modules */
 typedef void (*ecs_module_init_action_t)(
     ecs_world_t *world,
@@ -192,6 +207,7 @@ typedef void (*ecs_module_init_action_t)(
 #define EEcsId (8)
 #define EEcsHidden (9)
 #define EEcsDisabled (10)
+#define EEcsOnDemand (11)
 
 /* Type handles to builtin components */
 FLECS_EXPORT
@@ -205,8 +221,8 @@ extern ecs_type_t
     TEcsColSystem,
     TEcsId,
     TEcsHidden,
-    TEcsDisabled;
-
+    TEcsDisabled,
+    TEcsOnDemand;
 
 #define ECS_INSTANCEOF ((ecs_entity_t)1 << 63)
 #define ECS_CHILDOF ((ecs_entity_t)1 << 62)
@@ -230,7 +246,8 @@ extern const char
     *ECS_ID_ID,
     *ECS_HIDDEN_ID,
     *ECS_CONTAINER_ID,
-    *ECS_DISABLED_ID;
+    *ECS_DISABLED_ID,
+    *ECS_ON_DEMAND_ID;
 
 /* -- World API -- */
 
@@ -1711,6 +1728,36 @@ void* ecs_get_system_context(
     ecs_world_t *world,
     ecs_entity_t system);
 
+/** Set system status action.
+ * The status action is invoked whenever a system is enabled or disabled. Note
+ * that a system may be enabled but may not actually match any entities. In this
+ * case the system is enabled but not _active_.
+ *
+ * In addition to communicating the enabled / disabled status, the action also
+ * communicates changes in the activation status of the system. A system becomes
+ * active when it has one or more matching entities, and becomes inactive when
+ * it no longer matches any entities.
+ * 
+ * A system switches between enabled and disabled when an application invokes the
+ * ecs_enable operation with a state different from the state of the system, for
+ * example the system is disabled, and ecs_enable is invoked with enabled: true.
+ *
+ * Additionally a system may switch between enabled and disabled when it is an
+ * EcsOnDemand system, and interest is generated or lost for one of its [out]
+ * columns.
+ *
+ * @param world The world.
+ * @param system The system for which to set the action.
+ * @param action The action.
+ * @param ctx Context that will be passed to the action when invoked.
+ */
+FLECS_EXPORT
+void ecs_set_system_status_action(
+    ecs_world_t *world,
+    ecs_entity_t system,
+    ecs_system_status_action_t action,
+    const void *ctx);
+
 /** Obtain a pointer to column data. 
  * This function is to be used inside a system to obtain data from a column in
  * the system signature. The provided index corresponds with the index of the
@@ -2100,6 +2147,7 @@ void _ecs_assert(
 #define ECS_TYPE_TOO_LARGE (32)
 #define ECS_INVALID_PREFAB_CHILD_TYPE (33)
 #define ECS_UNSUPPORTED (34)
+#define ECS_NO_OUT_COLUMNS (35)
 
 /* -- Convenience macro's for wrapping around generated types and entities -- */
 
@@ -2308,6 +2356,10 @@ void _ecs_assert(
 
 /** Calculate offset from address */
 #define ECS_OFFSET(o, offset) (void*)(((uintptr_t)(o)) + ((uintptr_t)(offset)))
+
+
+/* Include stats at the end so it gets all the declarations */
+#include <flecs/util/stats.h>
 
 #ifdef __cplusplus
 }

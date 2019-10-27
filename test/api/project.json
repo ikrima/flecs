@@ -321,7 +321,13 @@
                 "system_w_or_prefab",
                 "system_w_or_disabled",
                 "system_w_or_disabled_and_prefab",
-                "table_columns_access"
+                "table_columns_access",
+                "status_enable_after_new",
+                "status_enable_after_disable",
+                "status_disable_after_new",
+                "status_disable_after_disable",
+                "status_activate_after_new",
+                "status_deactivate_after_delete"
             ]
         }, {
             "id": "SystemOnAdd",
@@ -449,6 +455,34 @@
                 "shared_only"
             ]
         }, {
+            "id": "SystemOnDemand",
+            "testcases": [
+                "enable_out_after_in",
+                "enable_in_after_out",
+                "enable_out_after_in_2_out_1_in",
+                "enable_out_after_in_1_out_2_in",
+                "enable_in_after_out_2_out_1_in",
+                "enable_in_after_out_1_out_2_in",
+                "disable_after_disable_in",
+                "disable_after_disable_in_2_out_1_in",
+                "disable_after_disable_in_1_out_2_in",
+                "table_after_out",
+                "table_after_out_and_in",
+                "table_after_out_and_in_overlapping_columns",
+                "1_out_system_2_in_systems",
+                "1_out_system_2_in_systems_different_columns",
+                "1_out_system_2_in_systems_overlapping_columns",
+                "disable_after_inactive_in_system",
+                "disable_after_2_inactive_in_systems",
+                "disable_after_2_inactive_in_systems_different_columns",
+                "enable_2_output_1_input_system",
+                "enable_2_output_1_input_system_different_columns",
+                "enable_2_output_1_input_system_overlapping_columns",
+                "out_not_column",
+                "trigger_on_manual",
+                "trigger_on_manual_not_column"
+            ]
+        }, {
             "id": "SystemCascade",
             "testcases": [
                 "cascade_depth_1",
@@ -460,7 +494,8 @@
             "id": "SystemManual",
             "testcases": [
                 "1_type_1_component",
-                "disabled"
+                "disabled",
+                "activate_status"
             ]
         }, {
             "id": "Tasks",
@@ -862,7 +897,8 @@
                 "activate_table",
                 "activate_deactivate_table",
                 "activate_deactivate_reactive",
-                "activate_deactivate_activate_other"
+                "activate_deactivate_activate_other",
+                "no_double_system_table_after_merge"
             ]
         }, {
             "id": "Error",

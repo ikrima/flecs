@@ -720,19 +720,15 @@ void ecs_system_activate_table(
 
     if (active) {
         uint32_t dst_count = ecs_vector_count(dst_array);
-        if (kind != EcsManual) {
-            if (dst_count == 1 && system_data->base.enabled) {
-                ecs_world_activate_system(
-                    world, system, kind, true);
-            }
+        if (dst_count == 1 && system_data->base.enabled) {
+            ecs_world_activate_system(
+                world, system, kind, true);
         }
         system_data->tables = dst_array;
     } else {
-        if (kind != EcsManual) {
-            if (src_count == 0) {
-                ecs_world_activate_system(
-                    world, system, kind, false);
-            }
+        if (src_count == 0) {
+            ecs_world_activate_system(
+                world, system, kind, false);
         }
         system_data->inactive_tables = dst_array;
     }
@@ -749,8 +745,7 @@ ecs_entity_t ecs_new_col_system(
 
     ecs_assert(count != 0, ECS_INVALID_PARAMETER, NULL);
 
-    ecs_entity_t result = _ecs_new(
-        world, world->t_col_system);
+    ecs_entity_t result = _ecs_new(world, world->t_col_system);
 
     EcsId *id_data = ecs_get_ptr(world, result, EcsId);
     *id_data = id;
@@ -759,7 +754,7 @@ ecs_entity_t ecs_new_col_system(
     memset(system_data, 0, sizeof(EcsColSystem));
     system_data->base.action = action;
     system_data->base.enabled = true;
-    system_data->base.signature = sig;
+    system_data->base.signature = strdup(sig);
     system_data->base.time_spent = 0;
     system_data->base.columns = ecs_vector_new(&system_column_params, count);
     system_data->base.kind = kind;
@@ -797,9 +792,7 @@ ecs_entity_t ecs_new_col_system(
 
     ecs_entity_t *elem = NULL;
 
-    if (kind == EcsManual) {
-        elem = ecs_vector_add(&world->on_demand_systems, &handle_arr_params);
-    } else if (!ecs_vector_count(system_data->tables)) {
+    if (!ecs_vector_count(system_data->tables)) {
         elem = ecs_vector_add(&world->inactive_systems, &handle_arr_params);
     } else {
         if (kind == EcsOnUpdate) {
@@ -818,6 +811,8 @@ ecs_entity_t ecs_new_col_system(
             elem = ecs_vector_add(&world->pre_store_systems, &handle_arr_params);
         } else if (kind == EcsOnStore) {
             elem = ecs_vector_add(&world->on_store_systems, &handle_arr_params);
+        } else if (kind == EcsManual) {
+            elem = ecs_vector_add(&world->manual_systems, &handle_arr_params);
         }
 
         /* Parameter checking happened before this, kind must have been one of
@@ -920,7 +915,8 @@ ecs_entity_t _ecs_run_w_filter(
         .column_count = column_count,
         .delta_time = system_delta_time,
         .world_time = world->world_time,
-        .frame_offset = offset
+        .frame_offset = offset,
+        .table_offset = 0
     };
 
     for (i = 0; i < table_count; i ++) {
@@ -990,6 +986,7 @@ ecs_entity_t _ecs_run_w_filter(
         action(&info);
 
         info.frame_offset += count;
+        info.table_offset ++;
 
         if (info.interrupted_by) {
             interrupted_by = info.interrupted_by;
