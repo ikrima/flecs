@@ -628,6 +628,7 @@ uint32_t commit(
          * Therefore it is not possible to check while in progress if the entity
          * already existed. Instead, the check will be applied when the entity
          * is merged, which will invoke commit again. */
+
         if (stage->range_check_enabled) {
             ecs_assert(!world->max_handle || entity <= world->max_handle, ECS_OUT_OF_RANGE, 0);
             ecs_assert(entity >= world->min_handle, ECS_OUT_OF_RANGE, 0);
@@ -1161,7 +1162,7 @@ void invoke_reactive_systems(
         /* Delete column from old table. Delete in reverse, as entity indexes of
          * entities after the deletion point change as a result of the delete. */
 
-        int i;
+        uint32_t i;
         for (i = 0; i < count; i ++) {
             ecs_table_delete(
                 world, stage, src_table, src_columns, src_index + count - i);

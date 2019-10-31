@@ -408,10 +408,7 @@ bool match_table(
             }
         } else if (oper_kind == EcsOperNot) {
             if (elem_kind == EcsFromEntity) {
-                ecs_type_t type = ecs_get_type(world, elem->source);
-                if (ecs_type_has_entity(world, type, elem->is.component)) {
-                    return false;
-                }
+                /* Not a table column constraint, is verified by other logic */
             }
         }
     }
@@ -621,6 +618,11 @@ void ecs_rematch_system(
     if (system_data->base.cascade_by) {
         order_cascade_tables(world, system_data);
     }
+
+    /* Enable/disable system if constraints are (not) met. If the system is
+     * already dis/enabled this operation has no side effects. */
+    ecs_enable(world, system, 
+        ecs_check_column_constraints(world, (EcsSystem*)system_data));
 }
 
 /** Revalidate references after a realloc occurred in a table */
@@ -757,6 +759,7 @@ ecs_entity_t ecs_new_col_system(
     system_data->base.signature = strdup(sig);
     system_data->base.time_spent = 0;
     system_data->base.columns = ecs_vector_new(&system_column_params, count);
+    system_data->base.invoke_count = 0;
     system_data->base.kind = kind;
     system_data->base.cascade_by = 0;
     system_data->base.has_refs = false;
@@ -914,7 +917,7 @@ ecs_entity_t _ecs_run_w_filter(
         .param = param,
         .column_count = column_count,
         .delta_time = system_delta_time,
-        .world_time = world->world_time,
+        .world_time = world->world_time_total,
         .frame_offset = offset,
         .table_offset = 0
     };
@@ -997,6 +1000,8 @@ ecs_entity_t _ecs_run_w_filter(
     if (measure_time) {
         system_data->base.time_spent += ecs_time_measure(&time_start);
     }
+    
+    system_data->base.invoke_count ++;
 
     return interrupted_by;
 }

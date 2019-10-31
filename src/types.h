@@ -54,8 +54,8 @@
 
 /** Metadata of an explicitly created type (ECS_TYPE or ecs_new_type) */
 typedef struct EcsTypeComponent {
-    ecs_type_t type;    /* Preserved nested families */
-    ecs_type_t resolved;  /* Resolved nested families */
+    ecs_type_t type;    /* Preserved nested types */
+    ecs_type_t resolved;  /* Resolved nested types */
 } EcsTypeComponent;
 
 /* For prefabs with child entities, the parent prefab must be marked so that
@@ -199,9 +199,10 @@ typedef struct EcsSystem {
     ecs_type_t and_from_shared;      /* Which components are required from entity */
     ecs_type_t and_from_system;    /* Used to auto-add components to system */
     
-    int32_t cascade_by;            /* CASCADE column index */
     EcsSystemKind kind;            /* Kind of system */
-    double time_spent;              /* Time spent on running system */
+    int32_t cascade_by;            /* CASCADE column index */
+    int64_t invoke_count;          /* Number of times system was invoked */
+    double time_spent;             /* Time spent on running system */
     bool enabled;                  /* Is system enabled or not */
     bool has_refs;                 /* Does the system have reference columns */
     bool needs_tables;             /* Does the system need table matching */
@@ -425,11 +426,12 @@ struct ecs_world {
 
     /* -- Lookup Indices -- */
 
-    ecs_map_t *prefab_parent_index;   /* Index to find flag for prefab parent */
     ecs_map_t *type_sys_add_index;    /* Index to find add row systems for type */
     ecs_map_t *type_sys_remove_index; /* Index to find remove row systems for type*/
     ecs_map_t *type_sys_set_index;    /* Index to find set row systems for type */
-    ecs_map_t *type_handles;          /* Handles to named families */
+    
+    ecs_map_t *prefab_parent_index;   /* Index to find flag for prefab parent */
+    ecs_map_t *type_handles;          /* Handles to named types */
 
 
     /* -- Staging -- */
@@ -454,7 +456,7 @@ struct ecs_world {
     ecs_entity_t max_handle;         /* Last allowed handle */
 
 
-    /* -- Handles to builtin components families -- */
+    /* -- Handles to builtin components types -- */
 
     ecs_type_t t_component;
     ecs_type_t t_type;
@@ -466,14 +468,19 @@ struct ecs_world {
 
     /* -- Time management -- */
 
-    uint32_t tick;                /* Number of computed frames by world */
-    ecs_time_t frame_start;       /* Starting timestamp of frame */
-    float frame_time;             /* Time spent processing a frame */
-    float system_time;            /* Time spent processing systems */
-    float merge_time;             /* Time spent on merging */
+    ecs_time_t world_start_time;  /* Timestamp of simulation start */
+    ecs_time_t frame_start_time;  /* Timestamp of frame start */
     float target_fps;             /* Target fps */
     float fps_sleep;              /* Sleep time to prevent fps overshoot */
-    float world_time;             /* Time since start of simulation */
+
+
+    /* -- Metrics -- */
+
+    double frame_time_total;      /* Total time spent in processing a frame */
+    double system_time_total;     /* Total time spent in periodic systems */
+    double merge_time_total;      /* Total time spent in merges */
+    double world_time_total;      /* Time elapsed since first frame */
+    uint32_t frame_count_total;   /* Total number of frames */
 
 
     /* -- Settings from command line arguments -- */

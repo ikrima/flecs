@@ -196,6 +196,13 @@ typedef void (*ecs_module_init_action_t)(
     ecs_world_t *world,
     int flags);
 
+#define ECS_INSTANCEOF ((ecs_entity_t)1 << 63)
+#define ECS_CHILDOF ((ecs_entity_t)1 << 62)
+#define ECS_ENTITY_FLAGS_MASK ((ecs_entity_t)(ECS_INSTANCEOF | ECS_CHILDOF))
+#define ECS_ENTITY_MASK ((ecs_entity_t)~ECS_ENTITY_FLAGS_MASK)
+#define ECS_SINGLETON ((ecs_entity_t)(ECS_ENTITY_MASK) - 1)
+#define ECS_INVALID_ENTITY (0)    
+
 /** Handles to builtin components */
 #define EEcsComponent (1)
 #define EEcsTypeComponent (2)
@@ -208,6 +215,12 @@ typedef void (*ecs_module_init_action_t)(
 #define EEcsHidden (9)
 #define EEcsDisabled (10)
 #define EEcsOnDemand (11)
+
+/* World entity */
+#define EcsWorld (13)
+
+/* Singleton entity */
+#define EcsSingleton (ECS_SINGLETON)
 
 /* Type handles to builtin components */
 FLECS_EXPORT
@@ -223,13 +236,6 @@ extern ecs_type_t
     TEcsHidden,
     TEcsDisabled,
     TEcsOnDemand;
-
-#define ECS_INSTANCEOF ((ecs_entity_t)1 << 63)
-#define ECS_CHILDOF ((ecs_entity_t)1 << 62)
-#define ECS_ENTITY_FLAGS_MASK ((ecs_entity_t)(ECS_INSTANCEOF | ECS_CHILDOF))
-#define ECS_ENTITY_MASK ((ecs_entity_t)~ECS_ENTITY_FLAGS_MASK)
-#define ECS_SINGLETON ((ecs_entity_t)(ECS_ENTITY_MASK) - 1)
-#define ECS_INVALID_ENTITY (0)
 
 /* This allows passing 0 as type to functions that accept types */
 #define T0 (0)
@@ -1167,7 +1173,7 @@ ecs_entity_t _ecs_set_singleton_ptr(
 
 /** Check if entity has the specified type.
  * This operation checks if the entity has the components associated with the
- * specified type. It accepts component handles, families and prefabs.
+ * specified type. It accepts component handles, types and prefabs.
  *
  * For example, if an entity has component 'Foo' and a type has 'Foo, Bar'
  * invoking this function with the entity and type as type will return false
@@ -1202,7 +1208,7 @@ bool _ecs_has_owned(
 
 /** Check if entity has any of the components in the specified type.
  * This operation checks if the entity has any of the components associated with
- * the specified type. It accepts component handles, families and prefabs.
+ * the specified type. It accepts component handles, types and prefabs.
  *
  * For example, if an entity has component 'Foo' and a type has 'Foo, Bar'
  * invoking this function with the entity and type as type will return true
@@ -2054,7 +2060,7 @@ ecs_entity_t ecs_new_type(
  *
  * Entities can override components from a prefab by adding the component with
  * ecs_add. When a component is overridden, its value will be copied from the
- * prefab. This technique can be combined with families to automatically
+ * prefab. This technique can be combined with types to automatically
  * initialize entities, like this:
  *
  * ECS_PREFAB(world, MyPrefab, Foo);

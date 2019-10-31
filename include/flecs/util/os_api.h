@@ -13,6 +13,12 @@
 extern "C" {
 #endif
 
+/* Allocation counters (not thread safe) */
+extern uint64_t ecs_os_api_malloc_count;
+extern uint64_t ecs_os_api_realloc_count;
+extern uint64_t ecs_os_api_calloc_count;
+extern uint64_t ecs_os_api_free_count;
+
 /* Use handle types that _at least_ can store pointers */
 typedef uintptr_t ecs_os_thread_t;
 typedef uintptr_t ecs_os_cond_t;
@@ -266,6 +272,17 @@ void ecs_sleepf(
 FLECS_EXPORT
 double ecs_time_measure(
     ecs_time_t *start);
+
+/* Calculate difference between two timestamps */
+FLECS_EXPORT
+ecs_time_t ecs_time_sub(
+    ecs_time_t t1,
+    ecs_time_t t2);
+
+/* Convert time value to a double */
+FLECS_EXPORT
+double ecs_time_to_double(
+    ecs_time_t t);
 
 #ifdef __cplusplus
 }

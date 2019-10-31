@@ -436,6 +436,8 @@ void SystemOnDemand_enable_2_output_1_input_system_overlapping_columns(void);
 void SystemOnDemand_out_not_column(void);
 void SystemOnDemand_trigger_on_manual(void);
 void SystemOnDemand_trigger_on_manual_not_column(void);
+void SystemOnDemand_on_demand_task_w_from_entity(void);
+void SystemOnDemand_on_demand_task_w_not_from_entity(void);
 
 // Testsuite 'SystemCascade'
 void SystemCascade_cascade_depth_1(void);
@@ -588,6 +590,8 @@ void System_w_FromSystem_auto_add_tag(void);
 
 // Testsuite 'System_w_FromEntity'
 void System_w_FromEntity_2_column_1_from_entity(void);
+void System_w_FromEntity_task_from_entity(void);
+void System_w_FromEntity_task_not_from_entity(void);
 
 // Testsuite 'World'
 void World_progress_w_0(void);
@@ -612,7 +616,7 @@ void World_control_fps_busy_system(void);
 void World_control_fps_busy_app(void);
 void World_control_fps_random_system(void);
 void World_control_fps_random_app(void);
-void World_basic_stats(void);
+void World_world_stats(void);
 void World_quit(void);
 void World_get_delta_time(void);
 void World_get_delta_time_auto(void);
@@ -2409,7 +2413,7 @@ static bake_test_suite suites[] = {
     },
     {
         .id = "SystemOnDemand",
-        .testcase_count = 24,
+        .testcase_count = 26,
         .testcases = (bake_test_case[]){
             {
                 .id = "enable_out_after_in",
@@ -2506,6 +2510,14 @@ static bake_test_suite suites[] = {
             {
                 .id = "trigger_on_manual_not_column",
                 .function = SystemOnDemand_trigger_on_manual_not_column
+            },
+            {
+                .id = "on_demand_task_w_from_entity",
+                .function = SystemOnDemand_on_demand_task_w_from_entity
+            },
+            {
+                .id = "on_demand_task_w_not_from_entity",
+                .function = SystemOnDemand_on_demand_task_w_not_from_entity
             }
         }
     },
@@ -3091,11 +3103,19 @@ static bake_test_suite suites[] = {
     },
     {
         .id = "System_w_FromEntity",
-        .testcase_count = 1,
+        .testcase_count = 3,
         .testcases = (bake_test_case[]){
             {
                 .id = "2_column_1_from_entity",
                 .function = System_w_FromEntity_2_column_1_from_entity
+            },
+            {
+                .id = "task_from_entity",
+                .function = System_w_FromEntity_task_from_entity
+            },
+            {
+                .id = "task_not_from_entity",
+                .function = System_w_FromEntity_task_not_from_entity
             }
         }
     },
@@ -3192,8 +3212,8 @@ static bake_test_suite suites[] = {
                 .function = World_control_fps_random_app
             },
             {
-                .id = "basic_stats",
-                .function = World_basic_stats
+                .id = "world_stats",
+                .function = World_world_stats
             },
             {
                 .id = "quit",
