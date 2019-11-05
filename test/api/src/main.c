@@ -216,6 +216,7 @@ void Set_set_remove(void);
 void Set_set_remove_other(void);
 void Set_set_remove_twice(void);
 void Set_set_and_new(void);
+void Set_set_null(void);
 
 // Testsuite 'Lookup'
 void Lookup_lookup(void);
@@ -797,6 +798,7 @@ void SingleThreadStaging_merge_table_w_container_added_on_set(void);
 void SingleThreadStaging_merge_table_w_container_added_on_set_reverse(void);
 void SingleThreadStaging_merge_after_tasks(void);
 void SingleThreadStaging_override_after_remove_in_progress(void);
+void SingleThreadStaging_get_parent_in_progress(void);
 
 // Testsuite 'MultiThreadStaging'
 void MultiThreadStaging_2_threads_add_to_current(void);
@@ -1599,7 +1601,7 @@ static bake_test_suite suites[] = {
     },
     {
         .id = "Set",
-        .testcase_count = 12,
+        .testcase_count = 13,
         .testcases = (bake_test_case[]){
             {
                 .id = "set_empty",
@@ -1648,6 +1650,10 @@ static bake_test_suite suites[] = {
             {
                 .id = "set_and_new",
                 .function = Set_set_and_new
+            },
+            {
+                .id = "set_null",
+                .function = Set_set_null
             }
         }
     },
@@ -3669,7 +3675,7 @@ static bake_test_suite suites[] = {
     },
     {
         .id = "SingleThreadStaging",
-        .testcase_count = 64,
+        .testcase_count = 65,
         .testcases = (bake_test_case[]){
             {
                 .id = "new_empty",
@@ -3926,6 +3932,10 @@ static bake_test_suite suites[] = {
             {
                 .id = "override_after_remove_in_progress",
                 .function = SingleThreadStaging_override_after_remove_in_progress
+            },
+            {
+                .id = "get_parent_in_progress",
+                .function = SingleThreadStaging_get_parent_in_progress
             }
         }
     },
