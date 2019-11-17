@@ -406,6 +406,8 @@ void col_systems_deinit(
     for (i = 0; i < count; i ++) {
         EcsColSystem *ptr = ecs_get_ptr(world, buffer[i], EcsColSystem);
 
+        ecs_os_free(ptr->base.signature);
+
         /* Invoke Deactivated action for active systems */
         if (ecs_vector_count(ptr->tables)) {
             ecs_invoke_status_action(world, buffer[i], ptr, EcsSystemDeactivated);
@@ -447,6 +449,7 @@ void row_systems_deinit(
 
     for (i = 0; i < count; i ++) {
         EcsRowSystem *ptr = ecs_get_ptr(world, buffer[i], EcsRowSystem);
+        ecs_os_free(ptr->base.signature);
         ecs_vector_free(ptr->base.columns);
         ecs_vector_free(ptr->components);
     }
@@ -688,7 +691,7 @@ ecs_world_t *ecs_init(void) {
     world->should_match = false;
 
     world->frame_start_time = (ecs_time_t){0, 0};
-    world->world_start_time = (ecs_time_t){0, 0};
+    ecs_os_get_time(&world->world_start_time);
     world->target_fps = 0;
     world->fps_sleep = 0;
 
@@ -696,6 +699,7 @@ ecs_world_t *ecs_init(void) {
     world->system_time_total = 0;
     world->merge_time_total = 0;
     world->frame_count_total = 0;
+    world->world_time_total = 0;
 
     world->context = NULL;
 
@@ -813,6 +817,20 @@ ecs_world_t* ecs_init_w_args(
     return world;
 }
 
+static
+void on_demand_in_map_deinit(
+    ecs_map_t *map)
+{
+    ecs_map_iter_t it = ecs_map_iter(map);
+
+    while (ecs_map_hasnext(&it)) {
+        ecs_on_demand_in_t *elem = ecs_map_next(&it);
+        ecs_vector_free(elem->systems);
+    }
+
+    ecs_map_free(map);
+}
+
 int ecs_fini(
     ecs_world_t *world)
 {
@@ -858,6 +876,9 @@ int ecs_fini(
     ecs_stage_deinit(world, &world->main_stage);
     ecs_stage_deinit(world, &world->temp_stage);
 
+    on_demand_in_map_deinit(world->on_activate_components);
+    on_demand_in_map_deinit(world->on_enable_components);
+
     ecs_vector_free(world->on_update_systems);
     ecs_vector_free(world->on_validate_systems);
     ecs_vector_free(world->pre_update_systems);
@@ -874,6 +895,8 @@ int ecs_fini(
     ecs_vector_free(world->add_systems);
     ecs_vector_free(world->remove_systems);
     ecs_vector_free(world->set_systems);
+
+
 
     world->magic = 0;
 
