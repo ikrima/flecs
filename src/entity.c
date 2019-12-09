@@ -1047,6 +1047,31 @@ ecs_entity_t _ecs_new(
     return entity;
 }
 
+ecs_entity_t _ecs_new_w_eid(
+    ecs_world_t *world,
+    ecs_type_t type,
+    ecs_entity_t entity)
+{
+    ecs_assert(world != NULL, ECS_INVALID_PARAMETER, NULL);
+
+    ecs_stage_t *stage = ecs_get_stage(&world);
+
+    ecs_assert(!world->is_merging, ECS_INVALID_WHILE_MERGING, NULL);
+
+    ecs_assert(!world->max_handle || entity <= world->max_handle, 
+        ECS_OUT_OF_RANGE, NULL);
+
+    if (type) {
+        ecs_entity_info_t info = {
+            .entity = entity
+        };
+
+        commit(world, stage, &info, type, type, 0, true);
+    }
+
+    return entity;
+}
+
 static
 bool has_unset_columns(
     ecs_type_t type,
