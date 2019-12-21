@@ -127,6 +127,7 @@ ecs_table_t* bootstrap_component_table(
     result->frame_systems = NULL;
     result->flags = 0;
     result->columns = ecs_os_malloc(sizeof(ecs_table_column_t) * 3);
+    result->flags |= EcsTableHasBuiltins;
     
     ecs_assert(result->columns != NULL, ECS_OUT_OF_MEMORY, NULL);
 
@@ -396,6 +397,29 @@ ecs_stage_t *ecs_get_stage(
 }
 
 static
+void col_systems_deinit_handlers(
+    ecs_world_t *world,
+    ecs_vector_t *systems)
+{
+    uint32_t i, count = ecs_vector_count(systems);
+    ecs_entity_t *buffer = ecs_vector_first(systems);
+
+    for (i = 0; i < count; i ++) {
+        EcsColSystem *ptr = ecs_get_ptr(world, buffer[i], EcsColSystem);
+
+        /* Invoke Deactivated action for active systems */
+        if (ecs_vector_count(ptr->tables)) {
+            ecs_invoke_status_action(world, buffer[i], ptr, EcsSystemDeactivated);
+        }
+
+        /* Invoke Disabled action for enabled systems */
+        if (ptr->base.enabled) {
+            ecs_invoke_status_action(world, buffer[i], ptr, EcsSystemDisabled);
+        }    
+    }
+}
+
+static
 void col_systems_deinit(
     ecs_world_t *world,
     ecs_vector_t *systems)
@@ -407,16 +431,6 @@ void col_systems_deinit(
         EcsColSystem *ptr = ecs_get_ptr(world, buffer[i], EcsColSystem);
 
         ecs_os_free(ptr->base.signature);
-
-        /* Invoke Deactivated action for active systems */
-        if (ecs_vector_count(ptr->tables)) {
-            ecs_invoke_status_action(world, buffer[i], ptr, EcsSystemDeactivated);
-        }
-
-        /* Invoke Disabled action for enabled systems */
-        if (ptr->base.enabled) {
-            ecs_invoke_status_action(world, buffer[i], ptr, EcsSystemDisabled);
-        }
 
         ecs_vector_free(ptr->base.columns);
         ecs_vector_free(ptr->jobs);
@@ -621,6 +635,8 @@ ecs_world_t *ecs_init(void) {
     ecs_assert(ecs_os_api.realloc != NULL, ECS_MISSING_OS_API, "realloc");
     ecs_assert(ecs_os_api.calloc != NULL, ECS_MISSING_OS_API, "calloc");
 
+    bool time_ok = true;
+
 #ifndef NDEBUG
     bool thr_ok = true;
     if (!ecs_os_api.mutex_new) {thr_ok = false; no_threading("mutex_new");}
@@ -638,7 +654,6 @@ ecs_world_t *ecs_init(void) {
         ecs_os_dbg("threading available");
     }
 
-    bool time_ok = true;
     if (!ecs_os_api.get_time) {time_ok = false; no_time("get_time");}
     if (!ecs_os_api.sleep) {time_ok = false; no_time("sleep");}
     if (time_ok) {
@@ -691,7 +706,9 @@ ecs_world_t *ecs_init(void) {
     world->should_match = false;
 
     world->frame_start_time = (ecs_time_t){0, 0};
-    ecs_os_get_time(&world->world_start_time);
+    if (time_ok) {
+        ecs_os_get_time(&world->world_start_time);
+    }
     world->target_fps = 0;
     world->fps_sleep = 0;
 
@@ -807,6 +824,8 @@ ecs_world_t* ecs_init_w_args(
 				ecs_enable_admin(world, atoi(argv[i + 1]));
                 i ++);
 
+            ARG(0, "console", ecs_enable_console(world));
+
             /* Ignore arguments that were not parsed */
             (void)parsed;
         } else {
@@ -851,6 +870,17 @@ int ecs_fini(
     }
 
     deinit_tables(world);
+
+    col_systems_deinit_handlers(world, world->on_update_systems);
+    col_systems_deinit_handlers(world, world->on_validate_systems);
+    col_systems_deinit_handlers(world, world->pre_update_systems);
+    col_systems_deinit_handlers(world, world->post_update_systems);
+    col_systems_deinit_handlers(world, world->on_load_systems);
+    col_systems_deinit_handlers(world, world->post_load_systems);
+    col_systems_deinit_handlers(world, world->pre_store_systems);
+    col_systems_deinit_handlers(world, world->on_store_systems);
+    col_systems_deinit_handlers(world, world->manual_systems);
+    col_systems_deinit_handlers(world, world->inactive_systems);
 
     col_systems_deinit(world, world->on_update_systems);
     col_systems_deinit(world, world->on_validate_systems);
@@ -1349,8 +1379,10 @@ void ecs_set_target_fps(
     }
 }
 
-/* Spoof EcsAdmin type (needed until we have proper reflection) */
+/* Mock types so we don't have to depend on them. 
+ * TODO: Need a better workaround */
 typedef uint16_t EcsAdmin;
+typedef uint32_t EcsConsole;
 
 int ecs_enable_admin(
 	ecs_world_t* world,
@@ -1378,7 +1410,24 @@ int ecs_enable_admin(
     ecs_entity_t EEcsAdmin = ecs_lookup(world, "EcsAdmin");
     ecs_set(world, 0, EcsAdmin, {port});
 
-    ecs_os_log("Admin is running on port %d", port);
+    ecs_os_log("admin is running on port %d", port);
+
+    return 0;
+}
+
+int ecs_enable_console(
+	ecs_world_t* world)
+{
+    if (ecs_import_from_library(
+        world, "flecs.systems.console", NULL, 0) == ECS_INVALID_ENTITY) 
+    {
+        ecs_os_err("Failed to load flecs.systems.console");
+        return 1;
+    }
+
+    /* Create console instance */
+    ecs_entity_t EEcsConsole = ecs_lookup(world, "EcsConsole");
+    ecs_set(world, 0, EcsConsole, {0});
 
     return 0;
 }

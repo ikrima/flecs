@@ -202,6 +202,8 @@ void Delete_w_filter_delete_with_any_of_2(void);
 void Delete_w_filter_delete_except_all_of_2(void);
 void Delete_w_filter_include_exact(void);
 void Delete_w_filter_exclude_exact(void);
+void Delete_w_filter_system_activate_test(void);
+void Delete_w_filter_skip_builtin_tables(void);
 
 // Testsuite 'Set'
 void Set_set_empty(void);
@@ -810,6 +812,31 @@ void MultiThreadStaging_stress_create_delete_entity_random_components(void);
 void MultiThreadStaging_stress_set_entity_random_components(void);
 void MultiThreadStaging_2_threads_on_add(void);
 void MultiThreadStaging_new_w_count(void);
+
+// Testsuite 'Snapshot'
+void Snapshot_simple_snapshot(void);
+void Snapshot_snapshot_after_new(void);
+void Snapshot_snapshot_after_delete(void);
+void Snapshot_snapshot_after_new_type(void);
+void Snapshot_snapshot_after_add(void);
+void Snapshot_snapshot_after_remove(void);
+void Snapshot_snapshot_w_include_filter(void);
+void Snapshot_snapshot_w_exclude_filter(void);
+void Snapshot_snapshot_w_filter_after_new(void);
+void Snapshot_snapshot_w_filter_after_delete(void);
+void Snapshot_snapshot_free_empty(void);
+void Snapshot_snapshot_free(void);
+void Snapshot_snapshot_free_filtered(void);
+void Snapshot_snapshot_activate_table_w_filter(void);
+
+// Testsuite 'FilterIter'
+void FilterIter_iter_one_table(void);
+void FilterIter_iter_two_tables(void);
+void FilterIter_iter_two_comps(void);
+void FilterIter_iter_snapshot_one_table(void);
+void FilterIter_iter_snapshot_two_tables(void);
+void FilterIter_iter_snapshot_two_comps(void);
+void FilterIter_iter_snapshot_filtered_table(void);
 
 // Testsuite 'Modules'
 void Modules_simple_module(void);
@@ -1555,7 +1582,7 @@ static bake_test_suite suites[] = {
     },
     {
         .id = "Delete_w_filter",
-        .testcase_count = 10,
+        .testcase_count = 12,
         .testcases = (bake_test_case[]){
             {
                 .id = "delete_1",
@@ -1596,6 +1623,14 @@ static bake_test_suite suites[] = {
             {
                 .id = "exclude_exact",
                 .function = Delete_w_filter_exclude_exact
+            },
+            {
+                .id = "system_activate_test",
+                .function = Delete_w_filter_system_activate_test
+            },
+            {
+                .id = "skip_builtin_tables",
+                .function = Delete_w_filter_skip_builtin_tables
             }
         }
     },
@@ -3982,6 +4017,102 @@ static bake_test_suite suites[] = {
         }
     },
     {
+        .id = "Snapshot",
+        .testcase_count = 14,
+        .testcases = (bake_test_case[]){
+            {
+                .id = "simple_snapshot",
+                .function = Snapshot_simple_snapshot
+            },
+            {
+                .id = "snapshot_after_new",
+                .function = Snapshot_snapshot_after_new
+            },
+            {
+                .id = "snapshot_after_delete",
+                .function = Snapshot_snapshot_after_delete
+            },
+            {
+                .id = "snapshot_after_new_type",
+                .function = Snapshot_snapshot_after_new_type
+            },
+            {
+                .id = "snapshot_after_add",
+                .function = Snapshot_snapshot_after_add
+            },
+            {
+                .id = "snapshot_after_remove",
+                .function = Snapshot_snapshot_after_remove
+            },
+            {
+                .id = "snapshot_w_include_filter",
+                .function = Snapshot_snapshot_w_include_filter
+            },
+            {
+                .id = "snapshot_w_exclude_filter",
+                .function = Snapshot_snapshot_w_exclude_filter
+            },
+            {
+                .id = "snapshot_w_filter_after_new",
+                .function = Snapshot_snapshot_w_filter_after_new
+            },
+            {
+                .id = "snapshot_w_filter_after_delete",
+                .function = Snapshot_snapshot_w_filter_after_delete
+            },
+            {
+                .id = "snapshot_free_empty",
+                .function = Snapshot_snapshot_free_empty
+            },
+            {
+                .id = "snapshot_free",
+                .function = Snapshot_snapshot_free
+            },
+            {
+                .id = "snapshot_free_filtered",
+                .function = Snapshot_snapshot_free_filtered
+            },
+            {
+                .id = "snapshot_activate_table_w_filter",
+                .function = Snapshot_snapshot_activate_table_w_filter
+            }
+        }
+    },
+    {
+        .id = "FilterIter",
+        .testcase_count = 7,
+        .testcases = (bake_test_case[]){
+            {
+                .id = "iter_one_table",
+                .function = FilterIter_iter_one_table
+            },
+            {
+                .id = "iter_two_tables",
+                .function = FilterIter_iter_two_tables
+            },
+            {
+                .id = "iter_two_comps",
+                .function = FilterIter_iter_two_comps
+            },
+            {
+                .id = "iter_snapshot_one_table",
+                .function = FilterIter_iter_snapshot_one_table
+            },
+            {
+                .id = "iter_snapshot_two_tables",
+                .function = FilterIter_iter_snapshot_two_tables
+            },
+            {
+                .id = "iter_snapshot_two_comps",
+                .function = FilterIter_iter_snapshot_two_comps
+            },
+            {
+                .id = "iter_snapshot_filtered_table",
+                .function = FilterIter_iter_snapshot_filtered_table
+            }
+        }
+    },
+    {
         .id = "Modules",
         .testcase_count = 5,
         .testcases = (bake_test_case[]){
@@ -4092,5 +4223,5 @@ static bake_test_suite suites[] = {
 
 int main(int argc, char *argv[]) {
     ut_init(argv[0]);
-    return bake_test_run("api", argc, argv, suites, 39);
+    return bake_test_run("api", argc, argv, suites, 41);
 }

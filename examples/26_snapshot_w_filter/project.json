@@ -1,5 +1,5 @@
 {
-    "id": "get_children",
+    "id": "snapshot_w_filter",
     "type": "application",
     "value": {
         "author": "Jane Doe",
