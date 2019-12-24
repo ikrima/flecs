@@ -1558,7 +1558,7 @@ ecs_entity_t ecs_import_from_library(
         }
         *bptr = '\0';
 
-        module = strdup(import_func);
+        module = ecs_os_strdup(import_func);
 
         strcat(bptr, "Import");
     }
