@@ -107,19 +107,25 @@ void add_table(
 
     table_data->table = table;
     table_data->references = NULL;
+    table_data->columns = NULL;
+    table_data->components = NULL;
 
-    /* Array that contains the system column to table column mapping */
-    table_data->columns = ecs_os_malloc(sizeof(uint32_t) * column_count);
+    if (column_count) {
+        /* Array that contains the system column to table column mapping */
+        table_data->columns = ecs_os_malloc(sizeof(uint32_t) * column_count);
+        ecs_assert(table_data->columns != NULL, ECS_OUT_OF_MEMORY, NULL);
 
-    /* Store the components of the matched table. In the case of OR expressions,
-     * components may differ per matched table. */
-    table_data->components = ecs_os_malloc(sizeof(ecs_entity_t) * column_count);
+        /* Store the components of the matched table. In the case of OR expressions,
+        * components may differ per matched table. */
+        table_data->components = ecs_os_malloc(sizeof(ecs_entity_t) * column_count);
+        ecs_assert(table_data->components != NULL, ECS_OUT_OF_MEMORY, NULL);
+    }
 
     /* Walk columns parsed from the system signature */
     ecs_system_column_t *columns = ecs_vector_first(system_data->base.columns);
-    uint32_t c, count = ecs_vector_count(system_data->base.columns);
+    uint32_t c;
 
-    for (c = 0; c < count; c ++) {
+    for (c = 0; c < column_count; c ++) {
         ecs_system_column_t *column = &columns[c];
         ecs_entity_t entity = 0, component = 0;
         ecs_system_expr_elem_kind_t kind = column->kind;
@@ -252,12 +258,12 @@ void add_table(
                     } else {
                         e = ecs_get_entity_for_component(
                             world, entity, table_type, component);
-
-                        if (kind != EcsCascade) {
-                            ecs_assert(e != 0, ECS_INTERNAL_ERROR, NULL);
-                        }
                     }
 
+                    if (kind != EcsCascade) {
+                        ecs_assert(e != 0, ECS_INTERNAL_ERROR, NULL);
+                    }
+                    
                     ref->entity = e;
                     ref->component = component;
                     
@@ -822,7 +828,7 @@ ecs_entity_t ecs_new_col_system(
     system_data->base.kind = kind;
     system_data->base.cascade_by = 0;
     system_data->base.has_refs = false;
-    system_data->base.needs_tables = ecs_needs_tables(world, sig);
+    system_data->base.needs_tables = ecs_needs_tables(world, sig, id);
 
     system_data->column_params.element_size = sizeof(int32_t) * (count);
     system_data->ref_params.element_size = sizeof(ecs_reference_t) * count;
@@ -836,7 +842,7 @@ ecs_entity_t ecs_new_col_system(
         &matched_table_params, ECS_SYSTEM_INITIAL_TABLE_COUNT);
 
     ecs_parse_component_expr(
-        world, sig, ecs_parse_signature_action, system_data);
+        world, sig, ecs_parse_signature_action, id, system_data);
 
     ecs_system_compute_and_families(world, &system_data->base);
 
@@ -978,7 +984,8 @@ ecs_entity_t _ecs_run_w_filter(
         .delta_time = system_delta_time,
         .world_time = world->world_time_total,
         .frame_offset = offset,
-        .table_offset = 0
+        .table_offset = 0,
+        .system_data = &system_data->base
     };
 
     for (i = 0; i < table_count; i ++) {

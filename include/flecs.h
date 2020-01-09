@@ -86,8 +86,6 @@ typedef void (*ecs_module_init_action_t)(
     ecs_world_t *world,
     int flags);    
 
-#include <flecs/util/api_support.h>
-
 /** Types that describe a type filter.
  * Filters provide a quick mechanism to query entities or run operations on
  * entities of one or more types. Filters contain a components to include and
@@ -124,18 +122,18 @@ typedef void (*ecs_module_init_action_t)(
  * When the kind is left to EcsMatchDefault, the include_kind will be set to
  * EcsMatchAll, while the exclude_kind will be set to EcsMatchAny.
  */
-typedef enum ecs_filter_kind_t {
+typedef enum ecs_match_kind_t {
     EcsMatchDefault = 0,
     EcsMatchAll,
     EcsMatchAny,
     EcsMatchExact
-} ecs_filter_kind_t;
+} ecs_match_kind_t;
 
 typedef struct ecs_filter_t {
     ecs_type_t include;
     ecs_type_t exclude;
-    ecs_filter_kind_t include_kind;
-    ecs_filter_kind_t exclude_kind;
+    ecs_match_kind_t include_kind;
+    ecs_match_kind_t exclude_kind;
 } ecs_filter_t;
 
 /** The ecs_rows_t struct passes data from a system to a system callback.  */
@@ -147,6 +145,7 @@ struct ecs_rows_t {
     uint16_t column_count;       /* Number of columns for system */
     void *table;                 /* Opaque structure with reference to table */
     void *table_columns;         /* Opaque structure with table column data */
+    void *system_data;           /* Opaque strucutre with system internals */
     ecs_reference_t *references; /* References to other entities */
     ecs_entity_t *components;    /* System-table specific list of components */
     ecs_entity_t *entities;      /* Entity row */
@@ -175,10 +174,18 @@ typedef struct EcsComponent {
     uint32_t size;
 } EcsComponent;
 
+/** Metadata of an explicitly created type (ECS_TYPE or ecs_new_type) */
+typedef struct EcsTypeComponent {
+    ecs_type_t type;    /* Preserved nested types */
+    ecs_type_t resolved;  /* Resolved nested types */
+} EcsTypeComponent;
+
 /** Component used to create prefabs and prefab hierarchies */
 typedef struct EcsPrefab {
     ecs_entity_t parent;
 } EcsPrefab;
+
+#include <flecs/util/api_support.h>
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -853,7 +860,7 @@ void ecs_delete(
 FLECS_EXPORT
 void ecs_delete_w_filter(
     ecs_world_t *world,
-    ecs_filter_t *filter);
+    const ecs_filter_t *filter);
 
 /** Add a type to an entity.
  * This operation will add one or more components (as per the specified type) to
@@ -877,6 +884,13 @@ void _ecs_add(
 #define ecs_add(world, entity, type)\
     _ecs_add(world, entity, T##type)
 
+/** Add single entity to entity */
+FLECS_EXPORT
+void ecs_add_entity(
+    ecs_world_t *world,
+    ecs_entity_t entity,
+    ecs_entity_t to_add);
+
 /** Remove a type from an entity.
  * This operation will remove one or more components (as per the specified type)
  * from an entity. If the entity contained a subset of the components in the
@@ -898,6 +912,13 @@ void _ecs_remove(
 
 #define ecs_remove(world, entity, type)\
     _ecs_remove(world, entity, T##type)
+
+/** Add single entity to entity */
+FLECS_EXPORT
+void ecs_remove_entity(
+    ecs_world_t *world,
+    ecs_entity_t entity,
+    ecs_entity_t to_remove);
 
 /** Add and remove types from an entity.
  * This operation is a combination of ecs_add and ecs_remove. The operation
@@ -1015,7 +1036,7 @@ void _ecs_add_remove_w_filter(
     ecs_world_t *world,
     ecs_type_t to_add,
     ecs_type_t to_remove,
-    ecs_filter_t *filter);
+    const ecs_filter_t *filter);
 
 #define ecs_add_remove_w_filter(world, to_add, to_remove, filter)\
     _ecs_add_remove_w_filter(world, ecs_type(to_add), ecs_type(to_remove), filter)
@@ -1075,7 +1096,7 @@ ecs_entity_t _ecs_set_ptr(
     ecs_entity_t entity,
     ecs_entity_t component,
     size_t size,
-    void *ptr);
+    const void *ptr);
 
 #define ecs_set_ptr(world, entity, component, ptr)\
     _ecs_set_ptr(world, entity, ecs_entity(component), sizeof(component), ptr)
@@ -1156,6 +1177,12 @@ bool ecs_has_entity(
     ecs_world_t *world,
     ecs_entity_t entity,
     ecs_entity_t component);
+
+FLECS_EXPORT
+bool ecs_has_entity_owned(
+    ecs_world_t *world,
+    ecs_entity_t entity,
+    ecs_entity_t component);    
 
 /** Check if parent entity contains child entity.
  * This function tests if the specified parent entity has been added to the
@@ -1249,6 +1276,12 @@ uint32_t _ecs_count(
 
 #define ecs_count(world, type) _ecs_count(world, ecs_type(type))
 
+/** Same as ecs_count but with a filter */
+FLECS_EXPORT
+uint32_t ecs_count_w_filter(
+    ecs_world_t *world,
+    const ecs_filter_t *filter);
+
 /** Lookup an entity by id.
  * This operation is a convenient way to lookup entities by string identifier
  * that have the EcsId component. It is recommended to cache the result of this
@@ -1315,7 +1348,7 @@ ecs_entity_t ecs_lookup_child(
  */
 FLECS_EXPORT
 void* _ecs_column(
-    ecs_rows_t *rows,
+    const ecs_rows_t *rows,
     size_t size,
     uint32_t column);
 
@@ -1345,7 +1378,7 @@ void* _ecs_column(
  */
 FLECS_EXPORT
 bool ecs_is_shared(
-    ecs_rows_t *rows,
+    const ecs_rows_t *rows,
     uint32_t column);
 
 /** Obtain a single field. 
@@ -1365,7 +1398,7 @@ bool ecs_is_shared(
  */
 FLECS_EXPORT
 void *_ecs_field(
-    ecs_rows_t *rows,
+    const ecs_rows_t *rows,
     size_t size,
     uint32_t column,
     uint32_t row);
@@ -1393,7 +1426,7 @@ void *_ecs_field(
  */
 FLECS_EXPORT
 ecs_entity_t ecs_column_source(
-    ecs_rows_t *rows,
+    const ecs_rows_t *rows,
     uint32_t column);
 
 /** Obtain the component for a column inside a system.
@@ -1416,7 +1449,7 @@ ecs_entity_t ecs_column_source(
  */
 FLECS_EXPORT
 ecs_entity_t ecs_column_entity(
-    ecs_rows_t *rows,
+    const ecs_rows_t *rows,
     uint32_t column);
 
 /** Obtain the type of a column from inside a system. 
@@ -1442,18 +1475,30 @@ ecs_entity_t ecs_column_entity(
  */ 
 FLECS_EXPORT
 ecs_type_t ecs_column_type(
-    ecs_rows_t *rows,
+    const ecs_rows_t *rows,
+    uint32_t column);
+
+/** Is the column readonly.
+ * This operation returns if the column is a readonly column. Readonly columns
+ * are marked in the system signature with the [in] modifier. 
+ * 
+ * @param rows Pointer to the rows object passed into the system callback.
+ * @param column An index identifying the column.
+ * @return true if the column is readonly, false otherwise. */
+FLECS_EXPORT
+bool ecs_is_readonly(
+    const ecs_rows_t *rows,
     uint32_t column);
 
 /** Get type of table that system is currently iterating over. */
 FLECS_EXPORT
 ecs_type_t ecs_table_type(
-    ecs_rows_t *rows);
+    const ecs_rows_t *rows);
 
 /** Get column using the table index. */
 FLECS_EXPORT
 void* ecs_table_column(
-    ecs_rows_t *rows,
+    const ecs_rows_t *rows,
     uint32_t column);
 
 /** Get a strongly typed pointer to a column (owned or shared). */
@@ -1488,7 +1533,7 @@ void* ecs_table_column(
 ////////////////////////////////////////////////////////////////////////////////
 
 typedef struct ecs_filter_iter_t {
-    ecs_filter_t *filter;
+    ecs_filter_t filter;
     ecs_chunked_t *tables;
     uint32_t index;
     ecs_rows_t rows;
@@ -1508,14 +1553,14 @@ typedef struct ecs_filter_iter_t {
 FLECS_EXPORT
 ecs_filter_iter_t ecs_filter_iter(
     ecs_world_t *world,
-    ecs_filter_t *filter);
+    const ecs_filter_t *filter);
 
 /** Same as ecs_filter_iter, but for iterating snapshots tables. */
 FLECS_EXPORT
 ecs_filter_iter_t ecs_snapshot_filter_iter(
     ecs_world_t *world,
-    ecs_snapshot_t *snapshot,
-    ecs_filter_t *filter);    
+    const ecs_snapshot_t *snapshot,
+    const ecs_filter_t *filter);    
 
 /** Iterate tables matched by filter.
  * This operation can be called repeatedly for an iterator until it returns
@@ -1762,7 +1807,7 @@ void ecs_set_system_status_action(
 FLECS_EXPORT
 ecs_snapshot_t* ecs_snapshot_take(
     ecs_world_t *world,
-    ecs_filter_t *filter);
+    const ecs_filter_t *filter);
 
 /** Restore a snapshot.
  * This operation restores the world to the state it was in when the specified
@@ -1783,6 +1828,21 @@ void ecs_snapshot_restore(
     ecs_world_t *world,
     ecs_snapshot_t *snapshot);
 
+/** Copy a snapshot.
+ * This operation creates a copy of the provided snapshot. An application can
+ * optionally filter the tables to copy.
+ *
+ * @param world The world.
+ * @param snapshot The snapshot to copy.
+ * @param filter Filter to apply to the copy (optional)
+ * @return The duplicated snapshot.
+ */
+FLECS_EXPORT
+ecs_snapshot_t* ecs_snapshot_copy(
+    ecs_world_t *world,
+    const ecs_snapshot_t *snapshot,
+    const ecs_filter_t *filter);
+
 /** Free snapshot resources.
  * This frees resources associated with a snapshot without restoring it.
  *
@@ -1793,6 +1853,99 @@ FLECS_EXPORT
 void ecs_snapshot_free(
     ecs_world_t *world,
     ecs_snapshot_t *snapshot);
+
+
+////////////////////////////////////////////////////////////////////////////////
+//// Reader/writer API
+////////////////////////////////////////////////////////////////////////////////
+
+/** Initialize a reader.
+ * A reader serializes data in a world to a sequence of bytes that can be stored
+ * in a file or sent across a network. 
+ *
+ * @param world The world to serialize.
+ * @return The reader.
+ */
+FLECS_EXPORT
+ecs_reader_t ecs_reader_init(
+    ecs_world_t *world);
+
+/** Initialize a snapshot reader.
+ * A snapshot reader serializes data in a snapshot to a sequence of bytes that 
+ * can be stored in a file or sent across a network. A snapshot reader has as
+ * advantage that serialization can take place asynchronously while the world
+ * is progressing.
+ *
+ * @param world The world in which the snapshot is taken.
+ * @param snapshot The snapshot to serialize.
+ * @return The reader.
+ */
+FLECS_EXPORT
+ecs_reader_t ecs_snapshot_reader_init(
+    ecs_world_t *world,
+    const ecs_snapshot_t *snapshot);
+
+/** Read from a reader.
+ * This operation reads a specified number of bytes from a reader and stores it
+ * in the specified buffer. When there are no more bytes to read from the reader
+ * the operation will return 0, otherwise it will return the number of bytes
+ * read.
+ *
+ * The specified buffer must be at least as big as the specified size, and the
+ * specified size must be a multiple of 4.
+ *
+ * @param buffer The buffer in which to store the read bytes.
+ * @param size The maximum number of bytes to read.
+ * @param reader The reader from which to read the bytes.
+ * @return The number of bytes read.
+ */ 
+FLECS_EXPORT
+size_t ecs_reader_read(
+    char *buffer,
+    size_t size,
+    ecs_reader_t *reader);
+
+/** Initialize a writer.
+ * A writer deserializes data from a sequence of bytes into a world. This 
+ * enables applications to restore data from disk or the network.
+ *
+ * The provided world must be either empty or compatible with the data to
+ * deserialize, where compatible means that the serialized component ids and 
+ * sizes must match exactly with those in the world. Errors can occur if a world
+ * is provided in which components have been declared in a different order, or
+ * when components have different type definitions.
+ *
+ * @param world The world in which to deserialize the data.
+ * @return The writer. 
+ */
+FLECS_EXPORT
+ecs_writer_t ecs_writer_init(
+    ecs_world_t *world);
+
+/** Write to a writer.
+ * This operation writes a specified number of bytes from a specified buffer
+ * into the writer. The writer will restore the deserialized data into the 
+ * original serialized entities. The write operation may be invoked multiple
+ * times with partial buffers, which allows applications to use static buffers
+ * when reading from, for example, a file or the network.
+ *
+ * The data contained in the buffers must have been serialized with the
+ * ecs_reader_read operation. If the data does not match the expected format, or
+ * the data contains conflicts with the world, the operation will fail. The
+ * data must be provided in the same order as produced by ecs_reader_read,
+ * but the used buffer size does not have to be the same as the one used by
+ * ecs_reader_read. The buffer size must be a multiple of 4.
+ * 
+ * @param buffer The buffer to deserialize.
+ * @param size The maximum number of bytes.
+ * @param writer The writer to write to.
+ * @return Zero if success, non-zero if failed to deserialize.
+ */
+FLECS_EXPORT
+int ecs_writer_write(
+    const char *buffer,
+    size_t size,
+    ecs_writer_t *writer);
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1990,6 +2143,22 @@ ecs_type_t ecs_type_add(
     ecs_type_t type,
     ecs_entity_t entity);
 
+/** Find or create type from existing type and removed entity. 
+ * This operation removes the specified entity from the specified type, and returns a
+ * new or existing type without the specified entity. The provided type will not 
+ * be altered.
+ * 
+ * @param world The world.
+ * @param type The type from which to remove the entity.
+ * @param entity The entity to remove from the type.
+ * @return A type that does not have the specified entity.
+ */
+FLECS_EXPORT
+ecs_type_t ecs_type_remove(
+    ecs_world_t *world,
+    ecs_type_t type,
+    ecs_entity_t entity);    
+
 /** Find or create type that is the union of two types. 
  * This operation will return a type that contains exactly the components in the
  * specified type, plus the components in type_add, and not the components in
@@ -2115,12 +2284,13 @@ FLECS_EXPORT
 bool ecs_type_match_w_filter(
     ecs_world_t *world,
     ecs_type_t type,
-    ecs_filter_t *filter);
+    const ecs_filter_t *filter);
 
 FLECS_EXPORT
 int16_t ecs_type_index_of(
     ecs_type_t type,
     ecs_entity_t entity);
+
 
 ////////////////////////////////////////////////////////////////////////////////
 //// Threading / Staging API
@@ -2253,6 +2423,13 @@ int ecs_enable_console(
 
 #ifdef __cplusplus
 }
+
+#ifndef FLECS_NO_CPP
+#ifndef __BAKE_LEGACY__
+#include <flecs/flecs.hpp>
+#endif
+#endif
+
 #endif
 
 #endif

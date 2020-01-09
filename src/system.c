@@ -114,7 +114,7 @@ ecs_entity_t new_row_system(
     system_data->components = ecs_vector_new(&handle_arr_params, count);
 
     ecs_parse_component_expr(
-        world, sig, ecs_parse_signature_action, system_data);
+        world, sig, ecs_parse_signature_action, id, system_data);
 
     ecs_type_t type_id = 0;
     uint32_t i, column_count = ecs_vector_count(system_data->base.columns);
@@ -259,6 +259,8 @@ void register_out_columns(
         if (columns[i].inout_kind == EcsOut) {
             if (!system_data->on_demand) {
                 system_data->on_demand = ecs_os_malloc(sizeof(ecs_on_demand_out_t));
+                ecs_assert(system_data->on_demand != NULL, ECS_OUT_OF_MEMORY, NULL);
+
                 system_data->on_demand->system = system;
                 system_data->on_demand->count = 0;
             }
@@ -418,6 +420,9 @@ void ecs_system_compute_and_families(
 /** Parse callback that adds component to the components array for a system */
 int ecs_parse_signature_action(
     ecs_world_t *world,
+    const char *system_id,
+    const char *sig,
+    int column,
     ecs_system_expr_elem_kind_t elem_kind,
     ecs_system_expr_oper_kind_t oper_kind,
     ecs_system_expr_inout_kind_t inout_kind,
@@ -434,18 +439,12 @@ int ecs_parse_signature_action(
         /* "0" is a valid expression used to indicate that a system matches no
          * components */
         if (strcmp(component_id, "0")) {
-            ecs_abort(ECS_INVALID_COMPONENT_ID, component_id);
+            ecs_parser_error(system_id, sig, column, 
+                "unresolved component identifier '%s'", component_id);
         } else {
-            /* Don't add 0 component to signature */
+            /* No need to add 0 component to signature */
             return 0;
         }
-    }
-
-    /* If retrieving a component from a system, only the AND operator is
-     * supported. The set of system components is expected to be constant, and
-     * thus no conditional operators are needed. */
-    if (elem_kind == EcsFromSystem && oper_kind != EcsOperAnd) {
-        return ECS_INVALID_SIGNATURE;
     }
 
     /* AND (default) and optional columns are stored the same way */
@@ -459,7 +458,8 @@ int ecs_parse_signature_action(
         if (elem_kind == EcsFromEntity) {
             elem->source = ecs_lookup(world, source_id);
             if (!elem->source) {
-                ecs_abort(ECS_UNRESOLVED_IDENTIFIER, source_id);
+                ecs_parser_error(system_id, sig, column, 
+                    "unresolved source identifier '%s'", source_id);
             }
 
             ecs_set_watch(world, &world->main_stage, elem->source);
@@ -476,6 +476,8 @@ int ecs_parse_signature_action(
         } else {
             if (elem->kind != elem_kind) {
                 /* Cannot mix FromEntity and FromComponent in OR */
+                ecs_parser_error(system_id, sig, column, 
+                    "cannot use mixed source kinds in | expression");
                 goto error;
             }
         }
@@ -623,7 +625,8 @@ ecs_type_t ecs_notify_row_system(
         .frame_offset = 0,
         .offset = offset,
         .count = limit,
-        .param = system_data->base.ctx
+        .param = system_data->base.ctx,
+        .system_data = &system_data->base
     };
 
     /* Set references metadata if system has references */
@@ -707,22 +710,29 @@ ecs_entity_t ecs_new_system(
                kind == EcsOnSet,
                ECS_INVALID_PARAMETER, NULL);
 
-    bool needs_tables = ecs_needs_tables(world, sig);
+    ecs_assert(sig != NULL, ECS_INVALID_PARAMETER, NULL);
+
+    bool needs_tables = ecs_needs_tables(world, sig, id);
     bool is_reactive = false;
 
-    ecs_assert(needs_tables || !((kind == EcsOnAdd) || (kind == EcsOnSet || (kind == EcsOnSet))),
+    ecs_assert(needs_tables || 
+        !((kind == EcsOnAdd) || (kind == EcsOnSet)),
         ECS_INVALID_PARAMETER, NULL);
 
-    ecs_entity_t result = ecs_lookup(world, id);
-    if (result) {
-        return result;
+    ecs_entity_t result = 0;
+
+    if (id) {
+        result = ecs_lookup(world, id);
+        if (result) {
+            return result;
+        }
     }
 
     if ((kind == EcsOnLoad || kind == EcsPostLoad ||
-                         kind == EcsPreUpdate || kind == EcsOnUpdate ||
-                         kind == EcsOnValidate || kind == EcsPostUpdate ||
-                         kind == EcsPreStore || kind == EcsOnStore ||
-                         kind == EcsManual))
+        kind == EcsPreUpdate || kind == EcsOnUpdate ||
+        kind == EcsOnValidate || kind == EcsPostUpdate ||
+        kind == EcsPreStore || kind == EcsOnStore ||
+        kind == EcsManual))
     {
         result = ecs_new_col_system(world, id, kind, sig, action);
     } else if (!needs_tables ||
@@ -755,28 +765,6 @@ ecs_entity_t ecs_new_system(
         }
     }
 
-    /* Check if all non-table column constraints are met. If not, disable
-     * system (system will be enabled once constraints are met) */
-    if (!ecs_check_column_constraints(world, system_data)) {
-        ecs_enable(world, result, false);
-    }
-
-    /* If this is an OnDemand system, register its [out] columns */
-    if (ecs_has(world, result, EcsOnDemand)) {
-        ecs_assert(is_reactive == false, ECS_INVALID_PARAMETER, NULL);
-        EcsColSystem *col_system_data = (EcsColSystem*)system_data;
-
-        register_out_columns(world, result, col_system_data);
-
-        ecs_assert(col_system_data->on_demand != NULL, ECS_INTERNAL_ERROR, NULL);
-
-        /* If there are no systems currently interested in any of the [out]
-         * columns of the on demand system, disable it */
-        if (!col_system_data->on_demand->count) {
-            ecs_enable(world, result, false);
-        }
-    }
-
     if (is_reactive == false) {
         EcsColSystem *col_system_data = (EcsColSystem*)system_data;
 
@@ -792,6 +780,28 @@ ecs_entity_t ecs_new_system(
             activate_in_columns(
                 world, col_system_data, 
                 world->on_enable_components, true);   
+        }  
+
+        /* Check if all non-table column constraints are met. If not, disable
+        * system (system will be enabled once constraints are met) */
+        if (!ecs_check_column_constraints(world, system_data)) {
+            ecs_enable(world, result, false);
+        }               
+    }
+
+    /* If this is an OnDemand system, register its [out] columns */
+    if (ecs_has(world, result, EcsOnDemand)) {
+        ecs_assert(is_reactive == false, ECS_INVALID_PARAMETER, NULL);
+        EcsColSystem *col_system_data = (EcsColSystem*)system_data;
+
+        register_out_columns(world, result, col_system_data);
+
+        ecs_assert(col_system_data->on_demand != NULL, ECS_INTERNAL_ERROR, NULL);
+
+        /* If there are no systems currently interested in any of the [out]
+         * columns of the on demand system, disable it */
+        if (!col_system_data->on_demand->count) {
+            ecs_enable(world, result, false);
         }
     }
 
@@ -889,7 +899,7 @@ void ecs_set_period(
 
 static
 void* get_owned_column_ptr(
-    ecs_rows_t *rows,
+    const ecs_rows_t *rows,
     size_t size,
     int32_t table_column,
     int32_t row)
@@ -906,7 +916,7 @@ void* get_owned_column_ptr(
 
 static
 void* get_shared_column(
-    ecs_rows_t *rows,
+    const ecs_rows_t *rows,
     size_t size,
     int32_t table_column)
 {
@@ -929,7 +939,7 @@ void* get_shared_column(
 
 static
 bool get_table_column(
-    ecs_rows_t *rows,
+    const ecs_rows_t *rows,
     uint32_t column,
     int32_t *table_column_out)
 {
@@ -954,7 +964,7 @@ bool get_table_column(
 
 static
 void* get_column(
-    ecs_rows_t *rows,
+    const ecs_rows_t *rows,
     size_t size,
     uint32_t column,
     uint32_t row)
@@ -973,7 +983,7 @@ void* get_column(
 }
 
 void* _ecs_column(
-    ecs_rows_t *rows,
+    const ecs_rows_t *rows,
     size_t size,
     uint32_t column)
 {
@@ -981,7 +991,7 @@ void* _ecs_column(
 }
 
 void* _ecs_field(
-    ecs_rows_t *rows, 
+    const ecs_rows_t *rows, 
     size_t size,
     uint32_t column,
     uint32_t row)
@@ -990,22 +1000,37 @@ void* _ecs_field(
 }
 
 bool ecs_is_shared(
-    ecs_rows_t *rows,
+    const ecs_rows_t *rows,
     uint32_t column)
 {
     int32_t table_column;
 
     if (!get_table_column(rows, column, &table_column)) {
-        /* If column is not set, it cannot be determined if it is shared or
-         * not.  */
-        ecs_abort(ECS_COLUMN_IS_NOT_SET, NULL);
+        return false;
     }
 
     return table_column < 0;
 }
 
+bool ecs_is_readonly(
+    const ecs_rows_t *rows,
+    uint32_t column)
+{
+    if (ecs_is_shared(rows, column)) {
+        return true;
+    }
+
+    EcsSystem *system = rows->system_data;
+
+    ecs_system_column_t *column_data = ecs_vector_get(
+        system->columns, &system_column_params, column - 1);
+
+    return column_data->inout_kind == EcsIn;
+
+}
+
 ecs_entity_t ecs_column_source(
-    ecs_rows_t *rows,
+    const ecs_rows_t *rows,
     uint32_t index)
 {
     ecs_assert(index <= rows->column_count, ECS_INVALID_PARAMETER, NULL);
@@ -1028,7 +1053,7 @@ ecs_entity_t ecs_column_source(
 }
 
 ecs_type_t ecs_column_type(
-    ecs_rows_t *rows,
+    const ecs_rows_t *rows,
     uint32_t index)
 {
     ecs_assert(index <= rows->column_count, ECS_INVALID_PARAMETER, NULL);
@@ -1043,7 +1068,7 @@ ecs_type_t ecs_column_type(
 }
 
 ecs_entity_t ecs_column_entity(
-    ecs_rows_t *rows,
+    const ecs_rows_t *rows,
     uint32_t index)
 {
     ecs_assert(index <= rows->column_count, ECS_INVALID_PARAMETER, NULL);
@@ -1056,14 +1081,14 @@ ecs_entity_t ecs_column_entity(
 }
 
 ecs_type_t ecs_table_type(
-    ecs_rows_t *rows)
+    const ecs_rows_t *rows)
 {
     ecs_table_t *table = rows->table;
     return table->type;
 }
 
 void* ecs_table_column(
-    ecs_rows_t *rows,
+    const ecs_rows_t *rows,
     uint32_t column)
 {
     ecs_table_t *table = rows->table;

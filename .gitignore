@@ -3,5 +3,7 @@ bin
 .bake_cache
 .vscode
 gcov
+.idea
+cmake-build-debug
 /Intermediate/
 /lib
