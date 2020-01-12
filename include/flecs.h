@@ -654,12 +654,6 @@ ecs_entity_t _ecs_new(
     ecs_world_t *world,
     ecs_type_t type);
 
-FLECS_EXPORT
-ecs_entity_t _ecs_new_w_eid(
-    ecs_world_t* world,
-    ecs_type_t type,
-    ecs_entity_t entity);
-
 #define ecs_new(world, type)\
     _ecs_new(world, T##type)
 

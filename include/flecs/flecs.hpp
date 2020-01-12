@@ -181,6 +181,11 @@ public:
     bool is_shared(uint32_t column) const {
         return ecs_is_shared(m_rows, column);
     }
+    
+    /* Access param field */
+    void *param() {
+        return m_rows->param;
+    }
 
     /* Is column readonly */
     bool is_readonly(uint32_t column) const {
@@ -889,7 +894,8 @@ public:
             component_base<T>::s_type, 
             component_base<T>::s_name);    
 
-        entity(world, component_base<T>::s_entity);
+        m_id = component_base<T>::s_entity;
+        m_world = world.c_ptr();
     }
 };
 
@@ -1183,7 +1189,8 @@ class system final : public entity {
 public:
     system(const world& world, const char *name = nullptr)
         : m_kind(static_cast<EcsSystemKind>(OnUpdate))
-        , m_name(name) 
+        , m_name(name)
+        , m_period(0.0)
         , m_on_demand(false)
         , m_hidden(false) { 
             m_world = world.c_ptr();
@@ -1196,6 +1203,11 @@ public:
 
     system& kind(system_kind kind) {
         m_kind = static_cast<EcsSystemKind>(kind);
+        return *this;
+    }
+
+    system& period(float period) {
+        m_period = period;
         return *this;
     }
 
@@ -1299,6 +1311,10 @@ public:
 
         ecs_set_system_context(m_world, e, ctx);
 
+        if (m_period) {
+            ecs_set_period(m_world, e, m_period);
+        }
+
         m_id = e;
 
         return *this;
@@ -1329,6 +1345,7 @@ private:
     EcsSystemKind m_kind;
     const char *m_name;
     const char *m_signature = nullptr;
+    float m_period;
     bool m_on_demand;
     bool m_hidden;
 };
