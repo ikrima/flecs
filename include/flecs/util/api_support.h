@@ -222,6 +222,13 @@ ecs_entity_t ecs_new_type(
     const char *components);
 
 FLECS_EXPORT
+void ecs_new_type_w_eid(
+    ecs_world_t* world,
+    const char* id,
+    const char* components,
+    ecs_entity_t new_type_eid);
+
+FLECS_EXPORT
 ecs_entity_t ecs_new_prefab(
     ecs_world_t *world,
     const char *id,

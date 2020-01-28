@@ -618,6 +618,11 @@ void ecs_set_entity_range(
     ecs_entity_t id_start,
     ecs_entity_t id_end);
 
+FLECS_EXPORT
+void ecs_set_world_last_handle(
+    ecs_world_t* world,
+    ecs_entity_t new_last_handle);
+
 /** Temporarily enable/disable range limits.
  * When an application is both a receiver of range-limited entities and a
  * producer of range-limited entities, range checking needs to be temporarily

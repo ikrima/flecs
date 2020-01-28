@@ -953,6 +953,45 @@ ecs_entity_t ecs_new_type(
     return result;
 }
 
+void ecs_new_type_w_eid(
+    ecs_world_t* world,
+    const char* id,
+    const char* expr,
+    ecs_entity_t new_type_eid)
+{
+    assert(world->magic == ECS_WORLD_MAGIC);
+
+    EcsTypeComponent type = type_from_expr(world, id, expr);
+    ecs_entity_t result = ecs_lookup(world, id);
+    
+    if (result) {
+        EcsTypeComponent* type_ptr = ecs_get_ptr(world, result, EcsTypeComponent);
+        if (type_ptr) {
+            if (type_ptr->type != type.type ||
+                type_ptr->resolved != type.resolved ||
+                result != new_type_eid)
+            {
+                ecs_abort(ECS_ALREADY_DEFINED, id);
+            }
+        }
+        else {
+            ecs_abort(ECS_ALREADY_DEFINED, id);
+        }
+    }
+    else if (!result) {
+        _ecs_add(world, new_type_eid, world->t_type);
+        ecs_set(world, new_type_eid, EcsId, { id });
+        ecs_set(world, new_type_eid, EcsTypeComponent, {
+            .type = type.type, .resolved = type.resolved
+            });
+
+        /* Register named types with world, so applications can automatically
+         * detect features (amongst others). */
+        ecs_map_set(world->type_handles, (uintptr_t)type.type, &new_type_eid);
+    }
+}
+
+
 ecs_entity_t ecs_new_prefab(
     ecs_world_t *world,
     const char *id,
