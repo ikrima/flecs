@@ -3,6 +3,8 @@
 struct ecs_vector_t {
     uint32_t count;
     uint32_t size;
+    uint32_t padding0;
+    uint32_t padding1;
 };
 
 #define ARRAY_BUFFER(array) ECS_OFFSET(array, sizeof(ecs_vector_t))
