@@ -10,3 +10,5 @@ bazel-flecs
 bazel-genfiles
 bazel-out
 bazel-testlogs
+/Intermediate/
+/lib
