@@ -1185,7 +1185,7 @@ void ecs_merge_entity(
 
         ecs_table_t *staged_table = NULL;
 
-        if (stage->id > 1) {
+        if (stage->id >= 1) {
             staged_table = ecs_map_get_ptr(stage->table_index, ecs_table_t*, (uintptr_t)type);
         }
         if (!staged_table) {

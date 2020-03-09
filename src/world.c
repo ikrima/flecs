@@ -236,7 +236,7 @@ ecs_table_t* ecs_world_get_table(
     ecs_table_t* table = get_table(main_stage, type);
 
     if (!table) {
-        if (stage->id > 1) {
+        if (stage->id >= 1) {
             assert(stage != NULL);
             table = get_table(stage, type);
             if (!table) {
@@ -1235,6 +1235,7 @@ void ecs_merge(
 {
     ecs_assert(world->magic == ECS_WORLD_MAGIC, ECS_INVALID_FROM_WORKER, NULL);
     assert(world->is_merging == false);
+    assert(world->in_progress == false);
 
     bool measure_frame_time = world->measure_frame_time;
 
