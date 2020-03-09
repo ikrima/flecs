@@ -1619,7 +1619,7 @@ void ecs_progress_begin(
     ecs_world_t *world,
     float user_delta_time)
 {
-    ecs_assert(world->magic == ECS_WORLD_MAGIC, ECS_INVALID_FROM_WORKER, NULL);
+    ecs_assert(world->magic == ECS_WORLD_MAGIC, ECS_INVALID_PARAMETER, NULL);
     ecs_assert(user_delta_time || ecs_os_api.get_time, ECS_MISSING_OS_API, "get_time");
 
     if (world->locking_enabled) {
@@ -1650,6 +1650,8 @@ bool ecs_progress_end(
     ecs_world_t* world,
     float user_delta_time)
 {
+    ecs_assert(world->magic == ECS_WORLD_MAGIC, ECS_INVALID_PARAMETER, NULL);
+
     world->frame_count_total ++;
     world->in_progress = false;
 
@@ -1666,6 +1668,8 @@ void ecs_run_single_thread_stage_begin(
     ecs_world_t* world,
     bool staged)
 {
+    ecs_assert(world->magic == ECS_WORLD_MAGIC, ECS_INVALID_PARAMETER, NULL);
+
     if (staged) {
         world->in_progress = true;
     }
@@ -1676,6 +1680,8 @@ void ecs_run_single_thread_stage_end(
     bool staged,
     float elapsed_time)
 {
+    ecs_assert(world->magic == ECS_WORLD_MAGIC, ECS_INVALID_PARAMETER, NULL);
+
     world->system_time_total += elapsed_time;
 
     if (staged && world->auto_merge) {
@@ -1695,7 +1701,7 @@ void ecs_set_world_last_handle(
     ecs_world_t* world,
     ecs_entity_t new_last_handle)
 {
-    ecs_assert(world->magic == ECS_WORLD_MAGIC, ECS_INVALID_FROM_WORKER, NULL);
+    ecs_assert(world->magic == ECS_WORLD_MAGIC, ECS_INVALID_PARAMETER, NULL);
     ecs_assert(new_last_handle >= world->min_handle, ECS_INVALID_PARAMETER, NULL);
     ecs_assert(!world->max_handle || new_last_handle < world->max_handle, ECS_INVALID_PARAMETER, NULL);
     world->last_handle = new_last_handle;

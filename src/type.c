@@ -1202,7 +1202,7 @@ void ecs_new_type_w_eid(
     const char* expr,
     ecs_entity_t new_type_eid)
 {
-    assert(world->magic == ECS_WORLD_MAGIC);
+    ecs_assert(world->magic == ECS_WORLD_MAGIC, ECS_INVALID_PARAMETER, NULL);
 
     EcsTypeComponent type = type_from_expr(world, id, expr);
     ecs_entity_t result = ecs_lookup(world, id);
