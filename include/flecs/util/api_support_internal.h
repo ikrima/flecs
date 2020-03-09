@@ -12,6 +12,14 @@ extern "C" {
 ////////////////////////////////////////////////////////////////////////////////
 //// ecs_progress extension Functions
 ////////////////////////////////////////////////////////////////////////////////
+FLECS_EXPORT
+bool ecs_get_in_progress(
+    ecs_world_t* world);
+
+FLECS_EXPORT
+void ecs_set_in_progress(
+    ecs_world_t* world,
+    bool new_in_progress);
 
 FLECS_EXPORT
 void ecs_progress_begin(

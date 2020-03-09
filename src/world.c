@@ -1614,6 +1614,21 @@ void ecs_unlock(
 //========================================================================================================================
 #pragma region ecs_progress extensions
 
+bool ecs_get_in_progress(
+    ecs_world_t* world)
+{
+    ecs_assert(world->magic == ECS_WORLD_MAGIC, ECS_INVALID_PARAMETER, NULL);
+    return world->in_progress;
+}
+
+void ecs_set_in_progress(
+    ecs_world_t* world,
+    bool new_in_progress)
+{
+    ecs_assert(world->magic == ECS_WORLD_MAGIC, ECS_INVALID_PARAMETER, NULL);
+    world->in_progress = new_in_progress;
+}
+
 // Modeled after ecs_progress
 void ecs_progress_begin(
     ecs_world_t *world,
