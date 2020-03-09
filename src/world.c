@@ -1607,3 +1607,25 @@ void ecs_unlock(
     ecs_assert(world->locking_enabled, ECS_INVALID_PARAMETER, NULL);
     ecs_os_mutex_unlock(world->mutex);
 }
+
+
+// @third party code - BEGIN Bebylon - #ThirdParty-Flecs: ecs_progress extension functions
+
+
+//========================================================================================================================
+#pragma region EID Generation
+
+void ecs_set_world_last_handle(
+    ecs_world_t* world,
+    ecs_entity_t new_last_handle)
+{
+    ecs_assert(world->magic == ECS_WORLD_MAGIC, ECS_INVALID_FROM_WORKER, NULL);
+    ecs_assert(new_last_handle >= world->min_handle, ECS_INVALID_PARAMETER, NULL);
+    ecs_assert(!world->max_handle || new_last_handle < world->max_handle, ECS_INVALID_PARAMETER, NULL);
+    world->last_handle = new_last_handle;
+}
+
+#pragma endregion
+//========================================================================================================================
+
+// @third party code - END Bebylon
