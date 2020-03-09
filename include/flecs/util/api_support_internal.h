@@ -10,6 +10,31 @@ extern "C" {
 #endif
 
 ////////////////////////////////////////////////////////////////////////////////
+//// ecs_progress extension Functions
+////////////////////////////////////////////////////////////////////////////////
+
+FLECS_EXPORT
+void ecs_progress_begin(
+    ecs_world_t* world,
+    float user_delta_time);
+
+FLECS_EXPORT
+bool ecs_progress_end(
+    ecs_world_t* world,
+    float user_delta_time);
+
+FLECS_EXPORT
+void ecs_run_single_thread_stage_begin(
+    ecs_world_t* world,
+    bool staged);
+
+FLECS_EXPORT
+void ecs_run_single_thread_stage_end(
+    ecs_world_t* world,
+    bool staged,
+    float elapsed_time);
+
+////////////////////////////////////////////////////////////////////////////////
 //// Entity creation extension Functions
 ////////////////////////////////////////////////////////////////////////////////
 

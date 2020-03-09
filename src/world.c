@@ -1611,6 +1611,82 @@ void ecs_unlock(
 
 // @third party code - BEGIN Bebylon - #ThirdParty-Flecs: ecs_progress extension functions
 
+//========================================================================================================================
+#pragma region ecs_progress extensions
+
+// Modeled after ecs_progress
+void ecs_progress_begin(
+    ecs_world_t *world,
+    float user_delta_time)
+{
+    ecs_assert(world->magic == ECS_WORLD_MAGIC, ECS_INVALID_FROM_WORKER, NULL);
+    ecs_assert(user_delta_time || ecs_os_api.get_time, ECS_MISSING_OS_API, "get_time");
+
+    if (world->locking_enabled) {
+        ecs_lock(world);
+    }
+
+    /* Start measuring total frame time */
+    float delta_time = start_measure_frame(world, user_delta_time);
+
+    if (!user_delta_time) {
+        user_delta_time = delta_time;
+    }
+
+    world->delta_time = user_delta_time;
+
+    if (world->should_match) {
+        rematch_queries(world);
+        world->should_match = false;
+    }
+
+    if (world->should_resolve) {
+        revalidate_query_refs(world);
+        world->should_resolve = false;
+    }
+}
+
+bool ecs_progress_end(
+    ecs_world_t* world,
+    float user_delta_time)
+{
+    world->frame_count_total ++;
+    world->in_progress = false;
+
+    if (world->locking_enabled) {
+        ecs_unlock(world);
+    }
+
+    stop_measure_frame(world, user_delta_time);
+
+    return !world->should_quit;
+}
+
+void ecs_run_single_thread_stage_begin(
+    ecs_world_t* world,
+    bool staged)
+{
+    if (staged) {
+        world->in_progress = true;
+    }
+}
+
+void ecs_run_single_thread_stage_end(
+    ecs_world_t* world,
+    bool staged,
+    float elapsed_time)
+{
+    world->system_time_total += elapsed_time;
+
+    if (staged && world->auto_merge) {
+        world->in_progress = false;
+        ecs_merge(world);
+        world->in_progress = true;
+    }
+}
+
+#pragma endregion
+//========================================================================================================================
 
 //========================================================================================================================
 #pragma region EID Generation
