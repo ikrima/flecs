@@ -148,7 +148,11 @@
                 "remove_1_include_1",
                 "remove_1_include_2",
                 "add_1",
-                "add_2"                           
+                "add_2",
+                "add_existing",
+                "remove_existing",
+                "remove_existing_no_filter",
+                "add_remove_nothing"
             ]
         }, {
             "id": "Has",
@@ -251,8 +255,8 @@
                 "set_remove_twice",
                 "set_and_new",
                 "set_null",
-                "get_or_add_new",
-                "get_or_add_existing",
+                "get_mutable_new",
+                "get_mutable_existing",
                 "modified_w_on_set"
             ]
         }, {
@@ -342,7 +346,12 @@
                 "status_disable_after_disable",
                 "status_activate_after_new",
                 "status_deactivate_after_delete",
-                "dont_enable_after_rematch"
+                "dont_enable_after_rematch",
+                "ensure_single_merge",
+                "table_count",
+                "active_system_count",
+                "match_system",
+                "match_system_w_filter"
             ]
         }, {
             "id": "SystemOnAdd",
@@ -401,7 +410,9 @@
                 "delete_no_match_1",
                 "delete_no_match_2_of_1",
                 "delete_no_match_2_of_3",
-                "disabled_system"
+                "disabled_system",
+                "remove_watched",
+                "delete_watched"
             ]
         }, {
             "id": "SystemOnSet",
@@ -473,7 +484,21 @@
                 "use_field_w_0_size",
                 "owned_only",
                 "shared_only",
-                "is_in_readonly"
+                "is_in_readonly",
+                "get_period"
+            ]
+        }, {
+            "id": "Timer",
+            "testcases": [
+                "timeout",
+                "interval",
+                "shared_timeout",
+                "shared_interval",
+                "start_stop_one_shot",
+                "start_stop_interval",
+                "rate_filter",
+                "rate_filter_w_rate_filter_src",
+                "rate_filter_w_timer_src"
             ]
         }, {
             "id": "SystemOnDemand",
@@ -519,7 +544,8 @@
             "testcases": [
                 "1_type_1_component",
                 "disabled",
-                "activate_status"
+                "activate_status",
+                "no_automerge"
             ]
         }, {
             "id": "Tasks",
@@ -900,7 +926,10 @@
                 "merge_after_tasks",
                 "override_after_remove_in_progress",
                 "get_parent_in_progress",
-                "merge_once"
+                "merge_once",
+                "get_mutable",
+                "get_mutable_from_main",
+                "get_mutable_w_add"
             ]
         }, {
             "id": "MultiThreadStaging",

@@ -25,6 +25,7 @@
 
 #include "flecs.h"
 #include "flecs/util/dbg.h"
+#include "flecs/util/entity_index.h"
 
 #define ECS_WORLD_INITIAL_TABLE_COUNT (2)
 #define ECS_WORLD_INITIAL_ENTITY_COUNT (2)
@@ -39,6 +40,7 @@
 #define ECS_TABLE_INITIAL_ROW_COUNT (0)
 #define ECS_SYSTEM_INITIAL_TABLE_COUNT (0)
 #define ECS_MAX_JOBS_PER_WORKER (16)
+#define ECS_HI_ENTITY_ID (100000)   /* Limit for entities in map / sparse set */
 
 /* This is _not_ the max number of entities that can be of a given type. This 
  * constant defines the maximum number of components, prefabs and parents can be
@@ -289,15 +291,12 @@ typedef struct EcsColSystem {
     ecs_on_demand_out_t *on_demand;       /* Keep track of [out] column refs */
     ecs_system_status_action_t status_action; /* Status action */
     void *status_ctx;                     /* User data for status action */    
-    uint32_t column_size;                 /* Parameters for type_columns */
-    uint32_t component_size;              /* Parameters for components */
-    uint32_t ref_size;                    /* Parameters for refs */
-    float period;                         /* Minimum period inbetween system invocations */
+    ecs_entity_t tick_source;             /* Tick source associated with system */
     float time_passed;                    /* Time passed since last invocation */
     bool enabled_by_demand;               /* Is system enabled by on demand systems */
-    bool enabled_by_user;                /* Is system enabled by user */
+    bool enabled_by_user;                 /* Is system enabled by user */
 } EcsColSystem;
-
+ 
 /** A row system is a system that is ran on 1..n entities for which a certain 
  * operation has been invoked. The system kind determines on what kind of
  * operation the row system is invoked. Example operations are ecs_add,
@@ -308,14 +307,6 @@ typedef struct EcsRowSystem {
     ecs_vector_t *components;       /* Components in order of signature */
 } EcsRowSystem;
  
-/** The ecs_record_t struct is a 64-bit value that describes in which table
- * (identified by a type) is stored, at which index. Entries in the 
- * world::entity_index are of type ecs_record_t. */
-typedef struct ecs_record_t {
-    ecs_type_t type;              /* Identifies a type (and table) in world */
-    int32_t row;                  /* Table row of the entity */
-} ecs_record_t;
-
 #define ECS_TYPE_DB_MAX_CHILD_NODES (256)
 #define ECS_TYPE_DB_BUCKET_COUNT (256)
 
@@ -343,6 +334,12 @@ typedef struct ecs_type_node_t {
     ecs_type_link_t link;     
 } ecs_type_node_t;
 
+struct ecs_ei_t {
+    ecs_sparse_t *lo;       /* Low entity ids are stored in a sparse set */
+    ecs_map_t *hi;          /* To save memory high ids are stored in a map */
+    bool keep_deletes;      /* Insert empty record for deletes */
+};
+
 /** A stage is a data structure in which delta's are stored until it is safe to
  * merge those delta's with the main world stage. A stage allows flecs systems
  * to arbitrarily add/remove/set components and create/delete entities while
@@ -352,7 +349,7 @@ typedef struct ecs_stage_t {
     /* If this is not main stage, 
      * changes to the entity index 
      * are buffered here */
-    ecs_map_t *entity_index;       /* Entity lookup table for (table, row) */
+    ecs_ei_t entity_index; /* Entity lookup table for (table, row) */
 
     /* If this is not a thread
      * stage, these are the same
@@ -409,7 +406,7 @@ typedef struct ecs_thread_t {
 
 /* World snapshot */
 struct ecs_snapshot_t {
-    ecs_map_t *entity_index;
+    ecs_ei_t entity_index;
     ecs_sparse_t *tables;
     ecs_entity_t last_handle;
     ecs_filter_t filter;
@@ -466,13 +463,10 @@ struct ecs_world_t {
     ecs_map_t *prefab_parent_index;   /* Index to find flag for prefab parent */
     ecs_map_t *type_handles;          /* Handles to named types */
 
-    /* -- Singleton record -- */
-
-    ecs_record_t singleton;
 
     /* -- Staging -- */
 
-    ecs_stage_t main_stage;          /* Main storage */
+    ecs_stage_t stage;               /* Main storage */
     ecs_stage_t temp_stage;          /* Stage for when processing systems */
     ecs_vector_t *worker_stages;     /* Stages for worker threads */
     uint32_t stage_count;            /* Number of stages in world */
@@ -509,6 +503,10 @@ struct ecs_world_t {
     ecs_time_t frame_start_time;  /* Timestamp of frame start */
     float target_fps;             /* Target fps */
     float fps_sleep;              /* Sleep time to prevent fps overshoot */
+
+    ecs_entity_t add_tick_source; /* System to add EcsTickSource */
+    ecs_entity_t progress_timers; /* System to progress timers */
+    ecs_entity_t progress_rate_filters; /* System to progress rate filters */
 
 
     /* -- Metrics -- */

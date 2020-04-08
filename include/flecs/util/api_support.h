@@ -164,7 +164,7 @@ typedef struct ecs_writer_t {
 //// Deprecated names
 ////////////////////////////////////////////////////////////////////////////////
 
-#define ECS_SINGLETON ((ecs_entity_t)(ECS_ENTITY_MASK) - 1)
+#define EcsSingleton ((ecs_entity_t)(ECS_ENTITY_MASK) - 1)
 #define ECS_INVALID_ENTITY (0)
 
 struct ecs_filter_t;
@@ -191,6 +191,18 @@ typedef struct ecs_filter_t ecs_type_filter_t;
 
 #define ecs_is_empty(world, entity) (ecs_get_type(world, entity) == NULL)
 
+/** DEPRECATED - use timer API. */
+FLECS_EXPORT
+void ecs_set_period(
+    ecs_world_t *world,
+    ecs_entity_t system,
+    float period);
+
+/** DEPRECATED - use timer API. */
+FLECS_EXPORT
+float ecs_get_period(
+    ecs_world_t *world,
+    ecs_entity_t system);
 
 ////////////////////////////////////////////////////////////////////////////////
 //// Functions used in declarative (macro) API
@@ -313,6 +325,7 @@ void _ecs_parser_error(
 #define ECS_DESERIALIZE_COMPONENT_SIZE_CONFLICT (38)
 #define ECS_DESERIALIZE_FORMAT_ERROR (39)
 #define ECS_INVALID_REACTIVE_SIGNATURE (40)
+#define ECS_INCONSISTENT_COMPONENT_NAME (41)
 
 /** Declare type variable */
 #define ECS_TYPE_VAR(type)\

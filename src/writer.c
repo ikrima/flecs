@@ -180,7 +180,7 @@ void ecs_table_writer_register_table(
 
     ecs_assert(type != NULL, ECS_INTERNAL_ERROR, NULL);
 
-    writer->table = ecs_world_get_table(world, &world->main_stage, type);
+    writer->table = ecs_world_get_table(world, &world->stage, type);
 
     ecs_data_t *data = ecs_table_get_data(world, writer->table);
     ecs_assert(data != NULL, ECS_INTERNAL_ERROR, NULL);
@@ -190,7 +190,7 @@ void ecs_table_writer_register_table(
     ecs_entity_t *entities = ecs_vector_first(entity_vector);
     int32_t i, count = ecs_vector_count(entity_vector);
     for (i = 0; i < count; i ++) {
-        ecs_map_remove(world->main_stage.entity_index, entities[i]);
+        ecs_eis_delete(&world->stage, entities[i]);
     }
 
     ecs_assert(writer->table != NULL, ECS_INTERNAL_ERROR, NULL);
@@ -210,18 +210,18 @@ void ecs_table_writer_finalize_table(
     int32_t i, count = ecs_vector_count(entity_vector);
 
     for (i = 0; i < count; i ++) {
-        ecs_record_t *record_ptr = ecs_map_get(
-            world->main_stage.entity_index, ecs_record_t, entities[i]);
+        ecs_record_t *record_ptr = ecs_eis_get(&world->stage, entities[i]);
+
         if (record_ptr) {
             if (record_ptr->type != writer->table->type) {
                 ecs_table_t *table = ecs_world_get_table(
-                    world, &world->main_stage, record_ptr->type);
+                    world, &world->stage, record_ptr->type);
                 
                 ecs_data_t *data = ecs_table_get_data(world, table);
 
                 ecs_assert(table != NULL, ECS_INTERNAL_ERROR, NULL);
 
-                ecs_table_delete(world, &world->main_stage, 
+                ecs_table_delete(world, &world->stage, 
                     table, data, record_ptr->row - 1);
             }
         }
@@ -231,7 +231,7 @@ void ecs_table_writer_finalize_table(
             .type = writer->table->type
         };
 
-        ecs_map_set(world->main_stage.entity_index, entities[i], &record);
+        ecs_eis_set(&world->stage, entities[i], &record);
 
         if (entities[i] >= world->last_handle) {
             world->last_handle = entities[i] + 1;

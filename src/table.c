@@ -37,7 +37,7 @@ ecs_data_t* init_data(
 
     for (i = 0; i < count; i ++) {
         EcsComponent *component = ecs_get_ptr_intern(
-            world, &world->main_stage, entities[i], EEcsComponent, false, false);
+            world, &world->stage, entities[i], EEcsComponent, false, false);
 
         /* Is the column a component? */
         if (component) {
@@ -117,7 +117,7 @@ void run_on_remove_handlers(
     int32_t count = ecs_vector_count(data->entities);
     if (count) {
         ecs_notify(
-            world, &world->main_stage, world->type_sys_remove_index, 
+            world, &world->stage, world->type_sys_remove_index, 
             table->type, table, data, 0, count);
     }
 }
@@ -129,7 +129,7 @@ ecs_table_t *ecs_bootstrap_component_table(
 {
     ecs_assert(world->t_component != NULL, ECS_INTERNAL_ERROR, NULL);
 
-    ecs_stage_t *stage = &world->main_stage;
+    ecs_stage_t *stage = &world->stage;
     ecs_table_t *result = ecs_sparse_add(stage->tables, ecs_table_t);
     result->type = world->t_component;
     result->queries = NULL;
@@ -196,7 +196,7 @@ ecs_data_t* ecs_table_get_data(
     ecs_world_t *world,
     ecs_table_t *table)
 {
-    return ecs_table_get_data_intern(world, &world->main_stage, table, false);
+    return ecs_table_get_data_intern(world, &world->stage, table, false);
 }
 
 ecs_data_t* ecs_table_get_staged_data(
@@ -283,6 +283,8 @@ void ecs_table_replace_data(
 {
     int32_t prev_count = 0;
     ecs_data_t *table_data = ecs_vector_first(table->stage_data);
+
+    ecs_assert(!data || data != table_data, ECS_INTERNAL_ERROR, NULL);
 
     if (table_data) {
         prev_count = ecs_vector_count(table_data->entities);
@@ -415,7 +417,7 @@ void ecs_table_delete(
         ecs_record_t record;
         record.type = table->type;
         record.row = index + 1;
-        ecs_set_entity(world, stage, to_move, &record);
+        ecs_eis_set(stage, to_move, &record);
 
         /* Decrease size of entity column */
         ecs_vector_remove_last(entity_vector);
@@ -563,11 +565,11 @@ void ecs_table_swap(
     
     /* Get pointers to records in entity index */
     if (!record_ptr_1) {
-        record_ptr_1 = ecs_get_entity(world, stage, e1);
+        record_ptr_1 = ecs_eis_get(stage, e1);
     }
 
     if (!record_ptr_2) {
-        record_ptr_2 = ecs_get_entity(world, stage, e2);
+        record_ptr_2 = ecs_eis_get(stage, e2);
     }
 
     /* Swap entities */
@@ -618,12 +620,12 @@ void ecs_table_move_back_and_swap(
         ecs_entity_t cur = entities[row + i];
         entities[row + i - 1] = cur;
 
-        ecs_record_t *record_ptr = ecs_get_entity(world, stage, cur);
+        ecs_record_t *record_ptr = ecs_eis_get(stage, cur);
         record_ptr->row = row + i;
     }
 
     entities[row + count - 1] = e;
-    ecs_record_t *record_ptr = ecs_get_entity(world, stage, e);
+    ecs_record_t *record_ptr = ecs_eis_get(stage, e);
     record_ptr->row = row + count;
 
     /* Move back and swap columns */
@@ -719,7 +721,7 @@ void ecs_table_merge(
     int32_t i;
     for(i = 0; i < old_count; i ++) {
         ecs_record_t record = {.type = new_type, .row = i + new_count};
-        ecs_map_set(world->main_stage.entity_index, old_entities[i], &record);
+        ecs_eis_set(&world->stage, old_entities[i], &record);
     }
 
     if (!new_table) {

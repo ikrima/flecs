@@ -1,11 +1,13 @@
 {
-    "id": "get_or_add",
+    "id": "task",
     "type": "application",
     "value": {
         "author": "Jane Doe",
         "description": "A simple hello world flecs application",
+        "public": false,
         "use": [
             "flecs"
-        ]
+        ],
+        "language": "c++"
     }
 }

@@ -331,12 +331,7 @@ ecs_entity_t ecs_new_col_system(
     system_data->query = ecs_query_new_w_sig(world, result, sig);
     ecs_assert(system_data->query != NULL, ECS_INTERNAL_ERROR, NULL);
 
-    uint32_t column_count = ecs_vector_count(system_data->query->sig.columns);
-
-    system_data->column_size = sizeof(int32_t) * (column_count);
-    system_data->ref_size = sizeof(ecs_reference_t) * column_count;
-    system_data->component_size = sizeof(ecs_entity_t) * column_count;
-    system_data->period = 0;
+    system_data->tick_source = 0;
     system_data->entity = result;
 
     ecs_entity_t *elem = NULL;
@@ -460,60 +455,50 @@ void ecs_set_system_status_action(
     }
 }
 
-ecs_entity_t _ecs_run_w_filter(
+ecs_entity_t ecs_run_intern(
     ecs_world_t *world,
+    ecs_world_t *real_world,
     ecs_entity_t system,
     float delta_time,
-    int32_t offset,
-    int32_t limit,
-    ecs_type_t filter,
-    void *param)
-{
-    ecs_world_t *real_world = world;
-    if (world->magic == ECS_THREAD_MAGIC) {
-        real_world = ((ecs_thread_t*)world)->world; /* dispel the magic */
-    }
-
-    EcsColSystem *system_data = ecs_get_ptr( real_world, system, EcsColSystem);
+    uint32_t offset,
+    uint32_t limit,
+    const ecs_filter_t *filter,
+    void *param) 
+{    
+    EcsColSystem *system_data = ecs_get_ptr(real_world, system, EcsColSystem);
     assert(system_data != NULL);
-
-    bool in_progress = real_world->in_progress;  
 
     if (!system_data->base.enabled) {
         return 0;
     }
 
-    ecs_get_stage(&real_world);
-
     if (!param) {
         param = system_data->base.ctx;
     }
 
-    /* If system should run at a fixed time interval, test if system should run
-     * this iteration */
-    float period = system_data->period;
-    float time_passed = system_data->time_passed + delta_time;
+    float time_elapsed = delta_time;
+    ecs_entity_t tick_source = system_data->tick_source;
 
-    if (time_passed >= period) {
-        float t = time_passed - period;
-        if (t > period) {
-            t = 0;
+    if (tick_source) {
+        EcsTickSource *tick = ecs_get_ptr(real_world, tick_source, EcsTickSource);
+
+        if (tick) {
+            time_elapsed = tick->time_elapsed;
+
+            /* If timer hasn't fired we shouldn't run the system */
+            if (!tick->tick) {
+                return 0;
+            }
+        } else {
+            /* If a timer has been set but the timer entity does not have the
+             * EcsTimer component, don't run the system. This can be the result
+             * of a single-shot timer that has fired already. Not resetting the
+             * timer field of the system will ensure that the system won't be
+             * ran after the timer has fired. */
+            return 0;
         }
-        system_data->time_passed = t;
-    } else {
-        system_data->time_passed = time_passed;
-        return 0;
     }
 
-    /* Make sure we're staged before running the system so that it's safe to use
-     * API functions that add/remove components */
-    ecs_stage_t *stage = NULL;
-    if (!in_progress) {
-        real_world->in_progress = true;
-        stage = ecs_get_stage(&real_world);
-    }    
-
-    /* If system profiling is enabled, record the time spent in the system */
     ecs_time_t time_start;
     bool measure_time = real_world->measure_system_time;
     if (measure_time) {
@@ -525,7 +510,7 @@ ecs_entity_t _ecs_run_w_filter(
     qiter.rows.world = world;
     qiter.rows.system = system;
     qiter.rows.delta_time = delta_time;
-    qiter.rows.delta_system_time = time_passed;
+    qiter.rows.delta_system_time = time_elapsed;
     qiter.rows.world_time = real_world->world_time_total;
     qiter.rows.frame_offset = offset;
     
@@ -548,7 +533,7 @@ ecs_entity_t _ecs_run_w_filter(
     } else {
         while (ecs_query_next(&qiter)) {
             ecs_table_t *table = qiter.rows.table;
-            if (!ecs_type_contains(real_world, table->type, filter, true, true))
+            if (!ecs_type_match_w_filter(real_world, table->type, filter))
             {
                 continue;
             }
@@ -557,18 +542,82 @@ ecs_entity_t _ecs_run_w_filter(
         }        
     }
 
+    if (measure_time) {
+        system_data->base.time_spent += ecs_time_measure(&time_start);
+    }
+    
+    system_data->base.invoke_count ++;
+
+    return qiter.rows.interrupted_by;
+}
+
+/* -- Public API -- */
+
+ecs_entity_t ecs_run_w_filter_v2(
+    ecs_world_t *world,
+    ecs_entity_t system,
+    float delta_time,
+    uint32_t offset,
+    uint32_t limit,
+    const ecs_filter_t *filter,
+    void *param)
+{
+    ecs_world_t *real_world = world;
+    if (world->magic == ECS_THREAD_MAGIC) {
+        real_world = ((ecs_thread_t*)world)->world; /* dispel the magic */
+    }
+
+    bool in_progress = real_world->in_progress;
+
+    ecs_stage_t *stage = NULL;
+    if (!in_progress) {
+        real_world->in_progress = true;
+        stage = ecs_get_stage(&real_world);
+    }
+
+    ecs_entity_t interrupted_by = ecs_run_intern(
+        world, real_world, system, delta_time, offset, limit, filter, param);
+
     /* If world wasn't in progress when we entered this function, we need to
      * merge and reset the in_progress value */
     if (!in_progress && real_world->auto_merge) {
         real_world->in_progress = false;
-        ecs_stage_merge(real_world, stage);
+        if (world->auto_merge) {
+            real_world->is_merging = true;
+            ecs_stage_merge(real_world, stage);
+            real_world->is_merging = false;
+        }
     }
 
-    if (measure_time) {
-        system_data->base.time_spent += ecs_time_measure(&time_start);
-    }    
+    return interrupted_by;
+}
 
-    return qiter.rows.interrupted_by;
+ecs_entity_t _ecs_run_w_filter(
+    ecs_world_t *world,
+    ecs_entity_t system,
+    float delta_time,
+    int32_t offset,
+    int32_t limit,
+    ecs_type_t include_type,
+    void *param)
+{
+    ecs_entity_t interrupted_by = 0;
+
+    if (include_type) {
+        ecs_filter_t filter = {
+            .include = include_type,
+            .include_kind = EcsMatchAll
+        };
+
+        interrupted_by = ecs_run_w_filter_v2(
+            world, system, delta_time, offset, limit, &filter, param);
+    } else {
+        interrupted_by = ecs_run_w_filter_v2(
+            world, system, delta_time, offset, limit, NULL, param);
+
+    }
+
+    return interrupted_by;
 }
 
 ecs_entity_t ecs_run(

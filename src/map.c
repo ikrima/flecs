@@ -443,10 +443,11 @@ void* _ecs_map_next(
     const ecs_map_t *map = iter->map;
     
     ecs_assert(map != NULL, ECS_INVALID_PARAMETER, NULL);
-    ecs_assert(elem_size == map->elem_size, ECS_INVALID_PARAMETER, NULL);
+    ecs_assert(!elem_size || elem_size == map->elem_size, ECS_INVALID_PARAMETER, NULL);
  
     ecs_bucket_t *bucket = iter->bucket;
     int32_t element_index = iter->element_index;
+    elem_size = map->elem_size;
 
     do {
         if (!bucket) {
@@ -513,7 +514,10 @@ void ecs_map_set_size(
 {    
     ecs_assert(map != NULL, ECS_INVALID_PARAMETER, NULL);
     int32_t bucket_count = get_bucket_count(element_count);
-    rehash(map, bucket_count);
+
+    if (bucket_count) {
+        rehash(map, bucket_count);
+    }
 }
 
 void ecs_map_memory(
@@ -532,6 +536,10 @@ void ecs_map_memory(
 ecs_map_t* ecs_map_copy(
     const ecs_map_t *src)
 {
+    if (!src) {
+        return NULL;
+    }
+    
     ecs_map_t *dst = ecs_os_memdup(src, sizeof(ecs_map_t));
     
     dst->buckets = ecs_sparse_copy(src->buckets);

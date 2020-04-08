@@ -139,16 +139,25 @@ typedef struct ecs_filter_t {
     ecs_match_kind_t exclude_kind;
 } ecs_filter_t;
 
+typedef struct ecs_cached_ptr_t {
+    void *table;
+    void *stage;
+    int32_t count;
+    int32_t row;
+    void *ptr;
+} ecs_cached_ptr_t;
+
 /** The ecs_rows_t struct passes data from a system to a system callback.  */
 struct ecs_rows_t {
     ecs_world_t *world;          /* Current world */
     ecs_entity_t system;         /* Handle to current system */
 
     int32_t *columns;    /* Indices mapping system params to columns and refs */
+    int32_t table_count;        /* Number of tables matched with system */
+    int32_t inactive_table_count; /* Number of inactive tables matched with system */
     uint16_t column_count;       /* Number of columns for system */
     void *table;                 /* Opaque structure with reference to table */
     void *table_columns;         /* Opaque structure with table column data */
-    int32_t table_count;         /* Number of active tables matched with system */
     ecs_query_t *query;          /* Query being evaluated */
     ecs_reference_t *references; /* References to other entities */
     ecs_entity_t *components;    /* System-table specific list of components */
@@ -190,7 +199,31 @@ typedef struct EcsPrefab {
     ecs_entity_t parent;
 } EcsPrefab;
 
+/** Component used for timer functionality */
+typedef struct EcsTimer {
+    float timeout;         /* Timer timeout period */
+    float time;            /* Incrementing time value */
+    int32_t fired_count;   /* Number of times ticked */
+    bool active;           /* Is the timer active or not */
+    bool single_shot;      /* Is this a single shot timer */
+} EcsTimer;
+
+/* Apply a rate filter to a tick source */
+typedef struct EcsRateFilter {
+    ecs_entity_t src;
+    int32_t rate;
+    int32_t tick_count;
+    float time_elapsed;   /* Time elapsed since last tick */
+} EcsRateFilter;
+
+/* Component used to provide a tick source to systems */
+typedef struct EcsTickSource {
+    bool tick;           /* True if providing tick */
+    float time_elapsed;  /* Time elapsed since last tick */
+} EcsTickSource;
+
 #include "flecs/util/api_support.h"
+#include "flecs/util/v2.h"
 #include "flecs/util/api_support_internal.h"
 
 
@@ -215,7 +248,10 @@ extern ecs_type_t
     TEcsId,
     TEcsHidden,
     TEcsDisabled,
-    TEcsOnDemand;
+    TEcsOnDemand,
+    TEcsTimer,
+    TEcsRateFilter,
+    TEcsTickSource;
 
 /** Handles to builtin components */
 #define EEcsComponent (1)
@@ -229,10 +265,13 @@ extern ecs_type_t
 #define EEcsHidden (9)
 #define EEcsDisabled (10)
 #define EEcsOnDemand (11)
+#define EEcsTimer (12)
+#define EEcsRateFilter (13)
+#define EEcsTickSource (14)
 
 /** Builtin entity ids */
-#define EcsWorld (13)
-#define EcsSingleton (ECS_SINGLETON)
+#define EcsWorld (15)
+#define ECS_SINGLETON (EcsSingleton)
 #define EcsInvalid (ECS_INVALID_ENTITY)
 
 /** Value used to quickly check if component is builtin */
@@ -467,11 +506,36 @@ void ecs_quit(
  *
  * @param world The world to progress.
  * @param delta_time The time passed since the last frame.
+ * @return false if ecs_quit has been called, true otherwise.
  */
 FLECS_EXPORT
 bool ecs_progress(
     ecs_world_t *world,
     float delta_time);
+
+/** Returns number of active systems.
+ * This operation returns the number of currently active systems. Active systems
+ * are systems that are both enabled and are matched with 1 or more entities. If
+ * this operation returns 0, invoking ecs_progress will not run any systems.
+ *
+ * @param world The world.
+ * @return The number of active systems.
+ */
+FLECS_EXPORT
+int32_t ecs_active_system_count(
+    ecs_world_t *world);
+
+/** Returns number of inactive systems.
+ * This operation returns the number of currently inactive systems. Inactive
+ * systems are systems that are either disabled or do not match with any 
+ * entities.
+ *
+ * @param world The world.
+ * @return The number of inactive systems.
+ */
+FLECS_EXPORT
+int32_t ecs_inactive_system_count(
+    ecs_world_t *world);    
 
 /** Set target frames per second (FPS) for application.
  * Setting the target FPS ensures that ecs_progress is not invoked faster than
@@ -1108,6 +1172,18 @@ void* _ecs_get_ptr(
 #define ecs_get(world, entity, component)\
   (*(component*)_ecs_get_ptr(world, entity, E##component))
 
+
+/** Retrieve a cached pointer */
+FLECS_EXPORT
+void* _ecs_get_cached_ptr(
+    ecs_world_t *world,
+    ecs_cached_ptr_t *cached_ptr,
+    ecs_entity_t entity,
+    ecs_entity_t component);
+
+#define ecs_get_cached_ptr(world, entity, component)\
+    (component*)_ecs_get_cached_ptr(world, entity, E##component)
+
 /* Set value of component.
  * This function sets the value of a component on the specified entity. If the
  * component does not yet exist, it will be added to the entity.
@@ -1159,15 +1235,15 @@ ecs_entity_t _ecs_set_ptr(
  * @return A pointer to the component value.
  */
 FLECS_EXPORT
-void* _ecs_get_or_add(
+void* _ecs_get_mutable(
     ecs_world_t *world,
     ecs_entity_t entity,
     ecs_entity_t component,
     size_t size,
     bool *is_added);
 
-#define ecs_get_or_add(world, entity, component, is_added)\
-    _ecs_get_or_add(world, entity, ecs_entity(component), sizeof(component), is_added)
+#define ecs_get_mutable(world, entity, component, is_added)\
+    _ecs_get_mutable(world, entity, ecs_entity(component), sizeof(component), is_added)
 
 /** Signal that component has been modified.
  * This operation will invoke the OnSet handlers for the modified component.
@@ -1686,33 +1762,6 @@ void ecs_enable(
     ecs_entity_t system,
     bool enabled);
 
-/** Configure how often a system should be invoked.
- * This operation lets an application control how often a system should be
- * invoked. The provided period is the minimum interval between two invocations.
- *
- * Correct operation of this feature relies on an application providing a
- * delta_time value to ecs_progress. Once the delta_time exceeds the period that
- * is specified for a system, ecs_progress will invoke it.
- *
- * This operation is only valid on EcsPeriodic systems. If it is invoked on
- * handles of other systems or entities it will be ignored. An application may
- * only set the period outside ecs_progress.
- *
- * Note that a system will never be invoked more often than ecs_progress is
- * invoked. If the specified period is smaller than the interval at which
- * ecs_progress is invoked, the system will be invoked at every ecs_progress,
- * provided that the delta_time provided to ecs_progress is accurate.
- *
- * @param world The world.
- * @param system The system for which to set the period.
- * @param period The period.
- */
-FLECS_EXPORT
-void ecs_set_period(
-    ecs_world_t *world,
-    ecs_entity_t system,
-    float period);
-
 /** Returns the enabled status for a system / entity.
  * This operation will return whether a system is enabled or disabled. Currently
  * only systems can be enabled or disabled, but this operation does not fail
@@ -1868,6 +1917,153 @@ void ecs_set_system_status_action(
     ecs_entity_t system,
     ecs_system_status_action_t action,
     const void *ctx);
+
+
+////////////////////////////////////////////////////////////////////////////////
+//// Timer API
+////////////////////////////////////////////////////////////////////////////////
+
+/** Set timer timeout.
+ * This operation executes any systems associated with the timer after the
+ * specified timeout value. If the entity contains an existing timer, the 
+ * timeout value will be reset.
+ *
+ * Any entity can be used as a timer (including systems). If a timeout value is
+ * set on a system entity, it will be automatically applied to that system.
+ *
+ * The timer is synchronous, and is incremented each frame by delta_time.
+ *
+ * @param world The world.
+ * @param timer The timer for which to set the timeout (0 to create one).
+ * @param timeout The timeout value.
+ * @return The timer entity.
+ */
+FLECS_EXPORT
+ecs_entity_t ecs_set_timeout(
+    ecs_world_t *world,
+    ecs_entity_t timer,
+    float timeout);
+
+/** Get current timeout value for the specified timer.
+ * This operation returns the value set by ecs_set_timeout. If no timer is
+ * active for this entity, the operation returns 0.
+ *
+ * After the timeout expires the timer component is removed from the entity.
+ * This means that if ecs_get_timeout is invoked after the timer is expired, the
+ * operation will return 0.
+ *
+ * @param world The world.
+ * @param timer The timer.
+ * @return The current timeout value, or 0 if no timer is active.
+ */
+FLECS_EXPORT
+float ecs_get_timeout(
+    ecs_world_t *world,
+    ecs_entity_t timer);
+
+/** Set timer interval.
+ * This operation will continously invoke systems associated with the timer 
+ * after the interval period expires. If the entity contains an existing timer,
+ * the interval value will be reset.
+ *
+ * Any entity can be used as a timer (including systems). If an interval value
+ * is set on a system entity, it will be automatically applied to that system.
+ *
+ * The timer is synchronous, and is incremented each frame by delta_time.
+ *
+ * @param world The world.
+ * @param timer The timer for which to set the interval (0 to create one).
+ * @param interval The interval value.
+ * @return The timer entity.
+ */
+FLECS_EXPORT
+ecs_entity_t ecs_set_interval(
+    ecs_world_t *world,
+    ecs_entity_t timer,
+    float interval);   
+
+/** Get current interval value for the specified timer.
+ * This operation returns the value set by ecs_set_interval. If no timer is
+ * active for this entity, the operation returns 0.
+ *
+ * @param world The world.
+ * @param timer The timer for which to set the interval. If 0, an entity will be created.
+ * @return The current interval value, or 0 if no timer is active.
+ */
+FLECS_EXPORT
+float ecs_get_interval(
+    ecs_world_t *world,
+    ecs_entity_t timer);
+
+/** Start timer.
+ * This operation resets the timer and starts it with the specified timeout. The
+ * entity must have the EcsTimer component (added by ecs_set_timeout and 
+ * ecs_set_interval). If the entity does not have the EcsTimer component this
+ * operation will assert.
+ *
+ * @param world The world.
+ * @param timer The timer to start.
+ */
+FLECS_EXPORT
+void ecs_start_timer(
+    ecs_world_t *world,
+    ecs_entity_t timer);
+
+/** Stop timer
+ * This operation stops a timer from triggering. The entity must have the 
+ * EcsTimer component or this operation will assert.
+ *
+ * @param world The world.
+ * @param timer The timer to stop.
+ */
+FLECS_EXPORT
+void ecs_stop_timer(
+    ecs_world_t *world,
+    ecs_entity_t timer);
+
+/** Set rate filter.
+ * This operation sets the source and rate for a rate filter. A rate filter
+ * samples another tick source (or frames, if none provided) and ticks when the
+ * number of sampled ticks equals the rate.
+ *
+ * @param world The world.
+ * @param filter The filter entity (0 to create one).
+ * @param rate The rate to apply.
+ * @param source The tick source (0 to use frames)
+ * @return The filter entity.
+ */
+FLECS_EXPORT
+ecs_entity_t ecs_set_rate_filter(
+    ecs_world_t *world,
+    ecs_entity_t filter,
+    int32_t rate,
+    ecs_entity_t source);
+
+/** Assign tick source to system.
+ * This operation associates a system with a tick source. If the system is both 
+ * active and enabled at the moment the tick source fires, it will be executed.
+ * If no tick source is associated with a system, it will be invoked every 
+ * frame.
+ *
+ * To disassociate a tick source from a system, use 0 for the tick_source 
+ * parameter.
+ *
+ * Timer and rate filter entities are valid tick sources. An application can
+ * also create its own tick source by setting the EcsTickSource component on an
+ * entity.
+ *
+ * If an entity without the EcsTickSource component is provided as tick source,
+ * the system will not be executed.
+ *
+ * @param world The world.
+ * @param system The system to associate with the timer.
+ * @param timer The timer to associate with the system.
+ */ 
+FLECS_EXPORT
+void ecs_set_tick_source(
+    ecs_world_t *world,
+    ecs_entity_t system,
+    ecs_entity_t tick_source);
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -2225,7 +2421,7 @@ ecs_entity_t ecs_import_from_library(
     ECS_SET_COMPONENT(type)
 
 #define ECS_EXPORT_ENTITY(type)\
-    ECS_SET_ENTITY(type)
+    ecs_ei_set(type)
 
 /** Utility macro for declaring handles by modules */
 #define ECS_IMPORT_COMPONENT(handles, type)\

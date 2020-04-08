@@ -134,6 +134,10 @@ void Add_remove_w_filter_remove_1_include_1(void);
 void Add_remove_w_filter_remove_1_include_2(void);
 void Add_remove_w_filter_add_1(void);
 void Add_remove_w_filter_add_2(void);
+void Add_remove_w_filter_add_existing(void);
+void Add_remove_w_filter_remove_existing(void);
+void Add_remove_w_filter_remove_existing_no_filter(void);
+void Add_remove_w_filter_add_remove_nothing(void);
 
 // Testsuite 'Has'
 void Has_zero(void);
@@ -224,8 +228,8 @@ void Set_set_remove_other(void);
 void Set_set_remove_twice(void);
 void Set_set_and_new(void);
 void Set_set_null(void);
-void Set_get_or_add_new(void);
-void Set_get_or_add_existing(void);
+void Set_get_mutable_new(void);
+void Set_get_mutable_existing(void);
 void Set_modified_w_on_set(void);
 
 // Testsuite 'Lookup'
@@ -308,6 +312,11 @@ void SystemMisc_status_disable_after_disable(void);
 void SystemMisc_status_activate_after_new(void);
 void SystemMisc_status_deactivate_after_delete(void);
 void SystemMisc_dont_enable_after_rematch(void);
+void SystemMisc_ensure_single_merge(void);
+void SystemMisc_table_count(void);
+void SystemMisc_active_system_count(void);
+void SystemMisc_match_system(void);
+void SystemMisc_match_system_w_filter(void);
 
 // Testsuite 'SystemOnAdd'
 void SystemOnAdd_new_match_1_of_1(void);
@@ -363,6 +372,8 @@ void SystemOnRemove_delete_no_match_1(void);
 void SystemOnRemove_delete_no_match_2_of_1(void);
 void SystemOnRemove_delete_no_match_2_of_3(void);
 void SystemOnRemove_disabled_system(void);
+void SystemOnRemove_remove_watched(void);
+void SystemOnRemove_delete_watched(void);
 
 // Testsuite 'SystemOnSet'
 void SystemOnSet_set(void);
@@ -431,6 +442,18 @@ void SystemOnFrame_use_field_w_0_size(void);
 void SystemOnFrame_owned_only(void);
 void SystemOnFrame_shared_only(void);
 void SystemOnFrame_is_in_readonly(void);
+void SystemOnFrame_get_period(void);
+
+// Testsuite 'Timer'
+void Timer_timeout(void);
+void Timer_interval(void);
+void Timer_shared_timeout(void);
+void Timer_shared_interval(void);
+void Timer_start_stop_one_shot(void);
+void Timer_start_stop_interval(void);
+void Timer_rate_filter(void);
+void Timer_rate_filter_w_rate_filter_src(void);
+void Timer_rate_filter_w_timer_src(void);
 
 // Testsuite 'SystemOnDemand'
 void SystemOnDemand_enable_out_after_in(void);
@@ -471,6 +494,7 @@ void SystemCascade_adopt_after_match(void);
 void SystemManual_1_type_1_component(void);
 void SystemManual_disabled(void);
 void SystemManual_activate_status(void);
+void SystemManual_no_automerge(void);
 
 // Testsuite 'Tasks'
 void Tasks_no_components(void);
@@ -828,6 +852,9 @@ void SingleThreadStaging_merge_after_tasks(void);
 void SingleThreadStaging_override_after_remove_in_progress(void);
 void SingleThreadStaging_get_parent_in_progress(void);
 void SingleThreadStaging_merge_once(void);
+void SingleThreadStaging_get_mutable(void);
+void SingleThreadStaging_get_mutable_from_main(void);
+void SingleThreadStaging_get_mutable_w_add(void);
 
 // Testsuite 'MultiThreadStaging'
 void MultiThreadStaging_2_threads_add_to_current(void);
@@ -1367,7 +1394,7 @@ static bake_test_suite suites[] = {
     },
     {
         .id = "Add_remove_w_filter",
-        .testcase_count = 12,
+        .testcase_count = 16,
         .testcases = (bake_test_case[]){
             {
                 .id = "remove_1_no_filter",
@@ -1416,6 +1443,22 @@ static bake_test_suite suites[] = {
             {
                 .id = "add_2",
                 .function = Add_remove_w_filter_add_2
+            },
+            {
+                .id = "add_existing",
+                .function = Add_remove_w_filter_add_existing
+            },
+            {
+                .id = "remove_existing",
+                .function = Add_remove_w_filter_remove_existing
+            },
+            {
+                .id = "remove_existing_no_filter",
+                .function = Add_remove_w_filter_remove_existing_no_filter
+            },
+            {
+                .id = "add_remove_nothing",
+                .function = Add_remove_w_filter_add_remove_nothing
             }
         }
     },
@@ -1766,12 +1809,12 @@ static bake_test_suite suites[] = {
                 .function = Set_set_null
             },
             {
-                .id = "get_or_add_new",
-                .function = Set_get_or_add_new
+                .id = "get_mutable_new",
+                .function = Set_get_mutable_new
             },
             {
-                .id = "get_or_add_existing",
-                .function = Set_get_or_add_existing
+                .id = "get_mutable_existing",
+                .function = Set_get_mutable_existing
             },
             {
                 .id = "modified_w_on_set",
@@ -1927,7 +1970,7 @@ static bake_test_suite suites[] = {
     },
     {
         .id = "SystemMisc",
-        .testcase_count = 41,
+        .testcase_count = 46,
         .testcases = (bake_test_case[]){
             {
                 .id = "invalid_not_without_id",
@@ -2092,6 +2135,26 @@ static bake_test_suite suites[] = {
             {
                 .id = "dont_enable_after_rematch",
                 .function = SystemMisc_dont_enable_after_rematch
+            },
+            {
+                .id = "ensure_single_merge",
+                .function = SystemMisc_ensure_single_merge
+            },
+            {
+                .id = "table_count",
+                .function = SystemMisc_table_count
+            },
+            {
+                .id = "active_system_count",
+                .function = SystemMisc_active_system_count
+            },
+            {
+                .id = "match_system",
+                .function = SystemMisc_match_system
+            },
+            {
+                .id = "match_system_w_filter",
+                .function = SystemMisc_match_system_w_filter
             }
         }
     },
@@ -2247,7 +2310,7 @@ static bake_test_suite suites[] = {
     },
     {
         .id = "SystemOnRemove",
-        .testcase_count = 15,
+        .testcase_count = 17,
         .testcases = (bake_test_case[]){
             {
                 .id = "remove_match_1_of_1",
@@ -2308,6 +2371,14 @@ static bake_test_suite suites[] = {
             {
                 .id = "disabled_system",
                 .function = SystemOnRemove_disabled_system
+            },
+            {
+                .id = "remove_watched",
+                .function = SystemOnRemove_remove_watched
+            },
+            {
+                .id = "delete_watched",
+                .function = SystemOnRemove_delete_watched
             }
         }
     },
@@ -2383,7 +2454,7 @@ static bake_test_suite suites[] = {
     },
     {
         .id = "SystemOnFrame",
-        .testcase_count = 48,
+        .testcase_count = 49,
         .testcases = (bake_test_case[]){
             {
                 .id = "1_type_1_component",
@@ -2576,6 +2647,52 @@ static bake_test_suite suites[] = {
             {
                 .id = "is_in_readonly",
                 .function = SystemOnFrame_is_in_readonly
+            },
+            {
+                .id = "get_period",
+                .function = SystemOnFrame_get_period
+            }
+        }
+    },
+    {
+        .id = "Timer",
+        .testcase_count = 9,
+        .testcases = (bake_test_case[]){
+            {
+                .id = "timeout",
+                .function = Timer_timeout
+            },
+            {
+                .id = "interval",
+                .function = Timer_interval
+            },
+            {
+                .id = "shared_timeout",
+                .function = Timer_shared_timeout
+            },
+            {
+                .id = "shared_interval",
+                .function = Timer_shared_interval
+            },
+            {
+                .id = "start_stop_one_shot",
+                .function = Timer_start_stop_one_shot
+            },
+            {
+                .id = "start_stop_interval",
+                .function = Timer_start_stop_interval
+            },
+            {
+                .id = "rate_filter",
+                .function = Timer_rate_filter
+            },
+            {
+                .id = "rate_filter_w_rate_filter_src",
+                .function = Timer_rate_filter_w_rate_filter_src
+            },
+            {
+                .id = "rate_filter_w_timer_src",
+                .function = Timer_rate_filter_w_timer_src
             }
         }
     },
@@ -2717,7 +2834,7 @@ static bake_test_suite suites[] = {
     },
     {
         .id = "SystemManual",
-        .testcase_count = 3,
+        .testcase_count = 4,
         .testcases = (bake_test_case[]){
             {
                 .id = "1_type_1_component",
@@ -2730,6 +2847,10 @@ static bake_test_suite suites[] = {
             {
                 .id = "activate_status",
                 .function = SystemManual_activate_status
+            },
+            {
+                .id = "no_automerge",
+                .function = SystemManual_no_automerge
             }
         }
     },
@@ -3869,7 +3990,7 @@ static bake_test_suite suites[] = {
     },
     {
         .id = "SingleThreadStaging",
-        .testcase_count = 66,
+        .testcase_count = 69,
         .testcases = (bake_test_case[]){
             {
                 .id = "new_empty",
@@ -4134,6 +4255,18 @@ static bake_test_suite suites[] = {
             {
                 .id = "merge_once",
                 .function = SingleThreadStaging_merge_once
+            },
+            {
+                .id = "get_mutable",
+                .function = SingleThreadStaging_get_mutable
+            },
+            {
+                .id = "get_mutable_from_main",
+                .function = SingleThreadStaging_get_mutable_from_main
+            },
+            {
+                .id = "get_mutable_w_add",
+                .function = SingleThreadStaging_get_mutable_w_add
             }
         }
     },
@@ -4496,5 +4629,5 @@ static bake_test_suite suites[] = {
 
 int main(int argc, char *argv[]) {
     ut_init(argv[0]);
-    return bake_test_run("api", argc, argv, suites, 42);
+    return bake_test_run("api", argc, argv, suites, 43);
 }

@@ -7,7 +7,7 @@ ecs_filter_iter_t ecs_filter_iter(
 {
     return (ecs_filter_iter_t){
         .filter = filter ? *filter : (ecs_filter_t){0},
-        .tables = world->main_stage.tables,
+        .tables = world->stage.tables,
         .index = 0,
         .rows = {
             .world = world

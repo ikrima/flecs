@@ -1,5 +1,5 @@
-#ifndef FLECS_CHUNKED_H
-#define FLECS_CHUNKED_H
+#ifndef FLECS_SPARSE_H
+#define FLECS_SPARSE_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -30,6 +30,15 @@ void* _ecs_sparse_add(
 
 #define ecs_sparse_add(sparse, type)\
     ((type*)_ecs_sparse_add(sparse, sizeof(type)))
+
+FLECS_EXPORT
+void* _ecs_sparse_recycle(
+    ecs_sparse_t *sparse,
+    size_t elem_size,
+    int32_t *sparse_index_out);
+
+#define ecs_sparse_recycle(sparse, T, sparse_index_out) \
+    _ecs_sparse_recycle(sparse, sizeof(T), sparse_index_out)
 
 FLECS_EXPORT
 void* _ecs_sparse_remove(
@@ -78,6 +87,14 @@ void* _ecs_sparse_get_or_set_sparse(
 
 FLECS_EXPORT
 const int32_t* ecs_sparse_indices(
+    const ecs_sparse_t *sparse);
+
+FLECS_EXPORT
+const int32_t* ecs_sparse_unused_indices(
+    const ecs_sparse_t *sparse);
+
+FLECS_EXPORT
+const int32_t ecs_sparse_unused_count(
     const ecs_sparse_t *sparse);
 
 FLECS_EXPORT

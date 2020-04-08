@@ -9,54 +9,6 @@
 //// Entity API
 ////////////////////////////////////////////////////////////////////////////////
 
-/* Get entity record */
-ecs_record_t* ecs_get_entity(
-    ecs_world_t *world,
-    ecs_stage_t *stage,
-    ecs_entity_t entity);
-
-/* Get entity info */
-bool ecs_get_info(
-    ecs_world_t *world,
-    ecs_stage_t *stage,
-    ecs_entity_t entity,
-    ecs_entity_info_t *info);
-
-/* Set entity */
-void ecs_set_entity(
-    ecs_world_t *world,
-    ecs_stage_t *stage,
-    ecs_entity_t entity,
-    ecs_record_t *record);  
-
-/* Set entity in main stage */
-ecs_record_t* ecs_set_entity_in_main(
-    ecs_world_t *world,
-    ecs_entity_t entity);
-
-/* Delete entity from stage */
-void ecs_delete_entity(
-    ecs_world_t *world,
-    ecs_stage_t *stage,
-    ecs_entity_t entity);
-
-/* Grow entity index */
-void ecs_entities_grow(
-    ecs_world_t *world,
-    ecs_stage_t *stage,
-    uint32_t count);
-
-/* Grow entity index to specific size */
-void ecs_entities_set_size(
-    ecs_world_t *world,
-    ecs_stage_t *stage,
-    uint32_t size);    
-
-/* Count entities in stage */
-uint32_t ecs_count_entities(
-    ecs_world_t *world,
-    ecs_stage_t *stage);      
-
 /* Merge entity with stage */
 void ecs_merge_entity(
     ecs_world_t *world,
@@ -116,6 +68,13 @@ ecs_entity_t ecs_get_entity_for_component(
 void ecs_clear_w_filter(
     ecs_world_t *world,
     const ecs_filter_t *filter);
+
+/* Get entity info */
+bool ecs_get_info(
+    ecs_world_t *world,
+    ecs_stage_t *stage,
+    ecs_entity_t entity,
+    ecs_entity_info_t *info); 
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -407,6 +366,20 @@ void ecs_sig_deinit(
 
 
 ////////////////////////////////////////////////////////////////////////////////
+//// Timer API
+////////////////////////////////////////////////////////////////////////////////
+
+/* System to automatically add EcsTickSource to timers and rate filters */
+void EcsAddTickSource(ecs_rows_t *rows);
+
+/* System to progress timers */
+void EcsProgressTimers(ecs_rows_t *rows);
+
+/* System to progress rate filter */
+void EcsProgressRateFilters(ecs_rows_t *rows);
+
+
+////////////////////////////////////////////////////////////////////////////////
 //// System API
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -471,6 +444,17 @@ void ecs_system_activate_table(
     ecs_entity_t system,
     ecs_table_t *table,
     bool active);
+
+/* Internal function to run a system */
+ecs_entity_t ecs_run_intern(
+    ecs_world_t *world,
+    ecs_world_t *real_world,
+    ecs_entity_t system,
+    float delta_time,
+    uint32_t offset,
+    uint32_t limit,
+    const ecs_filter_t *filter,
+    void *param);
 
 /* Run a task (periodic system that is not matched against any tables) */
 void ecs_run_task(

@@ -6,7 +6,7 @@ void ecs_component_reader_fetch_component_data(
 {
     ecs_component_reader_t *reader = &stream->component;
     ecs_world_t *world = stream->world;
-    ecs_sparse_t *tables = world->main_stage.tables;
+    ecs_sparse_t *tables = world->stage.tables;
 
     /* Component table is the first table in the world */
     ecs_table_t *table = ecs_sparse_get(tables, ecs_table_t, 0);
@@ -474,7 +474,7 @@ ecs_reader_t ecs_reader_init(
     ecs_reader_t result = {
         .world = world,
         .state = EcsComponentSegment,
-        .tables = world->main_stage.tables
+        .tables = world->stage.tables
     };
 
     ecs_component_reader_fetch_component_data(&result);

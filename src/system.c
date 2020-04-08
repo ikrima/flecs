@@ -47,7 +47,7 @@ void match_families(
     ecs_entity_t system,
     EcsRowSystem *system_data)
 {
-    ecs_type_link_t *link = &world->main_stage.type_root.link;
+    ecs_type_link_t *link = &world->stage.type_root.link;
 
     do {
         match_type(world, system, system_data, link->type);
@@ -147,7 +147,7 @@ ecs_type_t ecs_notify_row_system(
     ecs_get_stage(&real_world);
 
     EcsRowSystem *system_data = ecs_get_ptr_intern(
-        real_world, &real_world->main_stage, system, EEcsRowSystem, false, true);
+        real_world, &real_world->stage, system, EEcsRowSystem, false, true);
     
     ecs_assert(system_data != NULL, ECS_INTERNAL_ERROR, NULL);
 
@@ -232,7 +232,7 @@ ecs_type_t ecs_notify_row_system(
                 .entity = entity, 
                 .component = component,
                 .cached_ptr = ecs_get_ptr_intern(real_world, 
-                    &real_world->main_stage, entity, component, false, true)
+                    &real_world->stage, entity, component, false, true)
             };
 
             /* Update the column vector with the entry to the ref vector */
@@ -422,18 +422,6 @@ bool ecs_is_enabled(
         return system_data->enabled;
     } else {
         return true;
-    }
-}
-
-void ecs_set_period(
-    ecs_world_t *world,
-    ecs_entity_t system,
-    float period)
-{
-    assert(world->magic == ECS_WORLD_MAGIC);
-    EcsColSystem *system_data = ecs_get_ptr(world, system, EcsColSystem);
-    if (system_data) {
-        system_data->period = period;
     }
 }
 
