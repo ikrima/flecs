@@ -13,7 +13,9 @@ add_compile_definitions(FLECS_IMPL)
 add_library(flecs_static STATIC ${flecs_SRC})
 add_library(flecs_shared SHARED ${flecs_SRC})
 
-target_compile_definitions(flecs_static PRIVATE FLECS_STATIC)
+if (TARGET flecs_static)
+  target_compile_definitions(flecs_static PRIVATE FLECS_STATIC)
+endif()
 
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/lib)
