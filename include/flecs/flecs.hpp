@@ -629,6 +629,13 @@ public:
     base_type& remove_instanceof(const entity& base_entity) const;
 
     /* -- set -- */
+    template <typename T, typename... As>
+    const base_type& setinit(As&&... as) const {
+      ecs_assert(component_ptr == NULL, ECS_INVALID_PARAMETER, NULL);
+      T* new_comp = add<T>().get_ptr<T>();
+      new(new_comp) T{std::forward<As>(as)...};
+      return *static_cast<base_type*>(this);
+    }
 
     template <typename T>
     const base_type& set(const T&& value) const {
@@ -803,6 +810,13 @@ public:
     flecs::type type() const;
 
     flecs::type to_type() const;
+
+    template<typename T>
+    T& get_m() const {
+      T* component_ptr = static_cast<T*>(_ecs_get_ptr(m_world, m_id, component_base<T>::s_entity));
+      ecs_assert(component_ptr != NULL, ECS_INVALID_PARAMETER, NULL);
+      return *component_ptr;
+    }
 
     template<typename T>
     const T& get() const {
