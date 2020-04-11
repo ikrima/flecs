@@ -580,7 +580,7 @@ ecs_entity_t ecs_run_w_filter_v2(
 
     /* If world wasn't in progress when we entered this function, we need to
      * merge and reset the in_progress value */
-    if (!in_progress) {
+    if (!in_progress && real_world->auto_merge) {
         real_world->in_progress = false;
         if (world->auto_merge) {
             real_world->is_merging = true;

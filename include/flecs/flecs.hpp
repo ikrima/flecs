@@ -629,11 +629,18 @@ public:
     base_type& remove_instanceof(const entity& base_entity) const;
 
     /* -- set -- */
+    template <typename T, typename... As>
+    const base_type& setinit(As&&... as) const {
+      ecs_assert(component_ptr == NULL, ECS_INVALID_PARAMETER, NULL);
+      T* new_comp = add<T>().get_ptr<T>();
+      new(new_comp) T{std::forward<As>(as)...};
+      return *static_cast<base_type*>(this);
+    }
 
     template <typename T>
     const base_type& set(const T&& value) const {
         static_cast<base_type*>(this)->invoke(
-        [value](world_t *world, entity_t id) {
+        [&value](world_t *world, entity_t id) {
             _ecs_set_ptr(world, id, component_base<T>::s_entity, sizeof(T), &value);
         });
         return *static_cast<base_type*>(this);
@@ -642,7 +649,7 @@ public:
     template <typename T>
     const base_type& set(const T& value) const {
         static_cast<base_type*>(this)->invoke(
-        [value](world_t *world, entity_t id) {
+        [&value](world_t *world, entity_t id) {
             _ecs_set_ptr(world, id, component_base<T>::s_entity, sizeof(T), &value);
         });
         return *static_cast<base_type*>(this);
@@ -651,7 +658,7 @@ public:
     template <typename T>
     const base_type& replace(std::function<void(T&, bool)> func) const {
         static_cast<base_type*>(this)->invoke(
-        [func](world_t *world, entity_t id) {
+        [&func](world_t *world, entity_t id) {
             bool is_added;
 
             T *ptr = static_cast<T*>(_ecs_get_mutable(
@@ -668,7 +675,7 @@ public:
     template <typename T>
     const base_type& replace(std::function<void(T&)> func) const {
         static_cast<base_type*>(this)->invoke(
-        [func](world_t *world, entity_t id) {
+        [&func](world_t *world, entity_t id) {
             bool is_added;
 
             T *ptr = static_cast<T*>(_ecs_get_mutable(
@@ -805,6 +812,13 @@ public:
     flecs::type to_type() const;
 
     template<typename T>
+    T& get_m() const {
+      T* component_ptr = static_cast<T*>(_ecs_get_ptr(m_world, m_id, component_base<T>::s_entity));
+      ecs_assert(component_ptr != NULL, ECS_INVALID_PARAMETER, NULL);
+      return *component_ptr;
+    }
+
+    template<typename T>
     const T& get() const {
         T* component_ptr = static_cast<T*>(_ecs_get_ptr(m_world, m_id, component_base<T>::s_entity));
         ecs_assert(component_ptr != NULL, ECS_INVALID_PARAMETER, NULL);
@@ -823,7 +837,7 @@ public:
     }
 
     template <typename Func>
-    void invoke(Func action) const {
+    void invoke(Func&& action) const {
         action(m_world, m_id);
     } 
 
@@ -915,7 +929,7 @@ public:
         , m_count(count) { }
 
     template <typename Func>
-    void invoke(Func action) const {
+    void invoke(Func&& action) const {
         for (auto id : *this) {
             action(m_world, id);
         }

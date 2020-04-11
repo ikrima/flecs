@@ -1291,6 +1291,7 @@ void ecs_merge(
 {
     ecs_assert(world->magic == ECS_WORLD_MAGIC, ECS_INVALID_FROM_WORKER, NULL);
     assert(world->is_merging == false);
+    assert(world->in_progress == false);
 
     bool measure_frame_time = world->measure_frame_time;
 
