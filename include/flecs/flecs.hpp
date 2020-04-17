@@ -631,8 +631,8 @@ public:
     /* -- set -- */
     template <typename T, typename... As>
     const base_type& setinit(As&&... as) const {
-      ecs_assert(static_cast<base_type*>(this)->get_ptr<T>() == NULL, ECS_INVALID_PARAMETER, NULL);
-      T* new_comp = add<T>().get_ptr<T>();
+      ecs_assert(static_cast<base_type*>(this)->template get_ptr<T>() == NULL, ECS_INVALID_PARAMETER, NULL);
+      T* new_comp = add<T>().template get_ptr<T>();
       new(new_comp) T{std::forward<As>(as)...};
       return *static_cast<base_type*>(this);
     }
