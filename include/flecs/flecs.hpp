@@ -376,6 +376,8 @@ public:
 
     world(world&& obj) {
         m_world = obj.m_world;
+        m_owned = obj.m_owned;
+        obj.m_owned = false;
     }
 
     /* Not allowed to copy a world. May only take a reference */
@@ -383,6 +385,8 @@ public:
 
     world& operator=(world&& obj) {
         m_world = obj.m_world;
+        m_owned = obj.m_owned;
+        obj.m_owned = false;
         return *this;
     }
     
