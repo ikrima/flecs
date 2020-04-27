@@ -839,6 +839,12 @@ public:
     cached_ptr<T> get_cached_ptr() const {
         return cached_ptr<T>(m_world, m_id);
     }
+    template <typename T>
+    ecs_cached_ptr_t get_raw_cached_ptr() const {
+      ecs_cached_ptr_t ret;
+      _ecs_get_cached_ptr(m_world, &ret, m_id, component_base<T>::s_entity);
+      return ret;
+    }
 
     template <typename Func>
     void invoke(Func&& action) const {
