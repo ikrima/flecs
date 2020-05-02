@@ -1093,6 +1093,8 @@ public:
 
         ecs_assert(!cur_entity || cur_entity == s_entity, ECS_INCONSISTENT_COMPONENT_NAME, name);
         ecs_assert(!cur_type || cur_type == s_type, ECS_INCONSISTENT_COMPONENT_NAME, name);
+        ECS_UNUSED(cur_entity);
+        ECS_UNUSED(cur_type);
     }
 
     static void init_existing(entity_t entity, type_t type, const char *name) {

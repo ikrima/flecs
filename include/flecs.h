@@ -15,6 +15,8 @@
  * importing/exporting symbols */
 #include "flecs/bake_config.h"
 
+#define ECS_UNUSED(x) ((void)x)
+
 /* The API uses the native bool type in C++, or a custom one in C */
 #ifndef __cplusplus
 #undef bool

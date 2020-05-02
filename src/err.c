@@ -56,6 +56,7 @@ void _ecs_parser_error(
         msg = ecs_os_malloc(required + 1);
         int written = vsnprintf(msg, required, fmt, valist);
         ecs_assert(written == required, ECS_INTERNAL_ERROR, NULL);
+        ECS_UNUSED(written);
     } else {
         msg = msg_buf;
     }
