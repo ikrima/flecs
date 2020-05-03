@@ -737,13 +737,21 @@ public:
 
         return static_cast<T*>(m_cached_ptr.ptr);
     }
+    T const* get() const {
+        if (m_entity) {
+            _ecs_get_cached_ptr(
+                m_world, &m_cached_ptr, m_entity, component_base<T>::s_entity);    
+        }
+
+        return static_cast<T const*>(m_cached_ptr.ptr);
+    }
 
     flecs::entity entity() const;
 
 private:
     world_t *m_world;
     entity_t m_entity;
-    ecs_cached_ptr_t m_cached_ptr;
+    mutable ecs_cached_ptr_t m_cached_ptr;
 };
 
 
