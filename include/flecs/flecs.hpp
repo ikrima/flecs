@@ -377,6 +377,7 @@ public:
     world(world&& obj) {
         m_world = obj.m_world;
         m_owned = obj.m_owned;
+        obj.m_world = nullptr;
         obj.m_owned = false;
     }
 
@@ -384,14 +385,17 @@ public:
     world& operator=(const world& obj) = delete;
 
     world& operator=(world&& obj) {
+        this->~world();
+
         m_world = obj.m_world;
         m_owned = obj.m_owned;
+        obj.m_world = nullptr;
         obj.m_owned = false;
         return *this;
     }
     
     ~world() { 
-        if (m_owned) {
+        if (m_owned && m_world) {
             ecs_fini(m_world); 
         }
     }
