@@ -63,7 +63,7 @@ enum match_kind {
 
 
 ////////////////////////////////////////////////////////////////////////////////
-//// Builtin components and tags 
+//// Builtin components and tags
 ////////////////////////////////////////////////////////////////////////////////
 
 using Component = EcsComponent;
@@ -92,7 +92,7 @@ class column {
 public:
     column(T* array, std::size_t count, bool is_shared = false)
         : m_array(array)
-        , m_count(count) 
+        , m_count(count)
         , m_is_shared(is_shared) {}
 
     column(rows &rows, int column);
@@ -140,7 +140,7 @@ public:
         } else {
             return this->m_array[0];
         }
-    }   
+    }
 };
 
 
@@ -182,8 +182,8 @@ private:
 
 class rows final {
     using row_iterator = range_iterator<int>;
-public:    
-    rows(const ecs_rows_t *rows) : m_rows(rows) { 
+public:
+    rows(const ecs_rows_t *rows) : m_rows(rows) {
         m_begin = 0;
         m_end = rows->count;
     }
@@ -220,7 +220,7 @@ public:
     bool is_shared(int32_t column) const {
         return ecs_is_shared(m_rows, column);
     }
-    
+
     /* Access param field */
     void *param() {
         return m_rows->param;
@@ -300,7 +300,7 @@ public:
 
     /* Get single field of a const type */
     template <typename T,
-        typename std::enable_if<std::is_const<T>::value, void>::type* = nullptr>    
+        typename std::enable_if<std::is_const<T>::value, void>::type* = nullptr>
     T& field(int32_t column, int32_t row) const {
         return get_field<T>(column, row);
     }
@@ -333,14 +333,14 @@ private:
         }
 
         return flecs::column<T>(static_cast<T*>(_ecs_column(m_rows, sizeof(T), column_id)), count, is_shared);
-    }   
+    }
 
     /* Get single field, check if correct type is used */
     template <typename T>
     T& get_field(int32_t column, int32_t row) const {
         ecs_assert(ecs_column_entity(m_rows, column) == component_base<T>::s_entity, ECS_COLUMN_TYPE_MISMATCH, NULL);
         return *static_cast<T*>(_ecs_field(m_rows, sizeof(T), column, row));
-    }       
+    }
 
     const ecs_rows_t *m_rows;
     int32_t m_begin;
@@ -359,7 +359,7 @@ inline column<T>::column(rows &rows, int column) {
 
 class world final {
 public:
-    world() 
+    world()
         : m_world( ecs_init() )
         , m_owned( true ) { init_builtin_components(); }
 
@@ -367,8 +367,8 @@ public:
         : m_world( ecs_init_w_args(argc, argv) )
         , m_owned( true ) { init_builtin_components(); }
 
-    explicit world(world_t *world) 
-        : m_world( world ) 
+    explicit world(world_t *world)
+        : m_world( world )
         , m_owned( false ) { }
 
     /* Not allowed to copy a world. May only take a reference */
@@ -393,10 +393,10 @@ public:
         obj.m_owned = false;
         return *this;
     }
-    
-    ~world() { 
+
+    ~world() {
         if (m_owned && m_world) {
-            ecs_fini(m_world); 
+            ecs_fini(m_world);
         }
     }
 
@@ -516,7 +516,7 @@ public:
     void unlock() {
         ecs_unlock(m_world);
     }
-    
+
 private:
     void init_builtin_components();
 
@@ -541,7 +541,7 @@ public:
         [entity](world_t *world, entity_t id) {
             ecs_add_entity(world, id, entity);
         });
-        return *static_cast<base_type*>(this);         
+        return *static_cast<base_type*>(this);
     }
 
     template <typename T>
@@ -556,7 +556,7 @@ public:
         [type](world_t *world, entity_t id) {
             _ecs_add(world, id, type);
         });
-        return *static_cast<base_type*>(this); 
+        return *static_cast<base_type*>(this);
     }
 
     base_type& add(type type) const;
@@ -568,8 +568,8 @@ public:
         [entity](world_t *world, entity_t id) {
             ecs_remove_entity(world, id, entity);
         });
-        return *static_cast<base_type*>(this);         
-    }    
+        return *static_cast<base_type*>(this);
+    }
 
     template <typename T>
     base_type& remove() const {
@@ -583,7 +583,7 @@ public:
         [type](world_t *world, entity_t id) {
             _ecs_remove(world, id, type);
         });
-        return *static_cast<base_type*>(this);         
+        return *static_cast<base_type*>(this);
     }
 
     base_type& remove(type type) const;
@@ -595,7 +595,7 @@ public:
         [parent](world_t *world, entity_t id) {
             ecs_adopt(world, id, parent);
         });
-        return *static_cast<base_type*>(this);  
+        return *static_cast<base_type*>(this);
     }
 
     base_type& add_childof(const entity& parent) const;
@@ -607,7 +607,7 @@ public:
         [parent](world_t *world, entity_t id) {
             ecs_orphan(world, id, parent);
         });
-        return *static_cast<base_type*>(this);  
+        return *static_cast<base_type*>(this);
     }
 
     base_type& remove_childof(const entity& parent) const;
@@ -619,10 +619,10 @@ public:
         [base_entity](world_t *world, entity_t id) {
             ecs_inherit(world, id, base_entity);
         });
-        return *static_cast<base_type*>(this);  
+        return *static_cast<base_type*>(this);
     }
 
-    base_type& add_instanceof(const entity& base_entity) const;  
+    base_type& add_instanceof(const entity& base_entity) const;
 
     /* -- remove_instanceof -- */
 
@@ -652,7 +652,7 @@ public:
             _ecs_set_ptr(world, id, component_base<T>::s_entity, sizeof(T), &value);
         });
         return *static_cast<base_type*>(this);
-    }   
+    }
 
     template <typename T>
     const base_type& set(const T& value) const {
@@ -678,7 +678,7 @@ public:
             }
         });
         return *static_cast<base_type*>(this);
-    }      
+    }
 
     template <typename T>
     const base_type& replace(std::function<void(T&)> func) const {
@@ -701,7 +701,7 @@ public:
             }
         });
         return *static_cast<base_type*>(this);
-    }            
+    }
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -716,7 +716,7 @@ public:
         , m_entity( 0 )
         , m_cached_ptr({0}) { }
 
-    cached_ptr(world_t *world, entity_t entity) 
+    cached_ptr(world_t *world, entity_t entity)
         : m_world( world )
         , m_entity( entity )
         , m_cached_ptr({0}) {
@@ -736,7 +736,7 @@ public:
     T* get() {
         if (m_entity) {
             _ecs_get_cached_ptr(
-                m_world, &m_cached_ptr, m_entity, component_base<T>::s_entity);    
+                m_world, &m_cached_ptr, m_entity, component_base<T>::s_entity);
         }
 
         return static_cast<T*>(m_cached_ptr.ptr);
@@ -744,7 +744,7 @@ public:
     T const* get() const {
         if (m_entity) {
             _ecs_get_cached_ptr(
-                m_world, &m_cached_ptr, m_entity, component_base<T>::s_entity);    
+                m_world, &m_cached_ptr, m_entity, component_base<T>::s_entity);
         }
 
         return static_cast<T const*>(m_cached_ptr.ptr);
@@ -765,43 +765,43 @@ private:
 
 class entity : public entity_fluent<entity> {
 public:
-    explicit entity(const world& world) 
+    explicit entity(const world& world)
         : m_world( world.c_ptr() )
         , m_id( _ecs_new(m_world, 0) ) { }
 
-    explicit entity(world_t *world) 
+    explicit entity(world_t *world)
         : m_world( world )
         , m_id( _ecs_new(m_world, 0) ) { }
 
-    entity(const world& world, const char *name) 
+    entity(const world& world, const char *name)
         : m_world( world.c_ptr() )
-        , m_id( ecs_lookup(m_world, name) ) 
-        { 
+        , m_id( ecs_lookup(m_world, name) )
+        {
             if (!m_id) {
                 EcsId id{ ecs_os_strdup(name) };
                 m_id = ecs_set_ptr(m_world, 0, EcsId, &id);
             }
         }
 
-    entity(const world& world, std::string name) 
+    entity(const world& world, std::string name)
         : m_world( world.c_ptr() )
-        , m_id( ecs_lookup(m_world, name.c_str()) ) 
-        { 
+        , m_id( ecs_lookup(m_world, name.c_str()) )
+        {
             if (!m_id) {
                 EcsId id{ ecs_os_strdup(name.c_str()) };
                 m_id = ecs_set_ptr(m_world, 0, EcsId, &id);
             }
-        }         
+        }
 
-    entity(const world& world, entity_t id) 
+    entity(const world& world, entity_t id)
         : m_world( world.c_ptr() )
         , m_id(id) { }
 
-    entity(world_t *world, entity_t id) 
+    entity(world_t *world, entity_t id)
         : m_world( world )
         , m_id(id) { }
 
-    entity() 
+    entity()
         : m_world(nullptr)
         , m_id(0) { }
 
@@ -826,6 +826,13 @@ public:
     flecs::type type() const;
 
     flecs::type to_type() const;
+
+    template <typename T>
+    T& add_uninit() const {
+      ecs_assert(static_cast<T*>(_ecs_get_ptr(m_world, m_id, component_base<T>::s_entity)) == NULL, ECS_INVALID_PARAMETER, NULL);
+      ecs_add_entity(m_world, m_id, component_base<T>::s_entity);
+      return get_m<T>();
+    }
 
     template<typename T>
     T& get_m() const {
@@ -867,7 +874,7 @@ public:
     template <typename Func>
     void invoke(Func&& action) const {
         action(m_world, m_id);
-    } 
+    }
 
     void destruct() const {
         ecs_delete(m_world, m_id);
@@ -924,13 +931,13 @@ public:
 
 protected:
     world_t *m_world;
-    entity_t m_id; 
+    entity_t m_id;
 };
 
 /** Prefab class */
 class prefab final : public entity {
 public:
-    prefab(const world& world, const char *name) 
+    prefab(const world& world, const char *name)
         : entity(world, name)
     {
         this->add<Prefab>();
@@ -951,7 +958,7 @@ public:
 class entity_range final : public entity_fluent<entity_range> {
     using entity_iterator = range_iterator<entity_t>;
 public:
-    entity_range(const world& world, std::int32_t count) 
+    entity_range(const world& world, std::int32_t count)
         : m_world(world.c_ptr())
         , m_id_start( _ecs_new_w_count(m_world, nullptr, count))
         , m_count(count) { }
@@ -962,7 +969,7 @@ public:
             action(m_world, id);
         }
     }
-    
+
     entity_iterator begin() const {
         return entity_iterator(m_id_start);
     }
@@ -986,13 +993,13 @@ class type final : entity {
 public:
     type(const world& world, const char *name, const char *expr = nullptr)
         : entity(world, ecs_new_type(world.c_ptr(), name, expr))
-    { 
+    {
         sync_from_flecs();
     }
 
     type(const world& world, const char *name, entity parent, const char *expr)
         : entity(world, ecs_new_type(world.c_ptr(), name, expr))
-    { 
+    {
         this->set<EcsPrefab>({parent.id()});
         sync_from_flecs();
     }
@@ -1132,19 +1139,19 @@ template <typename T> const char* component_base<T>::s_name( nullptr );
 template <typename T>
 class component : public entity {
 public:
-    component(const world& world, const char *name) { 
+    component(const world& world, const char *name) {
         component_base<T>::init(world, name);
 
         /* Register as well for both const and reference versions of type */
         component_base<const T>::init_existing(
-            component_base<T>::s_entity, 
-            component_base<T>::s_type, 
+            component_base<T>::s_entity,
+            component_base<T>::s_type,
             component_base<T>::s_name);
 
         component_base<T&>::init_existing(
-            component_base<T>::s_entity, 
-            component_base<T>::s_type, 
-            component_base<T>::s_name);    
+            component_base<T>::s_entity,
+            component_base<T>::s_type,
+            component_base<T>::s_name);
 
         m_id = component_base<T>::s_entity;
         m_world = world.c_ptr();
@@ -1182,14 +1189,14 @@ void import(world& world, int flags = 0) {
 ////////////////////////////////////////////////////////////////////////////////
 //// A filter is used to match subsets of tables
 ////////////////////////////////////////////////////////////////////////////////
- 
+
 class filter {
 public:
-    filter() 
+    filter()
         : m_world( nullptr )
         , m_filter{ } {}
 
-    explicit filter(const world& world) 
+    explicit filter(const world& world)
         : m_world( world.c_ptr() )
         , m_filter{ } { }
 
@@ -1233,7 +1240,7 @@ public:
         m_filter.exclude = ecs_type_add(m_world, m_filter.exclude, component_base<T>::s_entity);
         return *this;
     }
- 
+
     filter& exclude_kind(match_kind kind) {
         m_filter.exclude_kind = static_cast<ecs_match_kind_t>(kind);
         return *this;
@@ -1241,7 +1248,7 @@ public:
 
     type exclude() {
         return type(m_world, m_filter.exclude);
-    }  
+    }
 
     const filter_t* c_ptr() const {
         if (m_world) {
@@ -1263,7 +1270,7 @@ private:
 
 template <typename ... Components>
 class column_args {
-public:    
+public:
     struct Column {
         void *ptr;
         bool is_shared;
@@ -1325,10 +1332,10 @@ public:
     static void run(ecs_rows_t *rows) {
         each_invoker *self = (each_invoker*)
             ecs_get_system_context(rows->world, rows->system);
-        Func func = self->m_func;        
+        Func func = self->m_func;
         column_args<Components...> columns(rows);
         call_system(rows, func, 0, columns.m_columns);
-    }   
+    }
 
 private:
     Func m_func;
@@ -1416,12 +1423,12 @@ public:
         : m_world( world )
         , m_snapshot( nullptr ) { }
 
-    snapshot(const snapshot& obj) 
+    snapshot(const snapshot& obj)
         : m_world( obj.m_world )
         , m_snapshot( ecs_snapshot_copy(m_world.c_ptr(), obj.m_snapshot, nullptr) )
     { }
 
-    snapshot(snapshot&& obj) 
+    snapshot(snapshot&& obj)
         : m_world(obj.m_world)
         , m_snapshot(obj.m_snapshot)
     {
@@ -1494,7 +1501,7 @@ class action_invoker {
     using Columns = typename column_args<Components ...>::Columns;
 
 public:
-    explicit action_invoker(Func func) 
+    explicit action_invoker(Func func)
         : m_func(func) { }
 
     /* Invoke system */
@@ -1507,7 +1514,7 @@ public:
         Func func = self->m_func;
 
         flecs::rows rows_wrapper(rows);
-        
+
         func(rows_wrapper, (column<typename std::remove_reference<Components>::type>(
             (typename std::remove_reference<Components>::type*)comps.ptr, rows->count, comps.is_shared))...);
     }
@@ -1523,7 +1530,7 @@ public:
     static void run(ecs_rows_t *rows) {
         column_args<Components...> columns(rows);
         call_system(rows, 0, columns.m_columns);
-    }   
+    }
 
 private:
     Func m_func;
@@ -1584,11 +1591,11 @@ class system final : public entity {
 public:
     system(const world& world, const char *name = nullptr)
         : m_kind(static_cast<ecs_system_kind_t>(OnUpdate))
-        , m_name(name) 
+        , m_name(name)
         , m_period(0.0)
         , m_on_demand(false)
         , m_hidden(false)
-        , m_finalized(false) { 
+        , m_finalized(false) {
             m_world = world.c_ptr();
         }
 
@@ -1650,8 +1657,8 @@ public:
         return system_runner_fluent(m_world, m_id, delta_time, param);
     }
 
-    /* Action (or each) is mandatory and always the last thing that is added in 
-     * the fluent method chain. Create system signature from both template 
+    /* Action (or each) is mandatory and always the last thing that is added in
+     * the fluent method chain. Create system signature from both template
      * parameters and anything provided by the signature method. */
     template <typename Func>
     system& action(Func func) {
@@ -1661,10 +1668,10 @@ public:
         std::string signature = build_signature();
 
         entity_t e = ecs_new_system(
-            m_world, 
-            m_name, 
-            m_kind, 
-            signature.c_str(), 
+            m_world,
+            m_name,
+            m_kind,
+            signature.c_str(),
             action_invoker<Func, Components...>::run);
 
         ecs_set_system_context(m_world, e, ctx);
@@ -1691,17 +1698,17 @@ public:
         }
 
         entity_t e = ecs_new_system(
-            m_world, 
-            m_name, 
-            m_kind, 
-            signature.c_str(), 
+            m_world,
+            m_name,
+            m_kind,
+            signature.c_str(),
             each_invoker<Func, Components...>::run);
 
         ecs_set_system_context(m_world, e, ctx);
 
         if (m_period) {
             ecs_set_period(m_world, e, m_period);
-        }        
+        }
 
         m_id = e;
 
@@ -1729,20 +1736,20 @@ private:
         if (m_hidden) {
             if (set) {
                 str << ",";
-            }            
+            }
             str << "SYSTEM.EcsHidden";
             set = true;
-        }    
+        }
 
         if (m_on_demand) {
             if (set) {
                 str << ",";
-            }            
+            }
             str << "SYSTEM.EcsOnDemand";
             set = true;
-        } 
+        }
 
-        return str.str();       
+        return str.str();
     }
 
     bool pack_args_to_string(std::stringstream& str) {
@@ -1752,7 +1759,7 @@ private:
 
         std::array<const char*, sizeof...(Components)> inout_modifiers = {
             inout_modifier<Components>()...
-        };    
+        };
 
         int i = 0;
         for (auto id : ids) {
@@ -1762,7 +1769,7 @@ private:
             str << inout_modifiers[i];
             str << id;
             i ++;
-        }  
+        }
 
         return i != 0;
     }
@@ -1808,7 +1815,7 @@ public:
         : m_has_next(false)
         , m_iter{ } { }
 
-    query_iterator(const query<Components...>& query) 
+    query_iterator(const query<Components...>& query)
         : m_iter( ecs_query_iter(query.c_ptr(), 0, 0) )
     {
         m_has_next = ecs_query_next(&m_iter);
@@ -1847,12 +1854,12 @@ public:
 
     filter_iterator(const world& world, const filter& filter)
         : m_world( world.c_ptr() )
-        , m_iter( ecs_filter_iter(m_world, filter.c_ptr()) ) 
-    { 
+        , m_iter( ecs_filter_iter(m_world, filter.c_ptr()) )
+    {
         m_has_next = ecs_filter_next(&m_iter);
     }
 
-    filter_iterator(const world& world, const snapshot& snapshot, const filter& filter) 
+    filter_iterator(const world& world, const snapshot& snapshot, const filter& filter)
         : m_world( world.c_ptr() )
         , m_iter( ecs_snapshot_filter_iter(m_world, snapshot.c_ptr(), filter.c_ptr()) )
     {
@@ -1885,7 +1892,7 @@ private:
 
 class world_filter {
 public:
-    world_filter(const world& world, const filter& filter) 
+    world_filter(const world& world, const filter& filter)
         : m_world( world )
         , m_filter( filter ) { }
 
@@ -1909,7 +1916,7 @@ private:
 
 class snapshot_filter {
 public:
-    snapshot_filter(const world& world, const snapshot& snapshot, const filter& filter) 
+    snapshot_filter(const world& world, const snapshot& snapshot, const filter& filter)
         : m_world( world )
         , m_snapshot( snapshot )
         , m_filter( filter ) { }
