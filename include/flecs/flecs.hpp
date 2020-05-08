@@ -918,7 +918,7 @@ public:
         return ecs_get_delta_time(m_world);
     }
 
-    operator bool() {
+    explicit operator bool() {
         return m_id != 0;
     }
 
