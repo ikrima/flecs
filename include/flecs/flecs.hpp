@@ -646,7 +646,7 @@ public:
     }
 
     template <typename T>
-    const base_type& set(const T&& value) const {
+    const base_type& set(T&& value) const {
         static_cast<base_type*>(this)->invoke(
         [&value](world_t *world, entity_t id) {
             _ecs_set_ptr(world, id, component_base<T>::s_entity, sizeof(T), &value);
