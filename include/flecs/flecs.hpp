@@ -829,6 +829,7 @@ public:
 
     template <typename T>
     T& add_uninit() const {
+      ecs_assert(component_base<T>::s_entity != flecs::Invalid, ECS_UNKNOWN_COMPONENT_ID, NULL);
       ecs_assert(static_cast<T*>(_ecs_get_ptr(m_world, m_id, component_base<T>::s_entity)) == NULL, ECS_INVALID_PARAMETER, NULL);
       ecs_add_entity(m_world, m_id, component_base<T>::s_entity);
       return get_m<T>();
@@ -836,6 +837,7 @@ public:
 
     template<typename T>
     T& get_m() const {
+      ecs_assert(component_base<T>::s_entity != flecs::Invalid, ECS_UNKNOWN_COMPONENT_ID, NULL);
       T* component_ptr = static_cast<T*>(_ecs_get_ptr(m_world, m_id, component_base<T>::s_entity));
       ecs_assert(component_ptr != NULL, ECS_INVALID_PARAMETER, NULL);
       return *component_ptr;
@@ -843,6 +845,7 @@ public:
 
     template<typename T>
     const T& get() const {
+        ecs_assert(component_base<T>::s_entity != flecs::Invalid, ECS_UNKNOWN_COMPONENT_ID, NULL);
         T* component_ptr = static_cast<T*>(_ecs_get_ptr(m_world, m_id, component_base<T>::s_entity));
         ecs_assert(component_ptr != NULL, ECS_INVALID_PARAMETER, NULL);
         return *component_ptr;
@@ -850,12 +853,14 @@ public:
 
     template <typename T>
     T const* get_ptr() const {
+        ecs_assert(component_base<T>::s_entity != flecs::Invalid, ECS_UNKNOWN_COMPONENT_ID, NULL);
         return static_cast<T*>(
             _ecs_get_ptr(m_world, m_id, component_base<T>::s_entity));
     }
 
     template <typename T>
     T* get_ptr_m() const {
+      ecs_assert(component_base<T>::s_entity != flecs::Invalid, ECS_UNKNOWN_COMPONENT_ID, NULL);
       return static_cast<T*>(
         _ecs_get_ptr(m_world, m_id, component_base<T>::s_entity));
     }
