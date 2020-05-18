@@ -208,11 +208,21 @@ FLECS_EXPORT
 void ecs_os_set_api_defaults(void);
 
 /* Memory management */
+#ifndef ecs_os_malloc
 #define ecs_os_malloc(size) ecs_os_api.malloc(size);
+#endif
+#ifndef ecs_os_free
 #define ecs_os_free(ptr) ecs_os_api.free(ptr);
+#endif
+#ifndef ecs_os_realloc
 #define ecs_os_realloc(ptr, size) ecs_os_api.realloc(ptr, size)
+#endif
+#ifndef ecs_os_calloc
 #define ecs_os_calloc(num, size) ecs_os_api.calloc(num, size)
+#endif
+#ifndef ecs_os_strdup
 #define ecs_os_strdup(str) ecs_os_api.strdup(str)
+#endif
 
 #if defined(_MSC_VER) || defined(__MINGW32__)
 #define ecs_os_alloca(type, count) _alloca(sizeof(type) * (count))

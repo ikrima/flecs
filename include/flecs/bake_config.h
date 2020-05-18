@@ -42,5 +42,7 @@
   #define FLECS_EXPORT
 #endif
 
+#include "ES2/Core/ES2Alloc.h"
+
 #endif
 
