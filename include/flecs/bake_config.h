@@ -42,6 +42,6 @@
   #define FLECS_EXPORT
 #endif
 
-#include "ES2/Subsys/ES2CapiWrappers.h"
+#include "ES2Core/Subsys/ES2CapiWrappers.h"
 
 #endif
