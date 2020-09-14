@@ -1,14 +1,16 @@
-#include "flecs_private.h"
+#include "private_api.h"
+
+void ecs_os_api_impl(ecs_os_api_t *api);
 
 static bool ecs_os_api_initialized = false;
-static bool ecs_os_api_debug_enabled = false;
+static int ecs_os_api_init_count = 0;
 
 ecs_os_api_t ecs_os_api;
 
-uint64_t ecs_os_api_malloc_count = 0;
-uint64_t ecs_os_api_realloc_count = 0;
-uint64_t ecs_os_api_calloc_count = 0;
-uint64_t ecs_os_api_free_count = 0;
+int64_t ecs_os_api_malloc_count = 0;
+int64_t ecs_os_api_realloc_count = 0;
+int64_t ecs_os_api_calloc_count = 0;
+int64_t ecs_os_api_free_count = 0;
 
 void ecs_os_set_api(
     ecs_os_api_t *os_api)
@@ -19,160 +21,47 @@ void ecs_os_set_api(
     }
 }
 
-/* When flecs is built with bake, use functions from bake.util */
-#ifdef __BAKE__
-
-static
-ecs_os_thread_t bake_thread_new(
-    ecs_os_thread_callback_t callback, 
-    void *param)
+void ecs_os_init(void)
 {
-    return (ecs_os_thread_t)ut_thread_new(callback, param);
-}
-
-static
-void* bake_thread_join(
-    ecs_os_thread_t thread)
-{
-    void *arg;
-    ut_thread_join((ut_thread)thread, &arg);
-    return arg;
-}
-
-static
-ecs_os_mutex_t bake_mutex_new(void) {
-    struct ut_mutex_s *m = ecs_os_api.malloc(sizeof(struct ut_mutex_s));
-    ut_mutex_new(m);
-    return (ecs_os_mutex_t)(uintptr_t)m;
-}
-
-static
-void bake_mutex_free(ecs_os_mutex_t mutex) {
-    ut_mutex_free((struct ut_mutex_s*)mutex);
-    ecs_os_api.free((struct ut_mutex_s*)mutex);
-}
-
-static
-void bake_mutex_lock(ecs_os_mutex_t mutex) {
-    ut_mutex_lock((struct ut_mutex_s*)mutex);
-}
-
-static
-void bake_mutex_unlock(ecs_os_mutex_t mutex) {
-    ut_mutex_unlock((struct ut_mutex_s*)mutex);
-}
-
-static
-ecs_os_cond_t bake_cond_new(void) {
-    struct ut_cond_s *c = ecs_os_api.malloc(sizeof(struct ut_cond_s));
-    ut_cond_new(c);
-    return (ecs_os_cond_t)(uintptr_t)c;
-}
-
-static 
-void bake_cond_free(ecs_os_cond_t cond) {
-    ut_cond_free((struct ut_cond_s *)cond);
-}
-
-static 
-void bake_cond_signal(ecs_os_cond_t cond) {
-    ut_cond_signal((struct ut_cond_s *)cond);
-}
-
-static 
-void bake_cond_broadcast(ecs_os_cond_t cond) {
-    ut_cond_broadcast((struct ut_cond_s *)cond);
-}
-
-static 
-void bake_cond_wait(ecs_os_cond_t cond, ecs_os_mutex_t mutex) {
-    ut_cond_wait((struct ut_cond_s *)cond, (struct ut_mutex_s *)mutex);
-}
-
-static 
-void bake_log(
-    ut_log_verbosity level,
-    const char *msg,
-    void *ctx)
-{
-    (void)ctx;
-    if (level >= UT_ERROR) {
-        ecs_os_err("%s", msg);
-    } else if (level <= UT_TRACE) {
-        ecs_os_dbg("%s", msg);
-    } else {
-        ecs_os_log("%s", msg);
+    if (!ecs_os_api_initialized) {
+        ecs_os_set_api_defaults();
+    }
+    
+    if (!(ecs_os_api_init_count ++)) {
+        if (ecs_os_api.init_) {
+            ecs_os_api.init_();
+        }
     }
 }
 
-static
-ecs_os_dl_t bake_dlopen(
-    const char *dlname)
-{
-    return (ecs_os_dl_t)ut_dl_open(dlname);
-}
-
-static
-void bake_dlclose(
-    ecs_os_dl_t dl)
-{
-    ut_dl_close((ut_dl)dl);
-}
-
-static
-ecs_os_proc_t bake_dlproc(
-    ecs_os_dl_t dl,
-    const char *procname)
-{
-    ecs_os_proc_t result = (ecs_os_proc_t)ut_dl_proc((ut_dl)dl, procname);
-    if (!result) {
-        ut_raise();
-    }
-    return result;
-}
-
-static
-char* bake_module_to_dl(
-    const char *module_id)
-{
-    const char *result = ut_locate(module_id, NULL, UT_LOCATE_LIB);
-    if (result) {
-        return ut_strdup(result);
-    } else {
-        return NULL;
+void ecs_os_fini(void) {
+    if (!--ecs_os_api_init_count) {
+        if (ecs_os_api.fini_) {
+            ecs_os_api.fini_();
+        }
     }
 }
-
-
-/* __BAKE__ */
-#endif
 
 static
 void ecs_log(const char *fmt, va_list args) {
-    fprintf(stdout, "[log] ");
     vfprintf(stdout, fmt, args);
     fprintf(stdout, "\n");
 }
 
 static
 void ecs_log_error(const char *fmt, va_list args) {
-    fprintf(stderr, "[err] ");
     vfprintf(stderr, fmt, args);
     fprintf(stderr, "\n");
 }
 
 static
 void ecs_log_debug(const char *fmt, va_list args) {
-    if (ecs_os_api_debug_enabled) {
-        fprintf(stderr, "[dbg] ");
-        vfprintf(stderr, fmt, args);
-        fprintf(stderr, "\n");
-    }
+    vfprintf(stdout, fmt, args);
+    fprintf(stdout, "\n");
 }
 
 static
 void ecs_log_warning(const char *fmt, va_list args) {
-    fprintf(stderr, "[warn] ");
     vfprintf(stderr, fmt, args);
     fprintf(stderr, "\n");
 }
@@ -181,8 +70,8 @@ void ecs_os_dbg(const char *fmt, ...) {
 #ifndef NDEBUG
     va_list args;
     va_start(args, fmt);
-    if (ecs_os_api.log_debug) {
-        ecs_os_api.log_debug(fmt, args);
+    if (ecs_os_api.log_debug_) {
+        ecs_os_api.log_debug_(fmt, args);
     }
     va_end(args);
 #else
@@ -193,63 +82,63 @@ void ecs_os_dbg(const char *fmt, ...) {
 void ecs_os_warn(const char *fmt, ...) {
     va_list args;
     va_start(args, fmt);
-    if (ecs_os_api.log_warning) {
-        ecs_os_api.log_warning(fmt, args);
+    if (ecs_os_api.log_warning_) {
+        ecs_os_api.log_warning_(fmt, args);
     }
     va_end(args);
 }
 
 void ecs_os_log(const char *fmt, ...) {
-    va_list args;;
+    va_list args;
     va_start(args, fmt);
-    if (ecs_os_api.log) {
-        ecs_os_api.log(fmt, args);
+    if (ecs_os_api.log_) {
+        ecs_os_api.log_(fmt, args);
     }
     va_end(args);
 }
 
 void ecs_os_err(const char *fmt, ...) {
-    va_list args;;
+    va_list args;
     va_start(args, fmt);
-    if (ecs_os_api.log_error) {
-        ecs_os_api.log_error(fmt, args);
+    if (ecs_os_api.log_error_) {
+        ecs_os_api.log_error_(fmt, args);
     }
     va_end(args);
 }
 
-void ecs_os_enable_dbg(bool enable) {
-    ecs_os_api_debug_enabled = enable;
-}
-
-bool ecs_os_dbg_enabled(void) {
-    return ecs_os_api_debug_enabled;
-}
-
-void ecs_os_gettime(ecs_time_t *timeOut)
+void ecs_os_gettime(ecs_time_t *time)
 {
     uint64_t now = ecs_os_time_now();
-    timeOut->sec = now / 1000000000;
-    timeOut->nanosec = now - timeOut->sec * 1000000000;
+    uint64_t sec = now / 1000000000;
+
+    assert(sec < UINT32_MAX);
+    assert((now - sec * 1000000000) < UINT32_MAX);
+
+    time->sec = (uint32_t)sec;
+    time->nanosec = (uint32_t)(now - sec * 1000000000);
 }
 
 static
-void* ecs_os_api_malloc(size_t size) {
+void* ecs_os_api_malloc(ecs_size_t size) {
     ecs_os_api_malloc_count ++;
-    ecs_assert(size != 0, ECS_INVALID_PARAMETER, NULL);
-    return malloc(size);
+    ecs_assert(size > 0, ECS_INVALID_PARAMETER, NULL);
+    return malloc((size_t)size);
 }
 
 static
-void* ecs_os_api_calloc(size_t num, size_t size) {
+void* ecs_os_api_calloc(ecs_size_t size) {
+    if (size >= 13107200) {
+        abort();
+    }
+
     ecs_os_api_calloc_count ++;
-    ecs_assert(size != 0, ECS_INVALID_PARAMETER, NULL);
-    ecs_assert(num != 0, ECS_INVALID_PARAMETER, NULL);
-    return calloc(num, size);
+    ecs_assert(size > 0, ECS_INVALID_PARAMETER, NULL);
+    return calloc(1, (size_t)size);
 }
 
 static
-void* ecs_os_api_realloc(void *ptr, size_t size) {
-    ecs_assert(size != 0, ECS_INVALID_PARAMETER, NULL);
+void* ecs_os_api_realloc(void *ptr, ecs_size_t size) {
+    ecs_assert(size > 0, ECS_INVALID_PARAMETER, NULL);
 
     if (ptr) {
         ecs_os_api_realloc_count ++;
@@ -258,7 +147,7 @@ void* ecs_os_api_realloc(void *ptr, size_t size) {
         ecs_os_api_malloc_count ++; 
     }
     
-    return realloc(ptr, size);
+    return realloc(ptr, (size_t)size);
 }
 
 static
@@ -271,60 +160,153 @@ void ecs_os_api_free(void *ptr) {
 
 static
 char* ecs_os_api_strdup(const char *str) {
-    int len = strlen(str);
+    int len = ecs_os_strlen(str);
     char *result = ecs_os_api_malloc(len + 1);
     ecs_assert(result != NULL, ECS_OUT_OF_MEMORY, NULL);
-    strcpy(result, str);
+    ecs_os_strcpy(result, str);
     return result;
+}
+
+/* Replace dots with underscores */
+static
+char *module_file_base(const char *module, char sep) {
+    char *base = ecs_os_strdup(module);
+    ecs_size_t i, len = ecs_os_strlen(base);
+    for (i = 0; i < len; i ++) {
+        if (base[i] == '.') {
+            base[i] = sep;
+        }
+    }
+
+    return base;
+}
+
+static
+char* ecs_os_api_module_to_dl(const char *module) {
+    ecs_strbuf_t lib = ECS_STRBUF_INIT;
+
+    /* Best guess, use module name with underscores + OS library extension */
+    char *file_base = module_file_base(module, '_');
+
+#if defined(ECS_OS_LINUX)
+    ecs_strbuf_appendstr(&lib, "lib");
+    ecs_strbuf_appendstr(&lib, file_base);
+    ecs_strbuf_appendstr(&lib, ".so");
+#elif defined(ECS_OS_DARWIN)
+    ecs_strbuf_appendstr(&lib, "lib");
+    ecs_strbuf_appendstr(&lib, file_base);
+    ecs_strbuf_appendstr(&lib, ".dylib");
+#elif defined(ECS_OS_WINDOWS)
+    ecs_strbuf_appendstr(&lib, file_base);
+    ecs_strbuf_appendstr(&lib, ".dll");
+#endif
+
+    ecs_os_free(file_base);
+
+    return ecs_strbuf_get(&lib);
+}
+
+static
+char* ecs_os_api_module_to_etc(const char *module) {
+    ecs_strbuf_t lib = ECS_STRBUF_INIT;
+
+    /* Best guess, use module name with dashes + /etc */
+    char *file_base = module_file_base(module, '-');
+
+    ecs_strbuf_appendstr(&lib, file_base);
+    ecs_strbuf_appendstr(&lib, "/etc");
+
+    ecs_os_free(file_base);
+
+    return ecs_strbuf_get(&lib);
 }
 
 void ecs_os_set_api_defaults(void)
 {
     /* Don't overwrite if already initialized */
-    if (ecs_os_api_initialized) {
+    if (ecs_os_api_initialized != 0) {
         return;
     }
 
     ecs_os_time_setup();
     
-    ecs_os_api.malloc = ecs_os_api_malloc;
-    ecs_os_api.free = ecs_os_api_free;
-    ecs_os_api.realloc = ecs_os_api_realloc;
-    ecs_os_api.calloc = ecs_os_api_calloc;
-    ecs_os_api.strdup = ecs_os_api_strdup;
+    /* Memory management */
+    ecs_os_api.malloc_ = ecs_os_api_malloc;
+    ecs_os_api.free_ = ecs_os_api_free;
+    ecs_os_api.realloc_ = ecs_os_api_realloc;
+    ecs_os_api.calloc_ = ecs_os_api_calloc;
 
-#ifdef __BAKE__
-    ecs_os_api.thread_new = bake_thread_new;
-    ecs_os_api.thread_join = bake_thread_join;
+    /* Strings */
+    ecs_os_api.strdup_ = ecs_os_api_strdup;
 
-    ecs_os_api.mutex_new = bake_mutex_new;
-    ecs_os_api.mutex_free = bake_mutex_free;
-    ecs_os_api.mutex_lock = bake_mutex_lock;
-    ecs_os_api.mutex_unlock = bake_mutex_unlock;
+    /* Time */
+    ecs_os_api.sleep_ = ecs_os_time_sleep;
+    ecs_os_api.get_time_ = ecs_os_gettime;
 
-    ecs_os_api.cond_new = bake_cond_new;
-    ecs_os_api.cond_free = bake_cond_free;
-    ecs_os_api.cond_signal = bake_cond_signal;
-    ecs_os_api.cond_broadcast = bake_cond_broadcast;
-    ecs_os_api.cond_wait = bake_cond_wait;
+    /* Logging */
+    ecs_os_api.log_ = ecs_log;
+    ecs_os_api.log_error_ = ecs_log_error;
+    ecs_os_api.log_debug_ = ecs_log_debug;
+    ecs_os_api.log_warning_ = ecs_log_warning;
 
-    ecs_os_api.dlopen = bake_dlopen;
-    ecs_os_api.dlproc = bake_dlproc;
-    ecs_os_api.dlclose = bake_dlclose;
+    /* Modules */
+    if (!ecs_os_api.module_to_dl_) {
+        ecs_os_api.module_to_dl_ = ecs_os_api_module_to_dl;
+    }
 
-    ecs_os_api.module_to_dl = bake_module_to_dl;
+    if (!ecs_os_api.module_to_etc_) {
+        ecs_os_api.module_to_etc_ = ecs_os_api_module_to_etc;
+    }
 
-    ut_log_handlerRegister(bake_log, NULL);
-/* __BAKE__ */
-#endif
+    ecs_os_api.abort_ = abort;
+}
 
-    ecs_os_api.sleep = ecs_os_time_sleep;
-    ecs_os_api.get_time = ecs_os_gettime;
+bool ecs_os_has_heap(void) {
+    return 
+        (ecs_os_api.malloc_ != NULL) &&
+        (ecs_os_api.calloc_ != NULL) &&
+        (ecs_os_api.realloc_ != NULL) &&
+        (ecs_os_api.free_ != NULL);
+}
 
-    ecs_os_api.log = ecs_log;
-    ecs_os_api.log_error = ecs_log_error;
-    ecs_os_api.log_debug = ecs_log_debug;
-    ecs_os_api.log_warning = ecs_log_warning;
+bool ecs_os_has_threading(void) {
+    return
+        (ecs_os_api.mutex_new_ != NULL) &&
+        (ecs_os_api.mutex_free_ != NULL) &&
+        (ecs_os_api.mutex_lock_ != NULL) &&
+        (ecs_os_api.mutex_unlock_ != NULL) &&
+        (ecs_os_api.cond_new_ != NULL) &&
+        (ecs_os_api.cond_free_ != NULL) &&
+        (ecs_os_api.cond_wait_ != NULL) &&
+        (ecs_os_api.cond_signal_ != NULL) &&
+        (ecs_os_api.cond_broadcast_ != NULL) &&
+        (ecs_os_api.thread_new_ != NULL) &&
+        (ecs_os_api.thread_join_ != NULL);   
+}
 
-    ecs_os_api.abort = abort;
+bool ecs_os_has_time(void) {
+    return 
+        (ecs_os_api.get_time_ != NULL) &&
+        (ecs_os_api.sleep_ != NULL);
+}
+
+bool ecs_os_has_logging(void) {
+    return 
+        (ecs_os_api.log_ != NULL) &&
+        (ecs_os_api.log_error_ != NULL) &&
+        (ecs_os_api.log_debug_ != NULL) &&
+        (ecs_os_api.log_warning_ != NULL);
+}
+
+bool ecs_os_has_dl(void) {
+    return 
+        (ecs_os_api.dlopen_ != NULL) &&
+        (ecs_os_api.dlproc_ != NULL) &&
+        (ecs_os_api.dlclose_ != NULL);  
+}
+
+bool ecs_os_has_modules(void) {
+    return 
+        (ecs_os_api.module_to_dl_ != NULL) &&
+        (ecs_os_api.module_to_etc_ != NULL);
 }

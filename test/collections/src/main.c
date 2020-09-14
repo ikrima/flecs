@@ -33,6 +33,11 @@ void Vector_size_of_null(void);
 void Vector_set_size_smaller_than_count(void);
 void Vector_pop_elements(void);
 
+// Testsuite 'Queue'
+void Queue_setup(void);
+void Queue_free_empty(void);
+void Queue_push(void);
+
 // Testsuite 'Map'
 void Map_setup(void);
 void Map_count(void);
@@ -53,265 +58,307 @@ void Map_remove_unknown(void);
 void Map_grow(void);
 void Map_set_size_0(void);
 
-// Testsuite 'Chunked'
-void Chunked_setup(void);
-void Chunked_add_1(void);
-void Chunked_add_1_to_empty(void);
-void Chunked_add_1_chunk_size_1(void);
-void Chunked_add_n(void);
-void Chunked_add_n_chunk_size_1(void);
-void Chunked_remove(void);
-void Chunked_remove_first(void);
-void Chunked_remove_last(void);
-void Chunked_remove_all(void);
-void Chunked_remove_all_n_chunks(void);
-void Chunked_clear_1(void);
-void Chunked_clear_empty(void);
-void Chunked_clear_n(void);
-void Chunked_clear_n_chunks(void);
-void Chunked_memory_null(void);
+// Testsuite 'Sparse'
+void Sparse_setup(void);
+void Sparse_add_1(void);
+void Sparse_add_1_to_empty(void);
+void Sparse_add_1_chunk_size_1(void);
+void Sparse_add_n(void);
+void Sparse_add_n_chunk_size_1(void);
+void Sparse_remove(void);
+void Sparse_remove_first(void);
+void Sparse_remove_last(void);
+void Sparse_remove_all(void);
+void Sparse_remove_all_n_chunks(void);
+void Sparse_clear_1(void);
+void Sparse_clear_empty(void);
+void Sparse_clear_n(void);
+void Sparse_clear_n_chunks(void);
+void Sparse_add_after_clear(void);
+void Sparse_memory_null(void);
+void Sparse_copy(void);
+void Sparse_restore(void);
+
+bake_test_case Vector_testcases[] = {
+    {
+        "free_empty",
+        Vector_free_empty
+    },
+    {
+        "count",
+        Vector_count
+    },
+    {
+        "count_empty",
+        Vector_count_empty
+    },
+    {
+        "get",
+        Vector_get
+    },
+    {
+        "get_first",
+        Vector_get_first
+    },
+    {
+        "get_last",
+        Vector_get_last
+    },
+    {
+        "get_empty",
+        Vector_get_empty
+    },
+    {
+        "get_out_of_bound",
+        Vector_get_out_of_bound
+    },
+    {
+        "add_empty",
+        Vector_add_empty
+    },
+    {
+        "add_resize",
+        Vector_add_resize
+    },
+    {
+        "remove",
+        Vector_remove
+    },
+    {
+        "remove_first",
+        Vector_remove_first
+    },
+    {
+        "remove_last",
+        Vector_remove_last
+    },
+    {
+        "remove_empty",
+        Vector_remove_empty
+    },
+    {
+        "remove_all",
+        Vector_remove_all
+    },
+    {
+        "remove_out_of_bound",
+        Vector_remove_out_of_bound
+    },
+    {
+        "sort_rnd",
+        Vector_sort_rnd
+    },
+    {
+        "sort_sorted",
+        Vector_sort_sorted
+    },
+    {
+        "sort_empty",
+        Vector_sort_empty
+    },
+    {
+        "size_of_null",
+        Vector_size_of_null
+    },
+    {
+        "set_size_smaller_than_count",
+        Vector_set_size_smaller_than_count
+    },
+    {
+        "pop_elements",
+        Vector_pop_elements
+    }
+};
+
+bake_test_case Queue_testcases[] = {
+    {
+        "free_empty",
+        Queue_free_empty
+    },
+    {
+        "push",
+        Queue_push
+    }
+};
+
+bake_test_case Map_testcases[] = {
+    {
+        "count",
+        Map_count
+    },
+    {
+        "count_empty",
+        Map_count_empty
+    },
+    {
+        "set_overwrite",
+        Map_set_overwrite
+    },
+    {
+        "set_rehash",
+        Map_set_rehash
+    },
+    {
+        "set_zero_buckets",
+        Map_set_zero_buckets
+    },
+    {
+        "get",
+        Map_get
+    },
+    {
+        "get_all",
+        Map_get_all
+    },
+    {
+        "get_empty",
+        Map_get_empty
+    },
+    {
+        "get_unknown",
+        Map_get_unknown
+    },
+    {
+        "iter",
+        Map_iter
+    },
+    {
+        "iter_empty",
+        Map_iter_empty
+    },
+    {
+        "iter_zero_buckets",
+        Map_iter_zero_buckets
+    },
+    {
+        "remove",
+        Map_remove
+    },
+    {
+        "remove_empty",
+        Map_remove_empty
+    },
+    {
+        "remove_unknown",
+        Map_remove_unknown
+    },
+    {
+        "grow",
+        Map_grow
+    },
+    {
+        "set_size_0",
+        Map_set_size_0
+    }
+};
+
+bake_test_case Sparse_testcases[] = {
+    {
+        "add_1",
+        Sparse_add_1
+    },
+    {
+        "add_1_to_empty",
+        Sparse_add_1_to_empty
+    },
+    {
+        "add_1_chunk_size_1",
+        Sparse_add_1_chunk_size_1
+    },
+    {
+        "add_n",
+        Sparse_add_n
+    },
+    {
+        "add_n_chunk_size_1",
+        Sparse_add_n_chunk_size_1
+    },
+    {
+        "remove",
+        Sparse_remove
+    },
+    {
+        "remove_first",
+        Sparse_remove_first
+    },
+    {
+        "remove_last",
+        Sparse_remove_last
+    },
+    {
+        "remove_all",
+        Sparse_remove_all
+    },
+    {
+        "remove_all_n_chunks",
+        Sparse_remove_all_n_chunks
+    },
+    {
+        "clear_1",
+        Sparse_clear_1
+    },
+    {
+        "clear_empty",
+        Sparse_clear_empty
+    },
+    {
+        "clear_n",
+        Sparse_clear_n
+    },
+    {
+        "clear_n_chunks",
+        Sparse_clear_n_chunks
+    },
+    {
+        "add_after_clear",
+        Sparse_add_after_clear
+    },
+    {
+        "memory_null",
+        Sparse_memory_null
+    },
+    {
+        "copy",
+        Sparse_copy
+    },
+    {
+        "restore",
+        Sparse_restore
+    }
+};
 
 static bake_test_suite suites[] = {
     {
-        .id = "Vector",
-        .testcase_count = 22,
-        .setup = Vector_setup,
-        .testcases = (bake_test_case[]){
-            {
-                .id = "free_empty",
-                .function = Vector_free_empty
-            },
-            {
-                .id = "count",
-                .function = Vector_count
-            },
-            {
-                .id = "count_empty",
-                .function = Vector_count_empty
-            },
-            {
-                .id = "get",
-                .function = Vector_get
-            },
-            {
-                .id = "get_first",
-                .function = Vector_get_first
-            },
-            {
-                .id = "get_last",
-                .function = Vector_get_last
-            },
-            {
-                .id = "get_empty",
-                .function = Vector_get_empty
-            },
-            {
-                .id = "get_out_of_bound",
-                .function = Vector_get_out_of_bound
-            },
-            {
-                .id = "add_empty",
-                .function = Vector_add_empty
-            },
-            {
-                .id = "add_resize",
-                .function = Vector_add_resize
-            },
-            {
-                .id = "remove",
-                .function = Vector_remove
-            },
-            {
-                .id = "remove_first",
-                .function = Vector_remove_first
-            },
-            {
-                .id = "remove_last",
-                .function = Vector_remove_last
-            },
-            {
-                .id = "remove_empty",
-                .function = Vector_remove_empty
-            },
-            {
-                .id = "remove_all",
-                .function = Vector_remove_all
-            },
-            {
-                .id = "remove_out_of_bound",
-                .function = Vector_remove_out_of_bound
-            },
-            {
-                .id = "sort_rnd",
-                .function = Vector_sort_rnd
-            },
-            {
-                .id = "sort_sorted",
-                .function = Vector_sort_sorted
-            },
-            {
-                .id = "sort_empty",
-                .function = Vector_sort_empty
-            },
-            {
-                .id = "size_of_null",
-                .function = Vector_size_of_null
-            },
-            {
-                .id = "set_size_smaller_than_count",
-                .function = Vector_set_size_smaller_than_count
-            },
-            {
-                .id = "pop_elements",
-                .function = Vector_pop_elements
-            }
-        }
+        "Vector",
+        Vector_setup,
+        NULL,
+        22,
+        Vector_testcases
     },
     {
-        .id = "Map",
-        .testcase_count = 17,
-        .setup = Map_setup,
-        .testcases = (bake_test_case[]){
-            {
-                .id = "count",
-                .function = Map_count
-            },
-            {
-                .id = "count_empty",
-                .function = Map_count_empty
-            },
-            {
-                .id = "set_overwrite",
-                .function = Map_set_overwrite
-            },
-            {
-                .id = "set_rehash",
-                .function = Map_set_rehash
-            },
-            {
-                .id = "set_zero_buckets",
-                .function = Map_set_zero_buckets
-            },
-            {
-                .id = "get",
-                .function = Map_get
-            },
-            {
-                .id = "get_all",
-                .function = Map_get_all
-            },
-            {
-                .id = "get_empty",
-                .function = Map_get_empty
-            },
-            {
-                .id = "get_unknown",
-                .function = Map_get_unknown
-            },
-            {
-                .id = "iter",
-                .function = Map_iter
-            },
-            {
-                .id = "iter_empty",
-                .function = Map_iter_empty
-            },
-            {
-                .id = "iter_zero_buckets",
-                .function = Map_iter_zero_buckets
-            },
-            {
-                .id = "remove",
-                .function = Map_remove
-            },
-            {
-                .id = "remove_empty",
-                .function = Map_remove_empty
-            },
-            {
-                .id = "remove_unknown",
-                .function = Map_remove_unknown
-            },
-            {
-                .id = "grow",
-                .function = Map_grow
-            },
-            {
-                .id = "set_size_0",
-                .function = Map_set_size_0
-            }
-        }
+        "Queue",
+        Queue_setup,
+        NULL,
+        2,
+        Queue_testcases
     },
     {
-        .id = "Chunked",
-        .testcase_count = 15,
-        .setup = Chunked_setup,
-        .testcases = (bake_test_case[]){
-            {
-                .id = "add_1",
-                .function = Chunked_add_1
-            },
-            {
-                .id = "add_1_to_empty",
-                .function = Chunked_add_1_to_empty
-            },
-            {
-                .id = "add_1_chunk_size_1",
-                .function = Chunked_add_1_chunk_size_1
-            },
-            {
-                .id = "add_n",
-                .function = Chunked_add_n
-            },
-            {
-                .id = "add_n_chunk_size_1",
-                .function = Chunked_add_n_chunk_size_1
-            },
-            {
-                .id = "remove",
-                .function = Chunked_remove
-            },
-            {
-                .id = "remove_first",
-                .function = Chunked_remove_first
-            },
-            {
-                .id = "remove_last",
-                .function = Chunked_remove_last
-            },
-            {
-                .id = "remove_all",
-                .function = Chunked_remove_all
-            },
-            {
-                .id = "remove_all_n_chunks",
-                .function = Chunked_remove_all_n_chunks
-            },
-            {
-                .id = "clear_1",
-                .function = Chunked_clear_1
-            },
-            {
-                .id = "clear_empty",
-                .function = Chunked_clear_empty
-            },
-            {
-                .id = "clear_n",
-                .function = Chunked_clear_n
-            },
-            {
-                .id = "clear_n_chunks",
-                .function = Chunked_clear_n_chunks
-            },
-            {
-                .id = "memory_null",
-                .function = Chunked_memory_null
-            }
-        }
+        "Map",
+        Map_setup,
+        NULL,
+        17,
+        Map_testcases
+    },
+    {
+        "Sparse",
+        Sparse_setup,
+        NULL,
+        18,
+        Sparse_testcases
     }
 };
 
 int main(int argc, char *argv[]) {
     ut_init(argv[0]);
-    return bake_test_run("collections", argc, argv, suites, 3);
+    return bake_test_run("collections", argc, argv, suites, 4);
 }

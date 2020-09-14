@@ -1,15 +1,15 @@
 #include <delta_system_time.h>
 
-void Period05(ecs_rows_t *rows) {
-    printf("t = 0.5, elapsed time = %f\n", rows->delta_system_time);
+void Period05(ecs_iter_t *it) {
+    printf("t = 0.5, elapsed time = %f\n", it->delta_system_time);
 }
 
-void Period10(ecs_rows_t *rows) {
-    printf("t = 1.0, elapsed time = %f\n", rows->delta_system_time);
+void Period10(ecs_iter_t *it) {
+    printf("t = 1.0, elapsed time = %f\n", it->delta_system_time);
 }
 
-void Period20(ecs_rows_t *rows) {
-    printf("t = 2.0, elapsed time = %f\n", rows->delta_system_time);
+void Period20(ecs_iter_t *it) {
+    printf("t = 2.0, elapsed time = %f\n", it->delta_system_time);
 }
 
 int main(int argc, char *argv[]) {
@@ -32,9 +32,9 @@ int main(int argc, char *argv[]) {
     ECS_SYSTEM(world, Period10, EcsOnUpdate, 0);
     ECS_SYSTEM(world, Period20, EcsOnUpdate, 0);
 
-    ecs_set_period(world, Period05, 0.5);
-    ecs_set_period(world, Period10, 1.0);
-    ecs_set_period(world, Period20, 2.0);
+    ecs_set_interval(world, Period05, 0.5);
+    ecs_set_interval(world, Period10, 1.0);
+    ecs_set_interval(world, Period20, 2.0);
 
     ecs_set_target_fps(world, 60);
 

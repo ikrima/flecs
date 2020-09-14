@@ -11,14 +11,14 @@ typedef Vector2D Force;
 typedef float Mass;
 
 /* Implement a simple move system */
-void Move(ecs_rows_t *rows) {
+void Move(ecs_iter_t *it) {
     /* Get the two columns from the system signature */
-    ECS_COLUMN(rows, Position, p, 1);
-    ECS_COLUMN(rows, Force, v, 2);
-    ECS_COLUMN(rows, Mass, m, 3);
+    ECS_COLUMN(it, Position, p, 1);
+    ECS_COLUMN(it, Force, v, 2);
+    ECS_COLUMN(it, Mass, m, 3);
 
-    for (int i = 0; i < rows->count; i ++) {
-        if (ecs_is_shared(rows, 3)) {
+    for (int i = 0; i < it->count; i ++) {
+        if (!ecs_is_owned(it, 3)) {
             p[i].x += v[i].x / m[0];
             p[i].y += v[i].y / m[0];
         } else {
@@ -29,7 +29,7 @@ void Move(ecs_rows_t *rows) {
         /* Print something to the console so we can see the system is being
          * invoked */
         printf("%s moved to {.x = %f, .y = %f}\n",
-            ecs_get_id(rows->world, rows->entities[i]),
+            ecs_get_name(it->world, it->entities[i]),
             p[i].x, p[i].y);
     }
 }
@@ -47,7 +47,7 @@ int main(int argc, char *argv[]) {
     /* Define a system called Move that is executed every frame, and subscribes
      * for the 'Position', 'Force' and 'Mass' components. The Mass component
      * will be either shared or owned. */
-    ECS_SYSTEM(world, Move, EcsOnUpdate, Position, Force, Mass);
+    ECS_SYSTEM(world, Move, EcsOnUpdate, Position, Force, ANY:Mass);
 
     /* Create two base entities */
     ECS_ENTITY(world, HeavyEntity, Mass);

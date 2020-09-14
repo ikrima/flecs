@@ -5,16 +5,16 @@ static bool system_b_invoked;
 static bool system_c_invoked;
 
 static
-void SystemA(ecs_rows_t *rows) {
-    test_int(rows->delta_time, 1.0);
-    test_int(rows->delta_system_time, 3.0);
+void SystemA(ecs_iter_t *it) {
+    test_int(it->delta_time, 1.0);
+    test_int(it->delta_system_time, 3.0);
     system_a_invoked = true;
 }
 
 static 
-void SystemB(ecs_rows_t *rows) {
-    test_int(rows->delta_time, 1.0);
-    test_int(rows->delta_system_time, 3.0);
+void SystemB(ecs_iter_t *it) {
+    test_int(it->delta_time, 1.0);
+    test_int(it->delta_system_time, 3.0);
     system_b_invoked = true;
 }
 
@@ -308,9 +308,9 @@ void Timer_rate_filter() {
 }
 
 static
-void SystemC(ecs_rows_t *rows) {
-    test_int(rows->delta_time, 1.0);
-    test_int(rows->delta_system_time, 6.0);
+void SystemC(ecs_iter_t *it) {
+    test_int(it->delta_time, 1.0);
+    test_int(it->delta_system_time, 6.0);
     system_c_invoked = true;
 }
 
@@ -359,10 +359,8 @@ void Timer_rate_filter_w_timer_src() {
    ecs_world_t *world = ecs_init();
 
     ECS_COMPONENT(world, Position);
-
     ECS_SYSTEM(world, SystemC, EcsOnUpdate, Position);
-
-    ecs_new(world, Position);
+    ECS_ENTITY(world, E1, Position);
 
     ecs_entity_t timer = ecs_set_interval(world, 0, 2.0);
     test_assert(timer != 0);

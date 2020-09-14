@@ -4,21 +4,29 @@ static bool invoked = false;
 static bool invoked2 = false;
 
 static
-void OutSystem(ecs_rows_t *rows) {
+void OutSystem(ecs_iter_t *it) {
     invoked = true;
 }
 
 static
-void OutSystem2(ecs_rows_t *rows) {
+void OutSystem2(ecs_iter_t *it) {
     invoked2 = true;
 }
 
 static
-void InSystem(ecs_rows_t *rows) {
+void InSystem(ecs_iter_t *it) {
 }
 
 static
-void InSystem2(ecs_rows_t *rows) {
+void InSystem2(ecs_iter_t *it) {
+}
+
+bool is_enabled(
+    ecs_world_t *world, 
+    ecs_entity_t system) 
+{
+    return !ecs_has_entity(world, system, EcsDisabled) && 
+        !ecs_has_entity(world, system, EcsDisabledIntern);
 }
 
 void SystemOnDemand_enable_out_after_in() {
@@ -27,13 +35,12 @@ void SystemOnDemand_enable_out_after_in() {
     ECS_COMPONENT(world, Position);
 
     ECS_SYSTEM(world, InSystem, EcsOnUpdate, [in] Position);
-    ECS_SYSTEM(world, OutSystem, EcsOnUpdate, [out] Position, SYSTEM.EcsOnDemand);
+    ECS_SYSTEM(world, OutSystem, EcsOnUpdate, [out] Position, SYSTEM:OnDemand);
 
     /* Create dummy entity so system won't be disabled all the time */
     ecs_new(world, Position);
 
-
-    test_assert(ecs_is_enabled(world, OutSystem) == true);
+    test_assert(is_enabled(world, OutSystem) == true);
     ecs_progress(world, 0);
     test_assert(invoked == true);
 
@@ -44,18 +51,18 @@ void SystemOnDemand_enable_in_after_out() {
     ecs_world_t *world = ecs_init();
 
     ECS_COMPONENT(world, Position);
-    ECS_SYSTEM(world, OutSystem, EcsOnUpdate, [out] Position, SYSTEM.EcsOnDemand);
+    ECS_SYSTEM(world, OutSystem, EcsOnUpdate, [out] Position, SYSTEM:OnDemand);
 
     /* Create dummy entity so system won't be disabled all the time */
     ecs_new(world, Position);
 
-    test_assert(ecs_is_enabled(world, OutSystem) == false);
+    test_assert(is_enabled(world, OutSystem) == false);
     ecs_progress(world, 0);
     test_assert(invoked == false);
 
     ECS_SYSTEM(world, InSystem, EcsOnUpdate, [in] Position);
 
-    test_assert(ecs_is_enabled(world, OutSystem) == true);
+    test_assert(is_enabled(world, OutSystem) == true);
     ecs_progress(world, 0);
     test_assert(invoked == true);
 
@@ -70,12 +77,12 @@ void SystemOnDemand_enable_out_after_in_2_out_1_in() {
     ECS_TYPE(world, Type, Position, Velocity);
 
     ECS_SYSTEM(world, InSystem, EcsOnUpdate, [in] Position);
-    ECS_SYSTEM(world, OutSystem, EcsOnUpdate, [out] Position, [out] Velocity, SYSTEM.EcsOnDemand);
+    ECS_SYSTEM(world, OutSystem, EcsOnUpdate, [out] Position, [out] Velocity, SYSTEM:OnDemand);
 
     /* Create dummy entity so system won't be disabled all the time */
     ecs_new(world, Type);
 
-    test_assert(ecs_is_enabled(world, OutSystem) == true);
+    test_assert(is_enabled(world, OutSystem) == true);
     ecs_progress(world, 0);
     test_assert(invoked == true);
 
@@ -90,14 +97,14 @@ void SystemOnDemand_enable_out_after_in_1_out_2_in() {
     ECS_TYPE(world, Type, Position, Velocity);
 
     ECS_SYSTEM(world, InSystem, EcsOnUpdate, [in] Position, [in] Velocity);
-    ECS_SYSTEM(world, OutSystem, EcsOnUpdate, [out] Position, SYSTEM.EcsOnDemand);
+    ECS_SYSTEM(world, OutSystem, EcsOnUpdate, [out] Position, SYSTEM:OnDemand);
 
     /* Create dummy entity so system won't be disabled all the time. Make sure
      * entity matches InSystem as well as otherwise the system won't be active
      * and the OutSystem won't be enabled. */
     ecs_new(world, Type);
 
-    test_assert(ecs_is_enabled(world, OutSystem) == true);
+    test_assert(is_enabled(world, OutSystem) == true);
     ecs_progress(world, 0);
     test_assert(invoked == true);
 
@@ -111,18 +118,18 @@ void SystemOnDemand_enable_in_after_out_2_out_1_in() {
     ECS_COMPONENT(world, Velocity);
     ECS_TYPE(world, Type, Position, Velocity);
 
-    ECS_SYSTEM(world, OutSystem, EcsOnUpdate, [out] Position, [out] Velocity, SYSTEM.EcsOnDemand);
+    ECS_SYSTEM(world, OutSystem, EcsOnUpdate, [out] Position, [out] Velocity, SYSTEM:OnDemand);
 
     /* Create dummy entity so system won't be disabled all the time */
     ecs_new(world, Type);
 
-    test_assert(ecs_is_enabled(world, OutSystem) == false);
+    test_assert(is_enabled(world, OutSystem) == false);
     ecs_progress(world, 0);
     test_assert(invoked == false);
 
     ECS_SYSTEM(world, InSystem, EcsOnUpdate, [in] Position);
 
-    test_assert(ecs_is_enabled(world, OutSystem) == true);
+    test_assert(is_enabled(world, OutSystem) == true);
     ecs_progress(world, 0);
     test_assert(invoked == true);
 
@@ -136,20 +143,20 @@ void SystemOnDemand_enable_in_after_out_1_out_2_in() {
     ECS_COMPONENT(world, Velocity);
     ECS_TYPE(world, Type, Position, Velocity);
 
-    ECS_SYSTEM(world, OutSystem, EcsOnUpdate, [out] Position, SYSTEM.EcsOnDemand);
+    ECS_SYSTEM(world, OutSystem, EcsOnUpdate, [out] Position, SYSTEM:OnDemand);
 
     /* Create dummy entity so system won't be disabled all the time. Make sure
      * entity matches InSystem as well as otherwise the system won't be active
      * and the OutSystem won't be enabled. */
     ecs_new(world, Type);
 
-    test_assert(ecs_is_enabled(world, OutSystem) == false);
+    test_assert(is_enabled(world, OutSystem) == false);
     ecs_progress(world, 0);
     test_assert(invoked == false);
 
     ECS_SYSTEM(world, InSystem, EcsOnUpdate, [in] Position, [in] Velocity);
 
-    test_assert(ecs_is_enabled(world, OutSystem) == true);
+    test_assert(is_enabled(world, OutSystem) == true);
     ecs_progress(world, 0);
     test_assert(invoked == true);
 
@@ -162,12 +169,12 @@ void SystemOnDemand_disable_after_disable_in() {
     ECS_COMPONENT(world, Position);
 
     ECS_SYSTEM(world, InSystem, EcsOnUpdate, [in] Position);
-    ECS_SYSTEM(world, OutSystem, EcsOnUpdate, [out] Position, SYSTEM.EcsOnDemand);
+    ECS_SYSTEM(world, OutSystem, EcsOnUpdate, [out] Position, SYSTEM:OnDemand);
 
     /* Create dummy entity so system won't be disabled all the time */
     ecs_new(world, Position);
 
-    test_assert(ecs_is_enabled(world, OutSystem) == true);
+    test_assert(is_enabled(world, OutSystem) == true);
     ecs_progress(world, 0);
     test_assert(invoked == true);
 
@@ -175,7 +182,7 @@ void SystemOnDemand_disable_after_disable_in() {
     ecs_enable(world, InSystem, false);
     invoked = false;
 
-    test_assert(ecs_is_enabled(world, OutSystem) == false);
+    test_assert(is_enabled(world, OutSystem) == false);
     ecs_progress(world, 0);
     test_assert(invoked == false);    
 
@@ -190,12 +197,12 @@ void SystemOnDemand_disable_after_disable_in_2_out_1_in() {
     ECS_TYPE(world, Type, Position, Velocity);
 
     ECS_SYSTEM(world, InSystem, EcsOnUpdate, [in] Position);
-    ECS_SYSTEM(world, OutSystem, EcsOnUpdate, [out] Position, [out] Velocity, SYSTEM.EcsOnDemand);
+    ECS_SYSTEM(world, OutSystem, EcsOnUpdate, [out] Position, [out] Velocity, SYSTEM:OnDemand);
 
     /* Create dummy entity so system won't be disabled all the time */
     ecs_new(world, Type);
 
-    test_assert(ecs_is_enabled(world, OutSystem) == true);
+    test_assert(is_enabled(world, OutSystem) == true);
     ecs_progress(world, 0);
     test_assert(invoked == true);
 
@@ -203,7 +210,7 @@ void SystemOnDemand_disable_after_disable_in_2_out_1_in() {
     ecs_enable(world, InSystem, false);
     invoked = false;
 
-    test_assert(ecs_is_enabled(world, OutSystem) == false);
+    test_assert(is_enabled(world, OutSystem) == false);
     ecs_progress(world, 0);
     test_assert(invoked == false);    
 
@@ -218,14 +225,14 @@ void SystemOnDemand_disable_after_disable_in_1_out_2_in() {
     ECS_TYPE(world, Type, Position, Velocity);
 
     ECS_SYSTEM(world, InSystem, EcsOnUpdate, [in] Position, [in] Velocity);
-    ECS_SYSTEM(world, OutSystem, EcsOnUpdate, [out] Position, SYSTEM.EcsOnDemand);
+    ECS_SYSTEM(world, OutSystem, EcsOnUpdate, [out] Position, SYSTEM:OnDemand);
 
     /* Create dummy entity so system won't be disabled all the time. Make sure
      * entity matches InSystem as well as otherwise the system won't be active
      * and the OutSystem won't be enabled. */
     ecs_new(world, Type);
 
-    test_assert(ecs_is_enabled(world, OutSystem) == true);
+    test_assert(is_enabled(world, OutSystem) == true);
     ecs_progress(world, 0);
     test_assert(invoked == true);
 
@@ -233,7 +240,7 @@ void SystemOnDemand_disable_after_disable_in_1_out_2_in() {
     ecs_enable(world, InSystem, false);
     invoked = false;
 
-    test_assert(ecs_is_enabled(world, OutSystem) == false);
+    test_assert(is_enabled(world, OutSystem) == false);
     ecs_progress(world, 0);
     test_assert(invoked == false);    
 
@@ -245,11 +252,11 @@ void SystemOnDemand_table_after_out() {
 
     ECS_COMPONENT(world, Position);
 
-    ECS_SYSTEM(world, OutSystem, EcsOnUpdate, [out] Position, SYSTEM.EcsOnDemand);
+    ECS_SYSTEM(world, OutSystem, EcsOnUpdate, [out] Position, SYSTEM:OnDemand);
 
     ecs_new(world, Position);
 
-    test_assert(ecs_is_enabled(world, OutSystem) == false);
+    test_assert(is_enabled(world, OutSystem) == false);
     ecs_progress(world, 0);
     test_assert(invoked == false);
 
@@ -261,9 +268,9 @@ void SystemOnDemand_table_after_out_and_in() {
 
     ECS_COMPONENT(world, Position);
 
-    ECS_SYSTEM(world, OutSystem, EcsOnUpdate, [out] Position, SYSTEM.EcsOnDemand);
+    ECS_SYSTEM(world, OutSystem, EcsOnUpdate, [out] Position, SYSTEM:OnDemand);
 
-    test_assert(ecs_is_enabled(world, OutSystem) == false);
+    test_assert(is_enabled(world, OutSystem) == false);
     ecs_progress(world, 0);
     test_assert(invoked == false);
 
@@ -271,13 +278,13 @@ void SystemOnDemand_table_after_out_and_in() {
 
     /* The InSystem is not active yet since there are no matching entities for
      * it, and therefore OutSystem won't be active either. */
-    test_assert(ecs_is_enabled(world, OutSystem) == false);
+    test_assert(is_enabled(world, OutSystem) == false);
     ecs_progress(world, 0);
     test_assert(invoked == false);
 
     ecs_new(world, Position);
 
-    test_assert(ecs_is_enabled(world, OutSystem) == true);
+    test_assert(is_enabled(world, OutSystem) == true);
     ecs_progress(world, 0);
     test_assert(invoked == true);
 
@@ -293,9 +300,9 @@ void SystemOnDemand_table_after_out_and_in_overlapping_columns() {
     ECS_TYPE(world, OutType, Position, Velocity);
     ECS_TYPE(world, InType, Position, Mass);
 
-    ECS_SYSTEM(world, OutSystem, EcsOnUpdate, [out] Position, Velocity, SYSTEM.EcsOnDemand);
+    ECS_SYSTEM(world, OutSystem, EcsOnUpdate, [out] Position, Velocity, SYSTEM:OnDemand);
 
-    test_assert(ecs_is_enabled(world, OutSystem) == false);
+    test_assert(is_enabled(world, OutSystem) == false);
     ecs_progress(world, 0);
     test_assert(invoked == false);
 
@@ -303,7 +310,7 @@ void SystemOnDemand_table_after_out_and_in_overlapping_columns() {
 
     /* The InSystem is not active yet since there are no matching entities for
      * it, and therefore OutSystem won't be active either. */
-    test_assert(ecs_is_enabled(world, OutSystem) == false);
+    test_assert(is_enabled(world, OutSystem) == false);
     ecs_progress(world, 0);
     test_assert(invoked == false);
 
@@ -311,7 +318,7 @@ void SystemOnDemand_table_after_out_and_in_overlapping_columns() {
      * should now be enabled, but it is not active yet. */
     ecs_new(world, InType);
 
-    test_assert(ecs_is_enabled(world, OutSystem) == true);
+    test_assert(is_enabled(world, OutSystem) == true);
     ecs_progress(world, 0);
     test_assert(invoked == false);
 
@@ -319,7 +326,7 @@ void SystemOnDemand_table_after_out_and_in_overlapping_columns() {
      * now be enabled and active. */
     ecs_new(world, OutType);     
 
-    test_assert(ecs_is_enabled(world, OutSystem) == true);
+    test_assert(is_enabled(world, OutSystem) == true);
     ecs_progress(world, 0);
     test_assert(invoked == true);
 
@@ -334,35 +341,35 @@ void SystemOnDemand_1_out_system_2_in_systems() {
     /* Create entity that will activate InSystems and OutSystem */
     ecs_new(world, Position);    
 
-    ECS_SYSTEM(world, OutSystem, EcsOnUpdate, [out] Position, SYSTEM.EcsOnDemand);
+    ECS_SYSTEM(world, OutSystem, EcsOnUpdate, [out] Position, SYSTEM:OnDemand);
 
-    test_assert(ecs_is_enabled(world, OutSystem) == false);
+    test_assert(is_enabled(world, OutSystem) == false);
     ecs_progress(world, 0);
     test_assert(invoked == false);
 
     ECS_SYSTEM(world, InSystem,  EcsOnUpdate, [in] Position);
 
-    test_assert(ecs_is_enabled(world, OutSystem) == true);
+    test_assert(is_enabled(world, OutSystem) == true);
     ecs_progress(world, 0);
     test_assert(invoked == true);
 
     ECS_SYSTEM(world, InSystem2, EcsOnUpdate, [in] Position);
 
-    test_assert(ecs_is_enabled(world, OutSystem) == true);
+    test_assert(is_enabled(world, OutSystem) == true);
     invoked = false;
     ecs_progress(world, 0);
     test_assert(invoked == true);    
 
     ecs_enable(world, InSystem, false);
 
-    test_assert(ecs_is_enabled(world, OutSystem) == true);
+    test_assert(is_enabled(world, OutSystem) == true);
     invoked = false;
     ecs_progress(world, 0);
     test_assert(invoked == true);  
     
     ecs_enable(world, InSystem2, false);
         
-    test_assert(ecs_is_enabled(world, OutSystem) == false);
+    test_assert(is_enabled(world, OutSystem) == false);
     invoked = false;
     ecs_progress(world, 0);
     test_assert(invoked == false);  
@@ -380,35 +387,35 @@ void SystemOnDemand_1_out_system_2_in_systems_different_columns() {
     /* Create entity that will activate InSystems and OutSystem */
     ecs_new(world, Type);
 
-    ECS_SYSTEM(world, OutSystem, EcsOnUpdate, [out] Position, [out] Velocity, SYSTEM.EcsOnDemand);
+    ECS_SYSTEM(world, OutSystem, EcsOnUpdate, [out] Position, [out] Velocity, SYSTEM:OnDemand);
 
-    test_assert(ecs_is_enabled(world, OutSystem) == false);
+    test_assert(is_enabled(world, OutSystem) == false);
     ecs_progress(world, 0);
     test_assert(invoked == false);
 
     ECS_SYSTEM(world, InSystem,  EcsOnUpdate, [in] Position);
 
-    test_assert(ecs_is_enabled(world, OutSystem) == true);
+    test_assert(is_enabled(world, OutSystem) == true);
     ecs_progress(world, 0);
     test_assert(invoked == true);
 
     ECS_SYSTEM(world, InSystem2, EcsOnUpdate, [in] Velocity);
 
-    test_assert(ecs_is_enabled(world, OutSystem) == true);
+    test_assert(is_enabled(world, OutSystem) == true);
     invoked = false;
     ecs_progress(world, 0);
     test_assert(invoked == true);    
 
     ecs_enable(world, InSystem, false);
 
-    test_assert(ecs_is_enabled(world, OutSystem) == true);
+    test_assert(is_enabled(world, OutSystem) == true);
     invoked = false;
     ecs_progress(world, 0);
     test_assert(invoked == true);  
     
     ecs_enable(world, InSystem2, false);
         
-    test_assert(ecs_is_enabled(world, OutSystem) == false);
+    test_assert(is_enabled(world, OutSystem) == false);
     invoked = false;
     ecs_progress(world, 0);
     test_assert(invoked == false);  
@@ -427,35 +434,35 @@ void SystemOnDemand_1_out_system_2_in_systems_overlapping_columns() {
     /* Create entity that will activate InSystems and OutSystem */
     ecs_new(world, Type);
 
-    ECS_SYSTEM(world, OutSystem, EcsOnUpdate, [out] Position, [out] Velocity, [out] Mass, SYSTEM.EcsOnDemand);
+    ECS_SYSTEM(world, OutSystem, EcsOnUpdate, [out] Position, [out] Velocity, [out] Mass, SYSTEM:OnDemand);
 
-    test_assert(ecs_is_enabled(world, OutSystem) == false);
+    test_assert(is_enabled(world, OutSystem) == false);
     ecs_progress(world, 0);
     test_assert(invoked == false);
 
     ECS_SYSTEM(world, InSystem,  EcsOnUpdate, [in] Position, [in] Velocity);
 
-    test_assert(ecs_is_enabled(world, OutSystem) == true);
+    test_assert(is_enabled(world, OutSystem) == true);
     ecs_progress(world, 0);
     test_assert(invoked == true);
 
     ECS_SYSTEM(world, InSystem2, EcsOnUpdate, [in] Velocity, [in] Mass);
 
-    test_assert(ecs_is_enabled(world, OutSystem) == true);
+    test_assert(is_enabled(world, OutSystem) == true);
     invoked = false;
     ecs_progress(world, 0);
     test_assert(invoked == true);    
 
     ecs_enable(world, InSystem, false);
 
-    test_assert(ecs_is_enabled(world, OutSystem) == true);
+    test_assert(is_enabled(world, OutSystem) == true);
     invoked = false;
     ecs_progress(world, 0);
     test_assert(invoked == true);  
     
     ecs_enable(world, InSystem2, false);
         
-    test_assert(ecs_is_enabled(world, OutSystem) == false);
+    test_assert(is_enabled(world, OutSystem) == false);
     invoked = false;
     ecs_progress(world, 0);
     test_assert(invoked == false);  
@@ -475,17 +482,17 @@ void SystemOnDemand_disable_after_inactive_in_system() {
     /* Create an entity that when deleted disables the InSystem */
     ecs_entity_t in_entity = ecs_new(world, Type);
 
-    ECS_SYSTEM(world, OutSystem, EcsOnUpdate, [out] Position, SYSTEM.EcsOnDemand);
+    ECS_SYSTEM(world, OutSystem, EcsOnUpdate, [out] Position, SYSTEM:OnDemand);
     ECS_SYSTEM(world, InSystem, EcsOnUpdate, [in] Position, Velocity);
 
-    test_assert(ecs_is_enabled(world, OutSystem) == true);
+    test_assert(is_enabled(world, OutSystem) == true);
     ecs_progress(world, 0);
     test_assert(invoked == true);
 
     /* InSystem should now deactivate, which should disable OutSystem */
     ecs_delete(world, in_entity);
 
-    test_assert(ecs_is_enabled(world, OutSystem) == false);
+    test_assert(is_enabled(world, OutSystem) == false);
     invoked = false;
     ecs_progress(world, 0);
     test_assert(invoked == false);
@@ -505,18 +512,18 @@ void SystemOnDemand_disable_after_2_inactive_in_systems() {
     /* Create an entity that when deleted disables the InSystem */
     ecs_entity_t in_entity = ecs_new(world, Type);
 
-    ECS_SYSTEM(world, OutSystem, EcsOnUpdate, [out] Position, SYSTEM.EcsOnDemand);
+    ECS_SYSTEM(world, OutSystem, EcsOnUpdate, [out] Position, SYSTEM:OnDemand);
     ECS_SYSTEM(world, InSystem, EcsOnUpdate, [in] Position, Velocity);
     ECS_SYSTEM(world, InSystem2, EcsOnUpdate, [in] Position, Velocity);
 
-    test_assert(ecs_is_enabled(world, OutSystem) == true);
+    test_assert(is_enabled(world, OutSystem) == true);
     ecs_progress(world, 0);
     test_assert(invoked == true);
 
     /* InSystem should now deactivate, which should disable OutSystem */
     ecs_delete(world, in_entity);
 
-    test_assert(ecs_is_enabled(world, OutSystem) == false);
+    test_assert(is_enabled(world, OutSystem) == false);
     invoked = false;
     ecs_progress(world, 0);
     test_assert(invoked == false);
@@ -539,18 +546,18 @@ void SystemOnDemand_disable_after_2_inactive_in_systems_different_columns() {
     ecs_entity_t in_entity = ecs_new(world, Type1);
     ecs_entity_t in2_entity = ecs_new(world, Type2);
 
-    ECS_SYSTEM(world, OutSystem, EcsOnUpdate, [out] Position, SYSTEM.EcsOnDemand);
+    ECS_SYSTEM(world, OutSystem, EcsOnUpdate, [out] Position, SYSTEM:OnDemand);
     ECS_SYSTEM(world, InSystem, EcsOnUpdate, [in] Position, Velocity);
     ECS_SYSTEM(world, InSystem2, EcsOnUpdate, [in] Position, Mass);
 
-    test_assert(ecs_is_enabled(world, OutSystem) == true);
+    test_assert(is_enabled(world, OutSystem) == true);
     ecs_progress(world, 0);
     test_assert(invoked == true);
 
     /* InSystem should now deactivate, but OutSystem should still be enabled */
     ecs_delete(world, in_entity);
 
-    test_assert(ecs_is_enabled(world, OutSystem) == true);
+    test_assert(is_enabled(world, OutSystem) == true);
     invoked = false;
     ecs_progress(world, 0);
     test_assert(invoked == true);
@@ -558,7 +565,7 @@ void SystemOnDemand_disable_after_2_inactive_in_systems_different_columns() {
     /* InSystem2 should now deactivate, which should disable OutSystem */
     ecs_delete(world, in2_entity);
 
-    test_assert(ecs_is_enabled(world, OutSystem) == false);
+    test_assert(is_enabled(world, OutSystem) == false);
     invoked = false;
     ecs_progress(world, 0);
     test_assert(invoked == false);    
@@ -573,24 +580,24 @@ void SystemOnDemand_enable_2_output_1_input_system() {
 
     ecs_new(world, Position);
 
-    ECS_SYSTEM(world, OutSystem, EcsOnUpdate, [out] Position, SYSTEM.EcsOnDemand);
-    ECS_SYSTEM(world, OutSystem2, EcsOnUpdate, [out] Position, SYSTEM.EcsOnDemand);
+    ECS_SYSTEM(world, OutSystem, EcsOnUpdate, [out] Position, SYSTEM:OnDemand);
+    ECS_SYSTEM(world, OutSystem2, EcsOnUpdate, [out] Position, SYSTEM:OnDemand);
 
-    test_assert(ecs_is_enabled(world, OutSystem) == false);
+    test_assert(is_enabled(world, OutSystem) == false);
     ecs_progress(world, 0);
     test_assert(invoked == false);
 
-    test_assert(ecs_is_enabled(world, OutSystem2) == false);
+    test_assert(is_enabled(world, OutSystem2) == false);
     ecs_progress(world, 0);
     test_assert(invoked2 == false);    
 
     ECS_SYSTEM(world, InSystem, EcsOnUpdate, [in] Position);
 
-    test_assert(ecs_is_enabled(world, OutSystem) == true);
+    test_assert(is_enabled(world, OutSystem) == true);
     ecs_progress(world, 0);
     test_assert(invoked == true);
 
-    test_assert(ecs_is_enabled(world, OutSystem2) == true);
+    test_assert(is_enabled(world, OutSystem2) == true);
     ecs_progress(world, 0);
     test_assert(invoked2 == true);
 
@@ -606,24 +613,24 @@ void SystemOnDemand_enable_2_output_1_input_system_different_columns() {
 
     ecs_new(world, Type);
 
-    ECS_SYSTEM(world, OutSystem, EcsOnUpdate, [out] Position, SYSTEM.EcsOnDemand);
-    ECS_SYSTEM(world, OutSystem2, EcsOnUpdate, [out] Velocity, SYSTEM.EcsOnDemand);
+    ECS_SYSTEM(world, OutSystem, EcsOnUpdate, [out] Position, SYSTEM:OnDemand);
+    ECS_SYSTEM(world, OutSystem2, EcsOnUpdate, [out] Velocity, SYSTEM:OnDemand);
 
-    test_assert(ecs_is_enabled(world, OutSystem) == false);
+    test_assert(is_enabled(world, OutSystem) == false);
     ecs_progress(world, 0);
     test_assert(invoked == false);
 
-    test_assert(ecs_is_enabled(world, OutSystem2) == false);
+    test_assert(is_enabled(world, OutSystem2) == false);
     ecs_progress(world, 0);
     test_assert(invoked2 == false);    
 
     ECS_SYSTEM(world, InSystem, EcsOnUpdate, [in] Position, [in] Velocity);
 
-    test_assert(ecs_is_enabled(world, OutSystem) == true);
+    test_assert(is_enabled(world, OutSystem) == true);
     ecs_progress(world, 0);
     test_assert(invoked == true);
 
-    test_assert(ecs_is_enabled(world, OutSystem2) == true);
+    test_assert(is_enabled(world, OutSystem2) == true);
     ecs_progress(world, 0);
     test_assert(invoked2 == true);
 
@@ -640,24 +647,24 @@ void SystemOnDemand_enable_2_output_1_input_system_overlapping_columns() {
 
     ecs_new(world, Type);
 
-    ECS_SYSTEM(world, OutSystem, EcsOnUpdate, [out] Position, [out] Velocity, SYSTEM.EcsOnDemand);
-    ECS_SYSTEM(world, OutSystem2, EcsOnUpdate, [out] Position, [out] Mass, SYSTEM.EcsOnDemand);
+    ECS_SYSTEM(world, OutSystem, EcsOnUpdate, [out] Position, [out] Velocity, SYSTEM:OnDemand);
+    ECS_SYSTEM(world, OutSystem2, EcsOnUpdate, [out] Position, [out] Mass, SYSTEM:OnDemand);
 
-    test_assert(ecs_is_enabled(world, OutSystem) == false);
+    test_assert(is_enabled(world, OutSystem) == false);
     ecs_progress(world, 0);
     test_assert(invoked == false);
 
-    test_assert(ecs_is_enabled(world, OutSystem2) == false);
+    test_assert(is_enabled(world, OutSystem2) == false);
     ecs_progress(world, 0);
     test_assert(invoked2 == false);    
 
     ECS_SYSTEM(world, InSystem, EcsOnUpdate, [in] Position, [in] Velocity, [in] Mass);
 
-    test_assert(ecs_is_enabled(world, OutSystem) == true);
+    test_assert(is_enabled(world, OutSystem) == true);
     ecs_progress(world, 0);
     test_assert(invoked == true);
 
-    test_assert(ecs_is_enabled(world, OutSystem2) == true);
+    test_assert(is_enabled(world, OutSystem2) == true);
     ecs_progress(world, 0);
     test_assert(invoked2 == true);
 
@@ -677,9 +684,9 @@ void SystemOnDemand_out_not_column() {
      * will always be enabled if there are enabled input systems, even if those
      * input systems are not active (no matched entities). This way, OutSystem
      * can become enabled even though there are no entities with Velocity yet */
-    ECS_SYSTEM(world, OutSystem, EcsOnUpdate, Position, [out] !Velocity, SYSTEM.EcsOnDemand);
+    ECS_SYSTEM(world, OutSystem, EcsOnUpdate, Position, [out] !Velocity, SYSTEM:OnDemand);
 
-    test_assert(ecs_is_enabled(world, OutSystem) == false);
+    test_assert(is_enabled(world, OutSystem) == false);
     ecs_progress(world, 0);
     test_assert(invoked == false);
 
@@ -688,7 +695,7 @@ void SystemOnDemand_out_not_column() {
     /* There are no matching entities with the InSystem, but the OutSystem
      * will be enabled nonetheless, as it explicitly stated it will create the
      * Velocity component. */
-    test_assert(ecs_is_enabled(world, OutSystem) == true);
+    test_assert(is_enabled(world, OutSystem) == true);
     ecs_progress(world, 0);
     test_assert(invoked == true);
 
@@ -702,15 +709,15 @@ void SystemOnDemand_trigger_on_manual() {
     
     ecs_new(world, Position);
 
-    ECS_SYSTEM(world, OutSystem, EcsOnUpdate, [out] Position, SYSTEM.EcsOnDemand);
+    ECS_SYSTEM(world, OutSystem, EcsOnUpdate, [out] Position, SYSTEM:OnDemand);
 
-    test_assert(ecs_is_enabled(world, OutSystem) == false);
+    test_assert(is_enabled(world, OutSystem) == false);
     ecs_progress(world, 0);
     test_assert(invoked == false);
 
-    ECS_SYSTEM(world, InSystem, EcsManual, [in] Position);
+    ECS_SYSTEM(world, InSystem, 0, [in] Position);
 
-    test_assert(ecs_is_enabled(world, OutSystem) == true);
+    test_assert(is_enabled(world, OutSystem) == true);
     ecs_progress(world, 0);
     test_assert(invoked == true);
 
@@ -730,18 +737,18 @@ void SystemOnDemand_trigger_on_manual_not_column() {
      * will always be enabled if there are enabled input systems, even if those
      * input systems are not active (no matched entities). This way, OutSystem
      * can become enabled even though there are no entities with Velocity yet */
-    ECS_SYSTEM(world, OutSystem, EcsOnUpdate, Position, [out] !Velocity, SYSTEM.EcsOnDemand);
+    ECS_SYSTEM(world, OutSystem, EcsOnUpdate, Position, [out] !Velocity, SYSTEM:OnDemand);
 
-    test_assert(ecs_is_enabled(world, OutSystem) == false);
+    test_assert(is_enabled(world, OutSystem) == false);
     ecs_progress(world, 0);
     test_assert(invoked == false);
 
-    ECS_SYSTEM(world, InSystem, EcsManual, Position, [in] Velocity);
+    ECS_SYSTEM(world, InSystem, 0, Position, [in] Velocity);
 
     /* There are no matching entities with the InSystem, but the OutSystem
      * will be enabled nonetheless, as it explicitly stated it will create the
      * Velocity component. */
-    test_assert(ecs_is_enabled(world, OutSystem) == true);
+    test_assert(is_enabled(world, OutSystem) == true);
     ecs_progress(world, 0);
     test_assert(invoked == true);
 
@@ -758,25 +765,25 @@ void SystemOnDemand_on_demand_task_w_from_entity() {
     /* If a system has an out column that matches an entity, it should still
      * behave like an OnDemand system, only enabling when there is interest for
      * the component in the [out] column. */
-    ECS_SYSTEM(world, OutSystem, EcsOnUpdate, [out] MyEntity.Position, SYSTEM.EcsOnDemand);
+    ECS_SYSTEM(world, OutSystem, EcsOnUpdate, [out] MyEntity:Position, SYSTEM:OnDemand);
 
-    test_assert(ecs_is_enabled(world, OutSystem) == false);
+    test_assert(is_enabled(world, OutSystem) == false);
     ecs_progress(world, 0);
     test_assert(invoked == false);
 
-    ECS_SYSTEM(world, InSystem, EcsManual, [in] Position);
+    ECS_SYSTEM(world, InSystem, 0, [in] Position);
 
     /* There are no matching entities with the InSystem, but the OutSystem
      * will be enabled nonetheless, as it explicitly stated it will create the
      * Velocity component. */
-    test_assert(ecs_is_enabled(world, OutSystem) == true);
+    test_assert(is_enabled(world, OutSystem) == true);
     ecs_progress(world, 0);
     test_assert(invoked == true);
 
     /* When Position is removed from MyEntity, the system must be disabled */
     invoked = false;
     ecs_remove(world, MyEntity, Position);
-    test_assert(ecs_is_enabled(world, OutSystem) == false);
+    test_assert(is_enabled(world, OutSystem) == false);
     ecs_progress(world, 0);
     test_assert(invoked == false);
 
@@ -793,18 +800,18 @@ void SystemOnDemand_on_demand_task_w_not_from_entity() {
     /* If a system has an out column that matches an entity, it should still
      * behave like an OnDemand system, only enabling when there is interest for
      * the component in the [out] column, even if that column has a NOT operator */
-    ECS_SYSTEM(world, OutSystem, EcsOnUpdate, [out] !MyEntity.Position, SYSTEM.EcsOnDemand);
+    ECS_SYSTEM(world, OutSystem, EcsOnUpdate, [out] !MyEntity:Position, SYSTEM:OnDemand);
 
-    test_assert(ecs_is_enabled(world, OutSystem) == false);
+    test_assert(is_enabled(world, OutSystem) == false);
     ecs_progress(world, 0);
     test_assert(invoked == false);
 
-    ECS_SYSTEM(world, InSystem, EcsManual, [in] Position);
+    ECS_SYSTEM(world, InSystem, 0, [in] Position);
 
     /* There are no matching entities with the InSystem, but the OutSystem
      * will be enabled nonetheless, as it explicitly stated it will create the
      * Velocity component. */
-    test_assert(ecs_is_enabled(world, OutSystem) == true);
+    test_assert(is_enabled(world, OutSystem) == true);
     ecs_progress(world, 0);
     test_assert(invoked == true);
 
@@ -812,7 +819,7 @@ void SystemOnDemand_on_demand_task_w_not_from_entity() {
     invoked = false;
     ecs_add(world, MyEntity, Position);
     ecs_progress(world, 0);
-    test_assert(ecs_is_enabled(world, OutSystem) == false);
+    test_assert(is_enabled(world, OutSystem) == false);
     test_assert(invoked == false);
 
     ecs_fini(world);
@@ -822,7 +829,7 @@ void SystemOnDemand_enable_after_user_disable() {
     ecs_world_t *world = ecs_init();
 
     ECS_COMPONENT(world, Position);
-    ECS_SYSTEM(world, OutSystem, EcsOnUpdate, [out] Position, SYSTEM.EcsOnDemand);
+    ECS_SYSTEM(world, OutSystem, EcsOnUpdate, [out] Position, SYSTEM:OnDemand);
 
     /* Explicitly disable system. System should not automatically enable once
      * demand is created */
@@ -831,19 +838,19 @@ void SystemOnDemand_enable_after_user_disable() {
     /* Create dummy entity so system won't be disabled all the time */
     ecs_new(world, Position);
 
-    test_assert(ecs_is_enabled(world, OutSystem) == false);
+    test_assert(is_enabled(world, OutSystem) == false);
     ecs_progress(world, 0);
     test_assert(invoked == false);
 
     ECS_SYSTEM(world, InSystem, EcsOnUpdate, [in] Position);
 
     /* System should still be disabled, since user explicitly disabled it */
-    test_assert(ecs_is_enabled(world, OutSystem) == false);
+    test_assert(is_enabled(world, OutSystem) == false);
 
     /* Explicitly enable system. This should enable the system, since now there
      * is also demand */
     ecs_enable(world, OutSystem, true);
-    test_assert(ecs_is_enabled(world, OutSystem) == true);
+    test_assert(is_enabled(world, OutSystem) == true);
 
     ecs_progress(world, 0);
     test_assert(invoked == true);

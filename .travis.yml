@@ -10,6 +10,7 @@ matrix:
     env: 
       - BUILD=amd64-precise-gcc
       - NO_CPP=true
+      - NO_CMAKE=true
   - os: linux
     sudo: required
     dist: xenial
@@ -69,17 +70,20 @@ install:
   - git clone https://github.com/SanderMertens/bake
   - make -C bake/build-$(uname)
   - bake/bake setup
-  - mkdir build-cmake
-  - cd build-cmake
-  - cmake ..
-  - make
-  - cd ..
+  - if [[ -z "$NO_CMAKE" ]]; then mkdir build-cmake; fi
+  - if [[ -z "$NO_CMAKE" ]]; then cd build-cmake; fi
+  - if [[ -z "$NO_CMAKE" ]]; then cmake ..; fi
+  - if [[ -z "$NO_CMAKE" ]]; then make; fi
+  - if [[ -z "$NO_CMAKE" ]]; then cd ..; fi
   - bake
   - bake examples/c
   - if [[ -z "$NO_CPP" ]]; then bake examples/cpp; fi
 
 script:
-  - bake test
+  - bake examples/os_api/flecs-os_api-bake
+  - bake run test/api --cfg test
+  - bake run test/collections --cfg test
+  - if [[ -z "$NO_CPP" ]]; then bake run test/cpp_api --cfg test; fi
 
 after_success:
   - bash <(curl -s https://codecov.io/bash)

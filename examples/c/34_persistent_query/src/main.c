@@ -28,33 +28,31 @@ int main(int argc, char *argv[]) {
     ecs_query_t *q = ecs_query_new(world, "Position, Velocity");
 
     /* Create a few entities that match the query */
-    ecs_entity_t E1 = ecs_set(world, 0, EcsId, {"E1"});
+    ecs_entity_t E1 = ecs_set(world, 0, EcsName, {"E1"});
     ecs_set(world, E1, Position, {1, 2});
     ecs_set(world, E1, Velocity, {1, 1});
 
-    ecs_entity_t E2 = ecs_set(world, 0, EcsId, {"E2"});
+    ecs_entity_t E2 = ecs_set(world, 0, EcsName, {"E2"});
     ecs_set(world, E2, Position, {1, 2});
     ecs_set(world, E2, Velocity, {1, 1});
 
     /* Don't add Velocity here, E3 will not match query */
-    ecs_entity_t E3 = ecs_set(world, 0, EcsId, {"E3"});
+    ecs_entity_t E3 = ecs_set(world, 0, EcsName, {"E3"});
     ecs_set(world, E3, Position, {1, 2});
 
     /* Iterate over entities matching the query */
-    ecs_query_iter_t it = ecs_query_iter(q, 0, 0);
+    ecs_iter_t it = ecs_query_iter(q);
 
-    while (ecs_query_next(&it)) {
-        ecs_rows_t *rows = &it.rows;
-        
-        ECS_COLUMN(rows, Position, p, 1);
-        ECS_COLUMN(rows, Velocity, v, 2);
+    while (ecs_query_next(&it)) {        
+        Position *p = ecs_column(&it, Position, 1);
+        Velocity *v = ecs_column(&it, Velocity, 2);
 
-        for (int i = 0; i < rows->count; i ++) {
+        for (int i = 0; i < it.count; i ++) {
             p[i].x += v[i].x;
             p[i].y += v[i].y;
 
             printf("%s moved to {.x = %f, .y = %f}\n",
-                ecs_get_id(world, rows->entities[i]), p[i].x, p[i].y);
+                ecs_get_name(world, it.entities[i]), p[i].x, p[i].y);
         }
     }
 

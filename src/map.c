@@ -1,12 +1,11 @@
-#include "types.h"
+#include "flecs.h"
 
 #define LOAD_FACTOR (1.5)
-#define KEY_SIZE (sizeof(ecs_map_key_t))
+#define KEY_SIZE (ECS_SIZEOF(ecs_map_key_t))
 #define BUCKET_COUNT (8)
-#define CHUNK_SIZE (64)
 #define ELEM_SIZE(elem_size) (KEY_SIZE + elem_size)
-#define BUCKET_SIZE(elem_size)\
-    (sizeof(ecs_bucket_t) + BUCKET_COUNT * (ELEM_SIZE(elem_size)))
+#define BUCKET_SIZE(elem_size, offset)\
+    (offset + BUCKET_COUNT * (ELEM_SIZE(elem_size)))
 
 #define NEXT_ELEM(elem, elem_size) \
     ECS_OFFSET(elem, ELEM_SIZE(elem_size))
@@ -14,8 +13,8 @@
 #define GET_ELEM(array, elem_size, index) \
     ECS_OFFSET(array, ELEM_SIZE(elem_size) * index)
 
-#define PAYLOAD_ARRAY(bucket) \
-    ECS_OFFSET(bucket, sizeof(ecs_bucket_t))
+#define PAYLOAD_ARRAY(bucket, offset) \
+    ECS_OFFSET(bucket, offset)
 
 #define PAYLOAD(elem) \
     ECS_OFFSET(elem, KEY_SIZE)
@@ -26,10 +25,12 @@ struct ecs_bucket_t {
 
 struct ecs_map_t {
     ecs_sparse_t *buckets;
-    size_t elem_size;
+    int32_t elem_size;
+    int32_t type_elem_size;
     int32_t bucket_size;
     int32_t bucket_count;
     int32_t count;
+    int32_t offset;
 };
 
 static
@@ -51,15 +52,18 @@ static
 int32_t get_bucket_count(
     int32_t element_count)
 {
-    return next_pow_of_2((float)element_count * LOAD_FACTOR);
+    return next_pow_of_2((int32_t)((float)element_count * LOAD_FACTOR));
 }
 
 static
-int32_t get_bucket_id(
+uint64_t get_bucket_id(
     int32_t bucket_count,
     ecs_map_key_t key) 
 {
-    return key & (bucket_count - 1);
+    ecs_assert(bucket_count > 0, ECS_INTERNAL_ERROR, NULL);
+    uint64_t result = key & ((uint64_t)bucket_count - 1);
+    ecs_assert(result < INT32_MAX, ECS_INTERNAL_ERROR, NULL);
+    return result;
 }
 
 static
@@ -73,7 +77,7 @@ ecs_bucket_t* find_bucket(
         return NULL;
     }
 
-    int32_t bucket_id = get_bucket_id(bucket_count, key);
+    uint64_t bucket_id = get_bucket_id(bucket_count, key);
 
     return _ecs_sparse_get_sparse(buckets, 0, bucket_id);
 }
@@ -91,17 +95,8 @@ ecs_bucket_t* find_or_create_bucket(
         bucket_count = 8;
     }
 
-    int32_t bucket_id = get_bucket_id(bucket_count, key);
-    
-    bool is_new = false;
-    ecs_bucket_t *bucket = _ecs_sparse_get_or_set_sparse(
-        buckets, 0, bucket_id, &is_new);
-
-    if (is_new) {
-        bucket->count = 0;
-    }
-
-    return bucket;    
+    uint64_t bucket_id = get_bucket_id(bucket_count, key);
+    return _ecs_sparse_get_or_create(buckets, 0, bucket_id);    
 }
 
 static
@@ -110,46 +105,49 @@ void remove_bucket(
     ecs_map_key_t key)
 {
     int32_t bucket_count = map->bucket_count;
-    int32_t bucket_id = get_bucket_id(bucket_count, key);
-    _ecs_sparse_remove(map->buckets, 0, bucket_id);
+    uint64_t bucket_id = get_bucket_id(bucket_count, key);
+    ecs_sparse_remove(map->buckets, bucket_id);
 }
 
 static
 int32_t add_to_bucket(
     ecs_bucket_t *bucket,
-    size_t elem_size,
+    ecs_size_t elem_size,
+    int32_t offset,
     ecs_map_key_t key,
     void *payload)
 {
     ecs_assert(bucket->count < BUCKET_COUNT, ECS_INTERNAL_ERROR, NULL);
 
-    void *array = PAYLOAD_ARRAY(bucket);
+    void *array = PAYLOAD_ARRAY(bucket, offset);
     ecs_map_key_t *elem = GET_ELEM(array, elem_size, bucket->count);
     *elem = key;
-    memcpy(PAYLOAD(elem), payload, elem_size);
+    ecs_os_memcpy(PAYLOAD(elem), payload, elem_size);
     return ++ bucket->count;
 }
 
 static
 void remove_from_bucket(
     ecs_bucket_t *bucket,
-    size_t elem_size,
     ecs_map_key_t key,
+    ecs_size_t elem_size,
+    int32_t offset,
     int32_t index)
 {
+    (void)key;
+
     ecs_assert(bucket->count != 0, ECS_INTERNAL_ERROR, NULL);
     ecs_assert(index < bucket->count, ECS_INTERNAL_ERROR, NULL);
 
     bucket->count--;
 
     if (index != bucket->count) {
-        void *array = PAYLOAD_ARRAY(bucket);
+        void *array = PAYLOAD_ARRAY(bucket, offset);
         ecs_map_key_t *elem = GET_ELEM(array, elem_size, index);
         ecs_map_key_t *last_elem = GET_ELEM(array, elem_size, bucket->count);
 
         ecs_assert(key == *elem, ECS_INTERNAL_ERROR, NULL);
-
-        memcpy(elem, last_elem, ELEM_SIZE(elem_size));
+        ecs_os_memcpy(elem, last_elem, ELEM_SIZE(elem_size));
     }
 }
 
@@ -167,48 +165,44 @@ void rehash(
         rehash_again = false;
 
         ecs_sparse_t *buckets = map->buckets;
-        size_t elem_size = map->elem_size;
+        ecs_size_t elem_size = map->elem_size;
+        int32_t offset = map->offset;
 
         ecs_sparse_set_size(buckets, bucket_count);
         map->bucket_count = bucket_count;
 
         /* Only iterate over old buckets with elements */
         int32_t b, filled_bucket_count = ecs_sparse_count(buckets);
-        const int32_t *indices = ecs_sparse_indices(buckets);
+        const uint64_t *indices = ecs_sparse_ids(buckets);
 
         /* Iterate backwards as elements could otherwise be moved to existing
          * buckets which could temporarily cause the number of elements in a
          * bucket to exceed BUCKET_COUNT. */
         for (b = filled_bucket_count - 1; b >= 0; b --) {
-            int32_t bucket_id = indices[b];
+            uint64_t bucket_id = indices[b];
             ecs_bucket_t *bucket = _ecs_sparse_get_sparse(buckets, 0, bucket_id);
 
             int i, count = bucket->count;
-            ecs_map_key_t *array = PAYLOAD_ARRAY(bucket);
+            ecs_map_key_t *array = PAYLOAD_ARRAY(bucket, offset);
 
             for (i = 0; i < count; i ++) {
                 ecs_map_key_t *elem = GET_ELEM(array, elem_size, i);
                 ecs_map_key_t key = *elem;
-                int32_t new_bucket_id = get_bucket_id(bucket_count, key);
+                uint64_t new_bucket_id = get_bucket_id(bucket_count, key);
 
                 if (new_bucket_id != bucket_id) {
-                    bool is_new = false;
-                    ecs_bucket_t *new_bucket = _ecs_sparse_get_or_set_sparse(
-                        buckets, 0, new_bucket_id, &is_new);
+                    ecs_bucket_t *new_bucket = _ecs_sparse_get_or_create(
+                        buckets, 0, new_bucket_id);
 
-                    if (is_new) {
-                        new_bucket->count = 0;
-                        indices = ecs_sparse_indices(buckets);
-                    }
+                    indices = ecs_sparse_ids(buckets);
 
-                    if (add_to_bucket(
-                        new_bucket, elem_size, key, PAYLOAD(elem)) == 
-                        BUCKET_COUNT) 
+                    if (add_to_bucket(new_bucket, elem_size, offset, 
+                        key, PAYLOAD(elem)) == BUCKET_COUNT) 
                     {
                         rehash_again = true;
                     }
 
-                    remove_from_bucket(bucket, elem_size, key, i);
+                    remove_from_bucket(bucket, key, elem_size, offset, i);
 
                     count --;
                     i --;
@@ -221,18 +215,32 @@ void rehash(
 }
 
 ecs_map_t* _ecs_map_new(
-    size_t elem_size, 
+    ecs_size_t elem_size,
+    ecs_size_t alignment, 
     int32_t element_count)
 {
-    ecs_map_t *result = ecs_os_calloc(sizeof(ecs_map_t), 1);
+    ecs_map_t *result = ecs_os_calloc(ECS_SIZEOF(ecs_map_t) * 1);
     ecs_assert(result != NULL, ECS_OUT_OF_MEMORY, NULL);
 
     int32_t bucket_count = get_bucket_count(element_count);
 
     result->count = 0;
-    result->elem_size = elem_size;
+    result->type_elem_size = elem_size;
+
+    if (elem_size < ECS_SIZEOF(ecs_map_key_t)) {
+        result->elem_size = ECS_SIZEOF(ecs_map_key_t);
+    } else {
+        result->elem_size = elem_size;
+    }
+    
+    if (alignment < ECS_SIZEOF(ecs_map_key_t)) {
+        result->offset = ECS_SIZEOF(ecs_map_key_t);
+    } else {
+        result->offset = alignment;
+    }
+
     result->bucket_count = bucket_count;
-    result->buckets = _ecs_sparse_new(BUCKET_SIZE(elem_size), bucket_count);
+    result->buckets = _ecs_sparse_new(BUCKET_SIZE(elem_size, result->offset));
 
     return result;
 }
@@ -248,14 +256,16 @@ void ecs_map_free(
 
 void* _ecs_map_get(
     const ecs_map_t *map,
-    size_t elem_size,
+    ecs_size_t elem_size,
     ecs_map_key_t key)
 {
+    (void)elem_size;
+
     if (!map) {
         return NULL;
     }
 
-    ecs_assert(elem_size == map->elem_size, ECS_INVALID_PARAMETER, NULL);
+    ecs_assert(elem_size == map->type_elem_size, ECS_INVALID_PARAMETER, NULL);
 
     ecs_bucket_t * bucket = find_bucket(map, key);
 
@@ -263,7 +273,7 @@ void* _ecs_map_get(
         return NULL;
     }
 
-    ecs_map_key_t *elem = PAYLOAD_ARRAY(bucket);
+    ecs_map_key_t *elem = PAYLOAD_ARRAY(bucket, map->offset);
 
     uint8_t i = 0;
     while (i++ < bucket->count) {
@@ -271,7 +281,7 @@ void* _ecs_map_get(
             return PAYLOAD(elem);
         }
 
-        elem = NEXT_ELEM(elem, elem_size);
+        elem = NEXT_ELEM(elem, map->elem_size);
     }
 
     return NULL;
@@ -279,13 +289,13 @@ void* _ecs_map_get(
 
 bool _ecs_map_has(
     const ecs_map_t *map,
-    size_t elem_size,
+    ecs_size_t elem_size,
     ecs_map_key_t key,
     void *payload)
 {
     const void *result = _ecs_map_get(map, elem_size, key);
     if (result) {
-        memcpy(payload, result, elem_size);
+        ecs_os_memcpy(payload, result, elem_size);
         return true;
     } else {
         return false;
@@ -296,7 +306,7 @@ void* _ecs_map_get_ptr(
     const ecs_map_t *map,
     ecs_map_key_t key)
 {
-    void * ptr_ptr = _ecs_map_get(map, sizeof(void*), key);
+    void * ptr_ptr = _ecs_map_get(map, ECS_SIZEOF(void*), key);
 
     if (ptr_ptr) {
         return *(void**)ptr_ptr;
@@ -307,18 +317,18 @@ void* _ecs_map_get_ptr(
 
 void _ecs_map_set(
     ecs_map_t *map,
-    size_t elem_size,
+    ecs_size_t elem_size,
     ecs_map_key_t key,
     const void *payload)
 {
     ecs_assert(map != NULL, ECS_INVALID_PARAMETER, NULL);
-    ecs_assert(elem_size == map->elem_size, ECS_INVALID_PARAMETER, NULL);
+    ecs_assert(elem_size == map->type_elem_size, ECS_INVALID_PARAMETER, NULL);
 
     ecs_bucket_t * bucket = find_or_create_bucket(map, key);
     ecs_assert(bucket != NULL, ECS_INTERNAL_ERROR, NULL);
     
     int32_t bucket_count = bucket->count;
-    void *array = PAYLOAD_ARRAY(bucket);
+    void *array = PAYLOAD_ARRAY(bucket, map->offset);
     ecs_map_key_t *elem = array, *found = NULL;
 
     uint8_t i = 0;
@@ -328,7 +338,7 @@ void _ecs_map_set(
             break;
         }
 
-        elem = NEXT_ELEM(elem, elem_size);
+        elem = NEXT_ELEM(elem, map->elem_size);
     }
 
     if (!found) {
@@ -339,11 +349,11 @@ void _ecs_map_set(
         } else {
             ecs_assert(bucket->count < BUCKET_COUNT, ECS_INTERNAL_ERROR, NULL);
 
-            int32_t bucket_count = ++bucket->count;
+            bucket_count = ++bucket->count;
             int32_t map_count = ++map->count;
             
             *elem = key;
-            memcpy(PAYLOAD(elem), payload, elem_size);
+            ecs_os_memcpy(PAYLOAD(elem), payload, elem_size);
 
             int32_t target_bucket_count = get_bucket_count(map_count);
             int32_t map_bucket_count = map->bucket_count;
@@ -358,7 +368,7 @@ void _ecs_map_set(
         }
     } else {
         *found = key;
-        memcpy(PAYLOAD(found), payload, elem_size);
+        ecs_os_memcpy(PAYLOAD(found), payload, elem_size);
     }
 
     ecs_assert(map->bucket_count != 0, ECS_INTERNAL_ERROR, NULL);
@@ -375,8 +385,8 @@ void ecs_map_remove(
         return;
     }
    
-    size_t elem_size = map->elem_size;
-    void *array = PAYLOAD_ARRAY(bucket);
+    ecs_size_t elem_size = map->elem_size;
+    void *array = PAYLOAD_ARRAY(bucket, map->offset);
     ecs_map_key_t *elem = array;
     int32_t bucket_count = bucket->count;
 
@@ -387,7 +397,7 @@ void ecs_map_remove(
         if (*elem == key) {
             ecs_map_key_t *last_elem = GET_ELEM(array, elem_size, (bucket_count - 1));
             if (last_elem > elem) {
-                memcpy(elem, last_elem, ELEM_SIZE(elem_size));
+                ecs_os_memcpy(elem, last_elem, ELEM_SIZE(elem_size));
             }
 
             map->count --;
@@ -437,13 +447,13 @@ ecs_map_iter_t ecs_map_iter(
 
 void* _ecs_map_next(
     ecs_map_iter_t *iter,
-    size_t elem_size,
+    ecs_size_t elem_size,
     ecs_map_key_t *key_out)
 {
     const ecs_map_t *map = iter->map;
     
     ecs_assert(map != NULL, ECS_INVALID_PARAMETER, NULL);
-    ecs_assert(!elem_size || elem_size == map->elem_size, ECS_INVALID_PARAMETER, NULL);
+    ecs_assert(!elem_size || elem_size == map->type_elem_size, ECS_INVALID_PARAMETER, NULL);
  
     ecs_bucket_t *bucket = iter->bucket;
     int32_t element_index = iter->element_index;
@@ -473,7 +483,7 @@ void* _ecs_map_next(
         }
     } while (true);
 
-    void *array = PAYLOAD_ARRAY(bucket);
+    void *array = PAYLOAD_ARRAY(bucket, map->offset);
     ecs_map_key_t *elem = GET_ELEM(array, elem_size, element_index);
     
     if (key_out) {
@@ -487,7 +497,7 @@ void* _ecs_map_next_ptr(
     ecs_map_iter_t *iter,
     ecs_map_key_t *key_out)
 {
-    void *result = _ecs_map_next(iter, sizeof(void*), key_out);
+    void *result = _ecs_map_next(iter, ECS_SIZEOF(void*), key_out);
     if (result) {
         return *(void**)result;
     } else {
@@ -540,7 +550,7 @@ ecs_map_t* ecs_map_copy(
         return NULL;
     }
     
-    ecs_map_t *dst = ecs_os_memdup(src, sizeof(ecs_map_t));
+    ecs_map_t *dst = ecs_os_memdup(src, ECS_SIZEOF(ecs_map_t));
     
     dst->buckets = ecs_sparse_copy(src->buckets);
 

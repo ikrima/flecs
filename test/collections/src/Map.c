@@ -21,19 +21,19 @@ void fill_map(
 static int32_t malloc_count;
 
 static
-void *test_malloc(size_t size) {
+void *test_malloc(ecs_size_t size) {
     malloc_count ++;
     return malloc(size);
 }
 
 static
-void *test_calloc(size_t size, size_t n) {
+void *test_calloc(ecs_size_t size) {
     malloc_count ++;
-    return calloc(size, n);
+    return calloc(1, size);
 }
 
 static
-void *test_realloc(void *old_ptr, size_t size) {
+void *test_realloc(void *old_ptr, ecs_size_t size) {
     malloc_count ++;
     return realloc(old_ptr, size);
 }
@@ -42,9 +42,9 @@ void *test_realloc(void *old_ptr, size_t size) {
 void Map_setup() {
     ecs_os_set_api_defaults();
     ecs_os_api_t os_api = ecs_os_api;
-    os_api.malloc = test_malloc;
-    os_api.calloc = test_calloc;
-    os_api.realloc = test_realloc;
+    os_api.malloc_ = test_malloc;
+    os_api.calloc_ = test_calloc;
+    os_api.realloc_ = test_realloc;
     ecs_os_set_api(&os_api);    
 }
 
@@ -141,7 +141,7 @@ void Map_get_all() {
     ecs_map_t *map = ecs_map_new(char*, 16);
     fill_map(map);
 
-    char *value = ecs_map_get_ptr(map, char*, 1);;
+    char *value = ecs_map_get_ptr(map, char*, 1);
     test_assert(value != NULL);
     test_str(value, "hello");
 
@@ -260,7 +260,7 @@ void Map_remove_from_empty_bucket() {
 }
 
 void Map_grow() {
-    ecs_map_t *map = ecs_map_new(sizeof(char*), 1);
+    ecs_map_t *map = ecs_map_new(char*, 1);
     
     ecs_map_grow(map, 10);
 
@@ -272,11 +272,11 @@ void Map_grow() {
         ecs_map_set(map, i, &v);
     }
 
-    test_int(malloc_count, 0);
+    test_int(malloc_count, 3);
 }
 
 void Map_set_size_0() {
-    ecs_map_t *map = ecs_map_new(sizeof(char*), 1);
+    ecs_map_t *map = ecs_map_new(char*, 1);
     
     ecs_map_set_size(map, 0);
 

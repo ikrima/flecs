@@ -1,33 +1,17 @@
-cmake_minimum_required (VERSION 3.12)
+cmake_minimum_required (VERSION 2.8.7)
 
 project (flecs C)
+set(CMAKE_C_STANDARD 99)
 
-set(CMAKE_DEBUG_POSTFIX _d)
+file(GLOB_RECURSE flecs_SRC "${CMAKE_CURRENT_LIST_DIR}/src/*.c")
 
-file(GLOB flecs_SRC "src/*.c")
-
-include_directories("include")
-
-add_compile_definitions(FLECS_IMPL)
-
+add_library(flecs SHARED ${flecs_SRC})
 add_library(flecs_static STATIC ${flecs_SRC})
-add_library(flecs_shared SHARED ${flecs_SRC})
 
-if (TARGET flecs_static)
-  target_compile_definitions(flecs_static PRIVATE FLECS_STATIC)
-endif()
+target_compile_definitions(flecs_static PUBLIC flecs_STATIC)
 
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/lib)
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/lib)
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/lib)
-
-set_target_properties(flecs_static PROPERTIES ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/lib/$<0:>)
-set_target_properties(flecs_static PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/lib/$<0:>)
-set_target_properties(flecs_static PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/lib/$<0:>)
-set_target_properties(flecs_shared PROPERTIES ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/lib/$<0:>)
-set_target_properties(flecs_shared PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/lib/$<0:>)
-set_target_properties(flecs_shared PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/lib/$<0:>)
-
+target_include_directories(flecs PUBLIC "${CMAKE_CURRENT_LIST_DIR}/include")
+target_include_directories(flecs_static PUBLIC "${CMAKE_CURRENT_LIST_DIR}/include")
 
 install(
 	DIRECTORY ${PROJECT_SOURCE_DIR}/include/ DESTINATION include FILES_MATCHING PATTERN "*.h"
@@ -36,5 +20,5 @@ install(
 	TARGETS flecs_static DESTINATION lib
 )
 install(
-	TARGETS flecs_shared DESTINATION lib
+	TARGETS flecs DESTINATION lib
 )

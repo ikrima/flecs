@@ -104,7 +104,7 @@ void Vector_add_empty() {
 
     ecs_vector_add(&array, int);
     test_int(ecs_vector_count(array), 1);
-    test_int(ecs_vector_size(array), 1);
+    test_int(ecs_vector_size(array), 2);
     ecs_vector_free(array);
 }
 
@@ -192,7 +192,7 @@ void Vector_sort_rnd() {
     int nums[] = {23, 16, 21, 13, 30, 5, 28, 31, 8, 19, 29, 12, 24, 14, 15, 1, 26, 18, 9, 25, 22, 0, 10, 3, 2, 17, 27, 20, 6, 11, 4, 7};
     ecs_vector_t *array = ecs_vector_new(int, 0);
 
-    uint32_t i, count = sizeof(nums) / sizeof(int);
+    int32_t i, count = sizeof(nums) / sizeof(int);
     for (i = 0; i < count; i ++) {
         int *elem = ecs_vector_add(&array, int);
         *elem = nums[i];
@@ -202,7 +202,7 @@ void Vector_sort_rnd() {
 
     ecs_vector_sort(array, int, compare_int);
 
-    int *buffer = ecs_vector_first(array);
+    int *buffer = ecs_vector_first(array, int);
     count = ecs_vector_count(array);
 
     for (i = 0; i < count; i ++) {
@@ -216,7 +216,7 @@ void Vector_sort_sorted() {
     int nums[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31};
     ecs_vector_t *array = ecs_vector_new(int, 0);
 
-    uint32_t i, count = sizeof(nums) / sizeof(int);
+    int32_t i, count = sizeof(nums) / sizeof(int);
     for (i = 0; i < count; i ++) {
         int *elem = ecs_vector_add(&array, int);
         *elem = nums[i];
@@ -226,7 +226,7 @@ void Vector_sort_sorted() {
 
     ecs_vector_sort(array, int, compare_int);
 
-    int *buffer = ecs_vector_first(array);
+    int *buffer = ecs_vector_first(array, int);
     count = ecs_vector_count(array);
 
     for (i = 0; i < count; i ++) {
@@ -266,19 +266,19 @@ void Vector_pop_elements() {
     array = fill_array(array);
     int value;
 
-    test_assert( ecs_vector_pop(array, &value));
+    test_assert( ecs_vector_pop(array, int, &value));
     test_int(value, 3);
 
-    test_assert( ecs_vector_pop(array, &value));
+    test_assert( ecs_vector_pop(array, int, &value));
     test_int(value, 2);
 
-    test_assert( ecs_vector_pop(array, &value));
+    test_assert( ecs_vector_pop(array, int, &value));
     test_int(value, 1);
 
-    test_assert( ecs_vector_pop(array, &value));
+    test_assert( ecs_vector_pop(array, int, &value));
     test_int(value, 0);
 
-    test_assert( !ecs_vector_pop(array, &value));
+    test_assert( !ecs_vector_pop(array, int, &value));
 
     ecs_vector_free(array);
 }
