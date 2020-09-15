@@ -253,10 +253,18 @@ FLECS_EXPORT
 void ecs_os_set_api_defaults(void);
 
 /* Memory management */
+#ifndef ecs_os_malloc
 #define ecs_os_malloc(size) ecs_os_api.malloc_(size);
+#endif
+#ifndef ecs_os_free
 #define ecs_os_free(ptr) ecs_os_api.free_(ptr);
+#endif
+#ifndef ecs_os_realloc
 #define ecs_os_realloc(ptr, size) ecs_os_api.realloc_(ptr, size)
+#endif
+#ifndef ecs_os_calloc
 #define ecs_os_calloc(size) ecs_os_api.calloc_(size)
+#endif
 #if defined(_MSC_VER) || defined(__MINGW32__)
 #define ecs_os_alloca(size) _alloca((size_t)(size))
 #else
@@ -264,7 +272,9 @@ void ecs_os_set_api_defaults(void);
 #endif
 
 /* Strings */
+#ifndef ecs_os_strdup
 #define ecs_os_strdup(str) ecs_os_api.strdup_(str)
+#endif
 #define ecs_os_strlen(str) (ecs_size_t)strlen(str)
 #define ecs_os_strcmp(str1, str2) strcmp(str1, str2)
 #define ecs_os_strncmp(str1, str2, num) strncmp(str1, str2, (size_t)(num))
