@@ -1953,6 +1953,16 @@ public:
      */
     flecs::type to_type() const;
 
+
+    template <typename T>
+    T* addUninit() const {
+      ecs_set_ptr_w_entity(m_world, m_id, _::component_info<T>::id(m_world), sizeof(T), nullptr);
+      bool is_added = false;
+      T* new_comp = static_cast<T*>(ecs_get_mut_w_entity(m_world, m_id, _::component_info<T>::id(m_world), &is_added));
+      ecs_assert(is_added == false, ECS_INVALID_PARAMETER, NULL);
+      return new_comp;
+    }
+
     /** Get component value.
      * 
      * @tparam T The component to get.
