@@ -3036,7 +3036,7 @@ flecs::entity pod_component(const flecs::world& world, const char *name = nullpt
             world.c_ptr(), id, nullptr, 
             sizeof(typename std::remove_pointer<T>::type), 
             alignof(typename std::remove_pointer<T>::type)); 
-        
+        ECS_UNUSED(entity);
         ecs_assert(entity == id, ECS_INTERNAL_ERROR, NULL);
 
         /* This functionality could have been put in id_no_lifecycle, but since
@@ -3048,6 +3048,7 @@ flecs::entity pod_component(const flecs::world& world, const char *name = nullpt
         /* If the component is not yet registered, ensure no other component
          * or entity has been registered with this name */
         ecs_entity_t e = ecs_lookup_fullpath(world_ptr, name);
+        ECS_UNUSED(e);
         ecs_assert(e == 0, ECS_COMPONENT_NAME_IN_USE, name);
 
         id = _::component_info<T>::id_no_lifecycle(world_ptr, name);
