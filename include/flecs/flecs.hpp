@@ -2860,6 +2860,9 @@ void register_lifecycle_actions(
     bool move)
 {
     if (!ecs_component_has_actions(world, component)) {
+        // Beg #TPLibMod-Flecs:  Don't allow automatic registering of components
+        ecs_assert(false, ECS_COMPONENT_NOT_REGISTERED, _::name_helper<T>::name());
+        // End TPLibMod
         EcsComponentLifecycle cl{};
         if (ctor) {
             cl.ctor = _::component_ctor<typename std::remove_const<typename std::remove_pointer<T>::type>::type>;
@@ -2929,9 +2932,6 @@ public:
     }
 
     static entity_t id(world_t *world = nullptr, const char *name = nullptr) {
-        // Beg TPLibMod-Flecs:  Don't allow automatic registering of components
-        ecs_assert(!!s_id, ECS_COMPONENT_NOT_REGISTERED, _::name_helper<T>::name());
-        // End TPLibMod
         if (!s_id) {
             id_no_lifecycle(world, name);
             register_lifecycle_actions<T>(world, s_id,
