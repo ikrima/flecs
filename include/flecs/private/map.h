@@ -147,7 +147,8 @@ ecs_map_t* ecs_map_copy(
 #ifdef __cplusplus
 #ifndef FLECS_NO_CPP
 
-#include <iostream>
+#include <initializer_list>
+#include <utility>
 
 namespace flecs {
 
