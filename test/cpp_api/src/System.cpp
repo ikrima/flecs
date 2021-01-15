@@ -513,3 +513,92 @@ void System_empty_signature() {
 
     test_int(count, 1); 
 }
+
+struct MyTag { };
+
+void System_action_tag() {
+    flecs::world world;
+
+    int invoked = 0;
+
+    world.system<MyTag>()
+        .action([&](flecs::iter it, flecs::column<MyTag>) {
+            invoked ++;
+        });
+
+    world.entity()
+        .add<MyTag>();
+
+    world.progress();
+
+    test_int(invoked, 1);
+}
+
+void System_iter_tag() {
+    flecs::world world;
+
+    int invoked = 0;
+
+    world.system<MyTag>()
+        .iter([&](flecs::iter it, MyTag*) {
+            invoked ++;
+        });
+
+    world.entity()
+        .add<MyTag>();
+
+    world.progress();
+
+    test_int(invoked, 1);
+}
+
+void System_each_tag() {
+    flecs::world world;
+
+    int invoked = 0;
+
+    world.system<MyTag>()
+        .each([&](flecs::entity e, MyTag&) {
+            invoked ++;
+        });
+
+    world.entity()
+        .add<MyTag>();
+
+    world.progress();
+
+    test_int(invoked, 1);
+}
+
+void System_system_from_id() {
+    flecs::world world;
+
+    uint32_t invoked = 0;
+    flecs::entity sys = world.system<>()
+        .kind(0)
+        .iter([&](flecs::iter& it) {
+            invoked ++;
+        });
+
+    auto sys_from_id = world.system<>(sys);
+
+    sys_from_id.run();
+    test_int(invoked, 1);
+}
+
+void System_set_interval() {
+    flecs::world world;
+
+    auto sys = world.system<>()
+        .kind(0)
+        .interval(1.0f)
+        .iter([&](flecs::iter& it) { });
+
+    float i = sys.interval();
+    test_int(i, 1.0f);
+
+    sys.interval(2.0f);
+
+    i = sys.interval();
+    test_int(i, 2.0f);
+}

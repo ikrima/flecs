@@ -53,7 +53,18 @@
                 "clear",
                 "foce_owned",
                 "force_owned_2",
-                "force_owned_nested"
+                "force_owned_nested",
+                "force_owned_type",
+                "force_owned_type_w_trait",
+                "tag_has_size_zero",
+                "get_null_name",
+                "get_parent",
+                "get_parent_w_tag",
+                "is_component_enabled",
+                "is_enabled_component_enabled",
+                "is_disabled_component_enabled",
+                "get_type",
+                "get_nonempty_type"
             ]
         }, {
             "id": "Traits",
@@ -99,7 +110,13 @@
                 "path_depth_2",
                 "entity_lookup_name",
                 "entity_lookup_depth_1",
-                "entity_lookup_depth_2"
+                "entity_lookup_depth_2",
+                "alias_component",
+                "alias_scoped_component",
+                "alias_scoped_component_w_name",
+                "alias_entity",
+                "alias_entity_by_name",
+                "alias_entity_by_scoped_name"
             ]
         }, {
             "id": "Type",
@@ -110,7 +127,8 @@
                 "1_component",
                 "2_component",
                 "1_component_signature",
-                "2_component_signature"
+                "2_component_signature",
+                "type_no_name"
             ]
         }, {
             "id": "System",
@@ -129,13 +147,21 @@
                 "signature_optional",
                 "copy_name_on_create",
                 "nested_system",
-                "empty_signature"
+                "empty_signature",
+                "action_tag",
+                "iter_tag",
+                "each_tag",
+                "system_from_id",
+                "set_interval"
             ]
         }, {
             "id": "Trigger",
             "testcases": [
                 "on_add",
-                "on_remove"
+                "on_remove",
+                "on_add_tag_action",
+                "on_add_tag_iter",
+                "on_add_tag_each"
             ]
         }, {
             "id": "Query",
@@ -154,7 +180,12 @@
                 "signature_optional",
                 "subquery",
                 "subquery_w_expr",
-                "query_single_trait"
+                "query_single_trait",
+                "tag_w_each",
+                "shared_tag_w_each",
+                "sort_by",
+                "changed",
+                "orphaned"
             ]
         }, {
             "id": "ComponentLifecycle",
@@ -171,7 +202,8 @@
                 "get_mut_existing",
                 "pod_component",
                 "relocatable_component",
-                "implicit_component"
+                "implicit_component",
+                "implicit_after_query"
             ]
         }, {
             "id": "Refs",
@@ -207,7 +239,8 @@
                 "implicit_name",
                 "reinit",
                 "reinit_scoped",
-                "reinit_w_lifecycle"
+                "reinit_w_lifecycle",
+                "first_use_in_system"
             ]
         }, {
             "id": "Snapshot",
@@ -243,6 +276,19 @@
                 "multi_world_component_namespace",
                 "type_id",
                 "different_comp_same_name"
+            ]
+        }, {
+            "id": "Singleton",
+            "testcases": [
+                "set_get_singleton",
+                "get_mut_singleton",
+                "modified_singleton",
+                "patch_singleton",
+                "remove_singleton",
+                "has_singleton",
+                "singleton_system",
+                "get_singleton",
+                "type_id_from_world"
             ]
         }]
     }

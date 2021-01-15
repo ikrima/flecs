@@ -106,6 +106,7 @@ void ecs_os_err(const char *fmt, ...) {
     va_end(args);
 }
 
+static
 void ecs_os_gettime(ecs_time_t *time)
 {
     uint64_t now = ecs_os_time_now();
@@ -127,10 +128,6 @@ void* ecs_os_api_malloc(ecs_size_t size) {
 
 static
 void* ecs_os_api_calloc(ecs_size_t size) {
-    if (size >= 13107200) {
-        abort();
-    }
-
     ecs_os_api_calloc_count ++;
     ecs_assert(size > 0, ECS_INVALID_PARAMETER, NULL);
     return calloc(1, (size_t)size);

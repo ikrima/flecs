@@ -521,3 +521,98 @@ void Query_query_single_trait() {
     test_int(table_count, 1);
     test_int(entity_count, 1);
 }
+
+void Query_tag_w_each() {
+    flecs::world world;
+
+    auto q = world.query<Tag>();
+
+    auto e = world.entity()
+        .add<Tag>();
+
+    q.each([&](flecs::entity qe, Tag) {
+        test_assert(qe == e);
+    });
+}
+
+void Query_shared_tag_w_each() {
+    flecs::world world;
+
+    auto q = world.query<Tag>();
+
+    auto base = world.prefab()
+        .add<Tag>();
+
+    auto e = world.entity()
+        .add_instanceof(base);
+
+    q.each([&](flecs::entity qe, Tag) {
+        test_assert(qe == e);
+    });
+}
+
+static
+int compare_position(
+    flecs::entity_t e1,
+    const Position *p1,
+    flecs::entity_t e2,
+    const Position *p2)
+{
+    return (p1->x > p2->x) - (p1->x < p2->x);
+}
+
+void Query_sort_by() {
+    flecs::world world;
+
+    world.entity().set<Position>({1, 0});
+    world.entity().set<Position>({6, 0});
+    world.entity().set<Position>({2, 0});
+    world.entity().set<Position>({5, 0});
+    world.entity().set<Position>({4, 0});
+
+    auto q = world.query<Position>();
+
+    q.order_by(compare_position);
+
+    q.iter([](flecs::iter it, Position *p) {
+        test_int(it.count(), 5);
+        test_int(p[0].x, 1);
+        test_int(p[1].x, 2);
+        test_int(p[2].x, 4);
+        test_int(p[3].x, 5);
+        test_int(p[4].x, 6);
+    });
+}
+
+void Query_changed() {
+    flecs::world world;
+
+    auto e = world.entity().set<Position>({1, 0});
+
+    auto q = world.query<Position>();
+
+    test_bool(q.changed(), true);
+
+    q.each([](flecs::entity e, Position& p) { });
+
+    test_bool(q.changed(), false);
+    
+    e.set<Position>({2, 0});
+
+    test_bool(q.changed(), true);
+}
+
+void Query_orphaned() {
+    flecs::world world;
+
+    auto q = flecs::query<Position>(world);
+
+    auto sq = world.query<Position>(q);
+    
+    test_assert(!q.orphaned());
+    test_assert(!sq.orphaned());
+
+    q.destruct();
+
+    test_assert(sq.orphaned());
+}

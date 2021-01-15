@@ -81,23 +81,30 @@ int parse_type_action(
 }
 
 static
-EcsType type_from_vec(
+ecs_table_t* table_from_vec(
     ecs_world_t *world,
     ecs_vector_t *vec)
 {
-    EcsType result = {0, 0};
     ecs_entity_t *array = ecs_vector_first(vec, ecs_entity_t);
-    int32_t i, count = ecs_vector_count(vec);
+    int32_t count = ecs_vector_count(vec);
 
     ecs_entities_t entities = {
         .array = array,
         .count = count
     };
 
-    ecs_table_t *table = ecs_table_find_or_create(
-        world, &world->stage, &entities);
+    return ecs_table_find_or_create(world, &entities);
+}
+
+static
+EcsType type_from_vec(
+    ecs_world_t *world,
+    ecs_vector_t *vec)
+{
+    EcsType result = {0, 0};
+    ecs_table_t *table = table_from_vec(world, vec);
     if (!table) {
-        return (EcsType){ 0 };
+        return result;
     }    
 
     result.type = table->type;
@@ -107,10 +114,12 @@ EcsType type_from_vec(
      * maintains the original type hierarchy. */
     ecs_vector_t *normalized = NULL;
 
+    ecs_entity_t *array = ecs_vector_first(vec, ecs_entity_t);
+    int32_t i, count = ecs_vector_count(vec);
     for (i = 0; i < count; i ++) {
         ecs_entity_t e = array[i];
         if (ECS_HAS_ROLE(e, AND)) {
-            ecs_entity_t entity = e & ECS_ENTITY_MASK;
+            ecs_entity_t entity = e & ECS_COMPONENT_MASK;
             const EcsType *type_ptr = ecs_get(world, entity, EcsType);
             ecs_assert(type_ptr != NULL, ECS_INVALID_PARAMETER, 
                 "flag must be applied to type");
@@ -126,7 +135,7 @@ EcsType type_from_vec(
     if (normalized) {
         ecs_entities_t normalized_array = ecs_type_to_entities(normalized);
         ecs_table_t *norm_table = ecs_table_traverse_add(
-            world, &world->stage, table, &normalized_array, NULL);
+            world, table, &normalized_array, NULL);
 
         result.normalized = norm_table->type;
 
@@ -185,6 +194,10 @@ void ecs_set_symbol(
     ecs_entity_t e,
     const char *name)
 {
+    if (!name) {
+        return;
+    }
+    
     const char *e_name = ecs_name_from_symbol(world, name);
 
     ecs_set(world, e, EcsName, { 
@@ -234,6 +247,21 @@ ecs_type_t ecs_type_from_str(
     return type.normalized;
 }
 
+ecs_table_t* ecs_table_from_str(
+    ecs_world_t *world,
+    const char *expr)
+{
+    if (expr) {
+        ecs_vector_t *vec = ecs_vector_new(ecs_entity_t, 1);
+        ecs_parse_expr(world, NULL, expr, parse_type_action, &vec);
+        ecs_table_t *result = table_from_vec(world, vec);
+        ecs_vector_free(vec);
+        return result;
+    } else {
+        return NULL;
+    }
+}
+
 ecs_entity_t ecs_new_entity(
     ecs_world_t *world,
     ecs_entity_t e,
@@ -281,6 +309,18 @@ ecs_entity_t ecs_new_component(
 {
     ecs_assert(world != NULL, ECS_INVALID_PARAMETER, NULL);
     assert(world->magic == ECS_WORLD_MAGIC);
+    bool in_progress = world->in_progress;
+
+    /* If world is in progress component may be registered, but only when not
+     * in multithreading mode. */
+    if (in_progress) {
+        ecs_assert(ecs_vector_count(world->workers) < 1, 
+            ECS_INVALID_WHILE_ITERATING, NULL);
+
+        /* Component creation should not be deferred */
+        ecs_defer_end(world);
+        world->in_progress = false;
+    }
 
     ecs_entity_t result = ecs_lookup_w_id(world, e, name);
     if (!result) {
@@ -296,6 +336,7 @@ ecs_entity_t ecs_new_component(
 
     bool added = false;
     EcsComponent *ptr = ecs_get_mut(world, result, EcsComponent, &added);
+
     if (added) {
         ptr->size = ecs_from_size_t(size);
         ptr->alignment = ecs_from_size_t(alignment);
@@ -312,6 +353,11 @@ ecs_entity_t ecs_new_component(
 
     if (e > world->stats.last_component_id && e < ECS_HI_COMPONENT_ID) {
         world->stats.last_component_id = e + 1;
+    }
+
+    if (in_progress) {
+        world->in_progress = true;
+        ecs_defer_begin(world);
     }
 
     return result;

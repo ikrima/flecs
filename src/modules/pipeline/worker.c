@@ -160,8 +160,7 @@ void ecs_stop_threads(
 void ecs_worker_begin(
     ecs_world_t *world)
 {
-    int32_t thread_count = ecs_vector_count(world->workers);
-    if (!thread_count) {
+    if (world->magic == ECS_WORLD_MAGIC) {
         ecs_staging_begin(world);
     }
 }
@@ -173,7 +172,7 @@ bool ecs_worker_sync(
 
     int32_t thread_count = ecs_vector_count(world->workers);
     if (!thread_count) {
-        ecs_staging_end(world, false);
+        ecs_staging_end(world);
 
         ecs_pipeline_update(world, world->pipeline);
 
@@ -190,7 +189,7 @@ void ecs_worker_end(
 {
     int32_t thread_count = ecs_vector_count(world->workers);
     if (!thread_count) {
-        ecs_staging_end(world, false);
+        ecs_staging_end(world);
     } else {
         sync_worker(world);
     }
@@ -206,8 +205,6 @@ void ecs_workers_progress(
     if (world->measure_frame_time) {
         ecs_time_measure(&start);
     }
-
-    world->stats.systems_ran_frame = 0;
 
     if (thread_count <= 1) {
         ecs_pipeline_begin(world, pipeline);
@@ -233,7 +230,7 @@ void ecs_workers_progress(
             wait_for_sync(world);
 
             /* Merge */
-            ecs_staging_end(world, false);
+            ecs_staging_end(world);
 
             int32_t update_count;
             if ((update_count = ecs_pipeline_update(world, pipeline))) {
@@ -247,7 +244,7 @@ void ecs_workers_progress(
     }
 
     if (world->measure_frame_time) {
-        world->stats.system_time_total += (float)ecs_time_measure(&start);
+        world->stats.system_time_total += (FLECS_FLOAT)ecs_time_measure(&start);
     }    
 }
 
@@ -281,8 +278,8 @@ void ecs_set_threads(
         }
 
         /* Iterate tables, make sure the ecs_data_t arrays are large enough */
-        ecs_sparse_each(world->stage.tables, ecs_table_t, table, {
-            ecs_table_get_data(world, table);
+        ecs_sparse_each(world->store.tables, ecs_table_t, table, {
+            ecs_table_get_data(table);
         });
     }
 }

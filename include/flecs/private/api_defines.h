@@ -24,7 +24,7 @@
 #include <stdint.h>
 
 /* Contains macro's for importing / exporting symbols */
-#include "flecs/bake_config.h"
+#include "../bake_config.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -112,12 +112,16 @@ typedef int32_t ecs_size_t;
 
 
 ////////////////////////////////////////////////////////////////////////////////
-//// Type role macro's
+//// Entity id macro's
 ////////////////////////////////////////////////////////////////////////////////
 
-#define ECS_ROLE_MASK ((ecs_entity_t)0xFF << 56)
-#define ECS_ENTITY_MASK ((ecs_entity_t)~ECS_ROLE_MASK)
-#define ECS_TYPE_ROLE_START ECS_CHILDOF
+#define ECS_ROLE_MASK         ((ecs_entity_t)0xFF << 56)
+#define ECS_ENTITY_MASK       ((uint64_t)0xFFFFFFFF)
+#define ECS_GENERATION_MASK   ((uint64_t)0xFFFF << 32)
+#define ECS_GENERATION(e)     ((e & ECS_GENERATION_MASK) >> 32)
+#define ECS_GENERATION_INC(e) ((e & ~ECS_GENERATION_MASK) | ((ECS_GENERATION(e) + 1) << 32))
+#define ECS_COMPONENT_MASK    ((ecs_entity_t)~ECS_ROLE_MASK)
+#define ECS_TYPE_ROLE_START   ECS_CHILDOF
 #define ECS_HAS_ROLE(e, role) ((e & ECS_ROLE_MASK) == ECS_##role)
 
 
@@ -125,11 +129,14 @@ typedef int32_t ecs_size_t;
 //// Convert between C typenames and variables
 ////////////////////////////////////////////////////////////////////////////////
 
-/** Translate C type to type variable. */
+/** Translate C type to ecs_type_t variable. */
 #define ecs_type(T) FLECS__T##T
 
-/** Translate C type to entity variable. */
-#define ecs_entity(T) FLECS__E##T
+/** Translate C type to entity id. */
+#define ecs_typeid(T) FLECS__E##T
+
+/* DEPRECATED: old way to get entity id from type */
+#define ecs_entity(T) ecs_typeid(T)
 
 /** Translate C type to module struct. */
 #define ecs_module(T) FLECS__M##T
@@ -141,6 +148,8 @@ typedef int32_t ecs_size_t;
 #define ecs_iter_action(T) FLECS__F##T
 
 #ifndef FLECS_LEGACY
+
+
 ////////////////////////////////////////////////////////////////////////////////
 //// Utilities for working with trait identifiers
 ////////////////////////////////////////////////////////////////////////////////

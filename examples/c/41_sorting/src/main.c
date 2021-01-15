@@ -8,12 +8,14 @@ typedef struct Position {
 /* Order by x member of Position */
 int compare_position(
     ecs_entity_t e1,
-    void *ptr1,
+    const void *ptr1,
     ecs_entity_t e2,
-    void *ptr2)
+    const void *ptr2)
 {
-    Position *p1 = ptr1;
-    Position *p2 = ptr2;
+    (void)e1;
+    (void)e2;
+    const Position *p1 = ptr1;
+    const Position *p2 = ptr2;
     return (p1->x > p2->x) - (p1->x < p2->x);
 }
 
@@ -30,7 +32,7 @@ void print_query(ecs_query_t *q) {
     }
 }
 
-int main(int argc, char *argv[]) {
+int main(void) {
     ecs_world_t *world = ecs_init();
 
     ECS_COMPONENT(world, Position);
@@ -47,7 +49,7 @@ int main(int argc, char *argv[]) {
     ecs_query_t *q = ecs_query_new(world, "Position");
 
     /* Order by Position component */
-    ecs_query_order_by(world, q, ecs_entity(Position), compare_position);
+    ecs_query_order_by(world, q, ecs_typeid(Position), compare_position);
 
     /* Iterate query, print values of Position */
     printf("-- First iteration\n");

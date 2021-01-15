@@ -159,6 +159,7 @@ char* ecs_colorize(
 static int trace_indent = 0;
 static int trace_level = 0;
 
+static
 void ecs_log_print(
     int level,
     const char *file,
@@ -203,11 +204,11 @@ void ecs_log_print(
         ecs_os_log("%sinfo%s: %s%s%s%s",
             ECS_MAGENTA, ECS_NORMAL, ECS_GREY, indent, ECS_NORMAL, color_msg);
     } else if (level == -2) {
-        ecs_os_warn("%sinfo%s: %s%s%s%s",
-            ECS_MAGENTA, ECS_NORMAL, ECS_GREY, indent, ECS_NORMAL, color_msg);
+        ecs_os_warn("%swarn%s: %s%s%s%s",
+            ECS_YELLOW, ECS_NORMAL, ECS_GREY, indent, ECS_NORMAL, color_msg);
     } else if (level <= -2) {
-        ecs_os_err("%sinfo%s: %s%s%s%s",
-            ECS_MAGENTA, ECS_NORMAL, ECS_GREY, indent, ECS_NORMAL, color_msg);
+        ecs_os_err("%serr %s: %s%s%s%s",
+            ECS_RED, ECS_NORMAL, ECS_GREY, indent, ECS_NORMAL, color_msg);
     }
 
     ecs_os_free(color_msg);
@@ -272,7 +273,7 @@ void _ecs_parser_error(
     const char *fmt,
     ...)
 {
-    if (trace_level != -2) {
+    if (trace_level >= -2) {
         va_list valist;
         va_start(valist, fmt);
         char *msg = ecs_vasprintf(fmt, valist);
@@ -328,8 +329,8 @@ const char* ecs_strerror(
     int32_t error_code)
 {
     switch (error_code) {
-    case ECS_INVALID_HANDLE:
-        return "invalid handle";
+    case ECS_INVALID_ENTITY:
+        return "invalid entity";
     case ECS_INVALID_PARAMETER:
         return "invalid parameters";
     case ECS_INVALID_COMPONENT_ID:
@@ -424,6 +425,8 @@ const char* ecs_strerror(
         return "entity redefined with different name";
     case ECS_INCONSISTENT_COMPONENT_ACTION:
         return "registered mismatching component action";
+    case ECS_INVALID_OPERATION:
+        return "invalid operation";
     }
 
     return "unknown error code";

@@ -1,5 +1,9 @@
 #include <api.h>
 
+void Hierarchies_setup() {
+    ecs_tracing_enable(-3);
+}
+
 void Hierarchies_empty_scope() {
     ecs_world_t *world = ecs_init();
 
@@ -274,7 +278,7 @@ void Hierarchies_path_for_component_0() {
 
     ECS_ENTITY(world, Parent, 0);
 
-    char *path = ecs_get_path_w_sep(world, 0, Parent, ecs_entity(Position), ".", NULL);
+    char *path = ecs_get_path_w_sep(world, 0, Parent, ecs_typeid(Position), ".", NULL);
     test_str(path, "Parent");
     free(path);
 
@@ -290,7 +294,7 @@ void Hierarchies_path_for_component_1() {
     ECS_ENTITY(world, Parent2, Position);
     ECS_ENTITY(world, Child, CHILDOF | Parent, CHILDOF | Parent2);
 
-    char *path = ecs_get_path_w_sep(world, 0, Child, ecs_entity(Position), ".", NULL);
+    char *path = ecs_get_path_w_sep(world, 0, Child, ecs_typeid(Position), ".", NULL);
     test_str(path, "Parent2.Child");
     free(path);
 
@@ -308,7 +312,7 @@ void Hierarchies_path_for_component_2() {
     ECS_ENTITY(world, Child2, Position, CHILDOF | Parent2);
     ECS_ENTITY(world, GrandChild, CHILDOF | Parent.Child1, CHILDOF | Parent2.Child2);
 
-    char *path = ecs_get_path_w_sep(world, 0, GrandChild, ecs_entity(Position), ".", NULL);
+    char *path = ecs_get_path_w_sep(world, 0, GrandChild, ecs_typeid(Position), ".", NULL);
     test_str(path, "Parent2.Child2.GrandChild");
     free(path);
 
@@ -564,24 +568,24 @@ void Hierarchies_scope_set_w_new_staged() {
 
     ECS_ENTITY(world, Scope, 0);
 
-    bool is_staged = ecs_staging_begin(world);
-    test_assert(is_staged == false);
+    ecs_defer_begin(world);
 
     ecs_entity_t old_scope = ecs_set_scope(world, Scope);
     test_assert(old_scope == 0);
 
-    ecs_entity_t e = ecs_new(world, 0);
-    test_assert(e != 0);
-    test_assert(ecs_has_entity(world, e, ECS_CHILDOF | Scope));
+    ecs_entity_t e1 = ecs_new(world, 0);
+    test_assert(e1 != 0);
 
     old_scope = ecs_set_scope(world, 0);
     test_assert(old_scope == Scope);
 
-    e = ecs_new(world, 0);
-    test_assert(e != 0);
-    test_assert(ecs_get_type(world, e) == NULL);
+    ecs_entity_t e2 = ecs_new(world, 0);
+    test_assert(e2 != 0);
 
-    ecs_staging_end(world, false);
+    ecs_defer_end(world);
+
+    test_assert(ecs_has_entity(world, e1, ECS_CHILDOF | Scope));
+    test_assert(ecs_get_type(world, e2) == NULL);
 
     ecs_fini(world);
 }
@@ -681,7 +685,7 @@ void Hierarchies_scope_component() {
 
     ecs_entity_t e = ecs_lookup_fullpath(world, "Position");
     test_assert(e != 0);
-    test_assert(e == ecs_entity(Position));
+    test_assert(e == ecs_typeid(Position));
 
     old_scope = ecs_set_scope(world, 0);
     test_assert(old_scope == Scope);
@@ -698,7 +702,7 @@ void Hierarchies_fullpath_for_core() {
     ECS_ENTITY(world, Parent, 0);
     ECS_ENTITY(world, Child, CHILDOF | Parent);
 
-    char *path = ecs_get_fullpath(world, ecs_entity(EcsComponent));
+    char *path = ecs_get_fullpath(world, ecs_typeid(EcsComponent));
     test_str(path, "Component");
     free(path);
 
@@ -1117,9 +1121,9 @@ void Hierarchies_delete_tree_staged() {
     test_int(it.table_count, 3);
     test_int(it.inactive_table_count, 0);
 
-    ecs_staging_begin(world);
+    ecs_defer_begin(world);
     ecs_delete(world, parent);
-    ecs_staging_end(world, false);
+    ecs_defer_end(world);
     
     test_assert(ecs_get_type(world, parent) == NULL);
     test_assert(ecs_get_type(world, child) == NULL);
@@ -1128,6 +1132,46 @@ void Hierarchies_delete_tree_staged() {
     it = ecs_query_iter(q);
     test_int(it.table_count, 0);
     test_int(it.inactive_table_count, 1); /* Parent table is still there */
+
+    ecs_fini(world);
+}
+
+void Hierarchies_delete_tree_empty_table() {
+    ecs_world_t *world = ecs_init();
+
+    ECS_COMPONENT(world, Position);
+
+    ECS_ENTITY(world, Parent, 0);
+
+    /* Create multiple tables, of which some are empty */
+    ECS_ENTITY(world, Child, Position, CHILDOF | Parent);
+
+    ecs_delete(world, Parent);
+    
+    test_assert(!ecs_is_alive(world, Parent));
+    test_assert(!ecs_is_alive(world, Child));
+
+    ecs_fini(world);
+}
+
+void Hierarchies_delete_tree_recreate() {
+    ecs_world_t *world = ecs_init();
+
+    ECS_COMPONENT(world, Position);
+
+    ecs_entity_t parent = ecs_new(world, 0);
+    ecs_entity_t child = ecs_new_w_entity(world, ECS_CHILDOF | parent);
+    test_assert(parent != 0);
+    test_assert(child != 0);
+    test_assert(ecs_has_entity(world, child, ECS_CHILDOF | parent));
+
+    ecs_delete_children(world, parent);
+
+    ecs_new(world, Position);
+
+    ecs_entity_t child2  = ecs_new_w_entity(world, ECS_CHILDOF | parent);
+    test_assert(child2 != 0);
+    test_assert(ecs_has_entity(world, child2, ECS_CHILDOF | parent));
 
     ecs_fini(world);
 }
@@ -1170,6 +1214,43 @@ void Hierarchies_get_child_count_2_tables() {
     ECS_ENTITY(world, Child4, CHILDOF | Parent, Velocity);
 
     test_int(ecs_get_child_count(world, Parent), 4);
+
+    ecs_fini(world);
+}
+
+void Hierarchies_scope_iter_after_delete_tree() {
+    ecs_world_t *world = ecs_init();
+
+    ECS_COMPONENT(world, Position);
+
+    ecs_entity_t parent = ecs_new(world, 0);
+    ecs_entity_t child = ecs_new_w_entity(world, ECS_CHILDOF | parent);
+    test_assert(parent != 0);
+    test_assert(child != 0);
+    test_assert(ecs_has_entity(world, child, ECS_CHILDOF | parent));
+
+    ecs_delete_children(world, parent);
+
+    ecs_iter_t it = ecs_scope_iter(world, parent);
+    test_assert(!ecs_scope_next(&it));
+
+    ecs_fini(world);
+}
+
+void Hierarchies_add_child_after_delete_tree() {
+    ecs_world_t *world = ecs_init();
+
+    ECS_COMPONENT(world, Position);
+
+    ecs_entity_t parent = ecs_new(world, 0);
+    ecs_entity_t child = ecs_new_w_entity(world, ECS_CHILDOF | parent);
+    test_assert(parent != 0);
+    test_assert(child != 0);
+    test_assert(ecs_has_entity(world, child, ECS_CHILDOF | parent));
+
+    ecs_delete_children(world, parent);
+
+    child = ecs_new_w_entity(world, ECS_CHILDOF | parent);
 
     ecs_fini(world);
 }

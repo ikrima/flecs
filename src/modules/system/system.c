@@ -47,7 +47,6 @@ void activate_in_columns(
         if (columns[i].inout_kind == EcsIn) {
             ecs_on_demand_in_t *in = get_in_component(
                 component_map, columns[i].is.component);
-
             ecs_assert(in != NULL, ECS_INTERNAL_ERROR, NULL);
 
             in->count += activate ? 1 : -1;
@@ -60,7 +59,8 @@ void activate_in_columns(
                ((activate && in->count == 1) || 
                 (!activate && !in->count))) 
             {
-                ecs_on_demand_out_t **out = ecs_vector_first(in->systems, ecs_on_demand_out_t*);
+                ecs_on_demand_out_t **out = ecs_vector_first(
+                    in->systems, ecs_on_demand_out_t*);
                 int32_t s, in_count = ecs_vector_count(in->systems);
 
                 for (s = 0; s < in_count; s ++) {
@@ -158,7 +158,8 @@ void invoke_status_action(
 void ecs_system_activate(
     ecs_world_t *world,
     ecs_entity_t system,
-    bool activate)
+    bool activate,
+    const EcsSystem *system_data)
 {
     ecs_assert(!world->in_progress, ECS_INTERNAL_ERROR, NULL);
 
@@ -166,7 +167,9 @@ void ecs_system_activate(
         ecs_remove_entity(world, system, EcsInactive);
     }
 
-    const EcsSystem *system_data = ecs_get(world, system, EcsSystem);
+    if (!system_data) {
+        system_data = ecs_get(world, system, EcsSystem);
+    }
     if (!system_data || !system_data->query) {
         return;
     }
@@ -185,6 +188,7 @@ void ecs_system_activate(
 }
 
 /* Actually enable or disable system */
+static
 void ecs_enable_system(
     ecs_world_t *world,
     ecs_entity_t system,
@@ -200,7 +204,7 @@ void ecs_enable_system(
 
     if (ecs_vector_count(query->tables)) {
         /* Only (de)activate system if it has non-empty tables. */
-        ecs_system_activate(world, system, enabled);
+        ecs_system_activate(world, system, enabled, system_data);
         system_data = ecs_get_mut(world, system, EcsSystem, NULL);
     }
 
@@ -217,6 +221,7 @@ void ecs_enable_system(
         enabled ? EcsSystemEnabled : EcsSystemDisabled);
 }
 
+static
 void ecs_init_system(
     ecs_world_t *world,
     ecs_entity_t system,
@@ -249,14 +254,14 @@ void ecs_init_system(
     /* Only run this code when the system is created for the first time */
     if (is_added) {
         /* If tables have been matched with this system it is active, and we
-        * should activate the in-columns, if any. This will ensure that any
-        * OnDemand systems get enabled. */
+         * should activate the in-columns, if any. This will ensure that any
+         * OnDemand systems get enabled. */
         if (ecs_vector_count(query->tables)) {
-            ecs_system_activate(world, system, true);
+            ecs_system_activate(world, system, true, sptr);
         } else {
             /* If system isn't matched with any tables, mark it as inactive. This
-            * causes it to be ignored by the main loop. When the system matches
-            * with a table it will be activated. */
+             * causes it to be ignored by the main loop. When the system matches
+             * with a table it will be activated. */
             ecs_add_entity(world, system, EcsInactive);
         }
 
@@ -264,20 +269,18 @@ void ecs_init_system(
         activate_in_columns(world, query, world->on_enable_components, true);
 
         /* Check if all non-table column constraints are met. If not, disable
-        * system (system will be enabled once constraints are met) */
+         * system (system will be enabled once constraints are met) */
         if (!ecs_sig_check_constraints(world, &query->sig)) {
             ecs_add_entity(world, system, EcsDisabledIntern);
         }
 
         /* If the query has a OnDemand system tag, register its [out] columns */
         if (ecs_has_entity(world, system, EcsOnDemand)) {
-            sptr = ecs_get_mut(world, system, EcsSystem, NULL);
-
             register_out_columns(world, system, sptr);
             ecs_assert(sptr->on_demand != NULL, ECS_INTERNAL_ERROR, NULL);
 
             /* If there are no systems currently interested in any of the [out]
-            * columns of the on demand system, disable it */
+             * columns of the on demand system, disable it */
             if (!sptr->on_demand->count) {
                 ecs_add_entity(world, system, EcsDisabledIntern);
             }        
@@ -297,13 +300,6 @@ void ecs_init_system(
 
     ecs_trace_1("system #[green]%s#[reset] created with #[red]%s", 
         ecs_get_name(world, system), query->sig.expr);
-}
-
-
-void ecs_col_system_free(
-    EcsSystem *system_data)
-{
-    ecs_query_free(system_data->query);
 }
 
 /* -- Public API -- */
@@ -362,7 +358,7 @@ ecs_entity_t ecs_run_intern(
     ecs_stage_t *stage,
     ecs_entity_t system,
     EcsSystem *system_data,
-    float delta_time,
+    FLECS_FLOAT delta_time,
     int32_t offset,
     int32_t limit,
     const ecs_filter_t *filter,
@@ -373,7 +369,7 @@ ecs_entity_t ecs_run_intern(
         param = system_data->ctx;
     }
 
-    float time_elapsed = delta_time;
+    FLECS_FLOAT time_elapsed = delta_time;
     ecs_entity_t tick_source = system_data->tick_source;
 
     if (tick_source) {
@@ -401,6 +397,17 @@ ecs_entity_t ecs_run_intern(
     bool measure_time = world->measure_system_time;
     if (measure_time) {
         ecs_os_get_time(&time_start);
+    }
+
+#ifndef NDEBUG
+    stage->system = system;
+    stage->system_columns = system_data->query->sig.columns;
+#endif
+    
+    bool defer = false;
+    if (!stage->defer) {
+        ecs_defer_begin(stage->world);
+        defer = true;
     }
 
     /* Prepare the query iterator */
@@ -436,10 +443,19 @@ ecs_entity_t ecs_run_intern(
         }
     }
 
-    if (measure_time) {
-        system_data->time_spent += (float)ecs_time_measure(&time_start);
+    if (defer) {
+        ecs_defer_end(stage->world);
     }
-    
+
+    if (measure_time) {
+        system_data->time_spent += (FLECS_FLOAT)ecs_time_measure(&time_start);
+    }
+
+#ifndef NDEBUG
+    stage->system = 0;
+    stage->system_columns = NULL;
+#endif
+
     system_data->invoke_count ++;
 
     return it.interrupted_by;
@@ -450,7 +466,7 @@ ecs_entity_t ecs_run_intern(
 ecs_entity_t ecs_run_w_filter(
     ecs_world_t *world,
     ecs_entity_t system,
-    float delta_time,
+    FLECS_FLOAT delta_time,
     int32_t offset,
     int32_t limit,
     const ecs_filter_t *filter,
@@ -469,7 +485,9 @@ ecs_entity_t ecs_run_w_filter(
 
     /* If world wasn't in progress when we entered this function, we need to
      * merge and reset the in_progress value */
-    ecs_staging_end(world, in_progress);
+    if (!in_progress) {
+        ecs_staging_end(world);
+    }
 
     return interrupted_by;
 }
@@ -477,7 +495,7 @@ ecs_entity_t ecs_run_w_filter(
 ecs_entity_t ecs_run(
     ecs_world_t *world,
     ecs_entity_t system,
-    float delta_time,
+    FLECS_FLOAT delta_time,
     void *param)
 {
     return ecs_run_w_filter(world, system, delta_time, 0, 0, NULL, param);
@@ -485,7 +503,6 @@ ecs_entity_t ecs_run(
 
 void ecs_run_monitor(
     ecs_world_t *world,
-    ecs_stage_t *stage,
     ecs_matched_query_t *monitor,
     ecs_entities_t *components,
     int32_t row,
@@ -504,10 +521,10 @@ void ecs_run_monitor(
     }
 
     ecs_iter_t it = {0};
-    ecs_query_set_iter( world, stage, query, &it, 
+    ecs_query_set_iter( world, query, &it, 
         monitor->matched_table_index, row, count);
 
-    it.world = stage->world;
+    it.world = world;
     it.triggered_by = components;
     it.param = system_data->ctx;
 
@@ -927,7 +944,7 @@ void FlecsSystemImport(
     ECS_TYPE_IMPL(EcsContext);
 
     /* Bootstrap ctor and dtor for EcsSystem */
-    ecs_set_component_actions_w_entity(world, ecs_entity(EcsSystem), 
+    ecs_set_component_actions_w_entity(world, ecs_typeid(EcsSystem), 
         &(EcsComponentLifecycle) {
             .ctor = sys_ctor_init_zero,
             .dtor = ecs_colsystem_dtor

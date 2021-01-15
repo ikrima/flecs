@@ -3,12 +3,13 @@ name: CI
 on: [push, pull_request]
 
 jobs:
-  linux:
-    timeout-minutes: 10
-    runs-on: ubuntu-latest
+  unix:
+    timeout-minutes: 20
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
+        os: [ubuntu-latest, macOS-latest]
         compiler: [gcc, clang]
 
     steps:
@@ -21,37 +22,6 @@ jobs:
 
     - name: Build Flecs
       run: bake --strict
-
-    - name: Build Flecs (release)
-      run: bake --strict --cfg release
-
-    - name: Build examples
-      run: |
-        bake examples/c
-        bake examples/cpp
-         
-    - name: Run tests
-      run: |
-        bake examples/os_api/flecs-os_api-bake
-        bake test
-
-  macos:
-    timeout-minutes: 20
-    runs-on: macOS-latest
-
-    steps:
-    - uses: actions/checkout@v2
-    - name: Install bake
-      run: |
-        git clone https://github.com/SanderMertens/bake
-        make -C bake/build-$(uname)
-        bake/bake setup
-
-    - name: Build Flecs
-      run: bake --strict
-
-    - name: Build Flecs (release)
-      run: bake --strict --cfg release
          
     - name: Run tests
       run: |
@@ -82,3 +52,110 @@ jobs:
         bake/bake run test\cpp_api
         bake/bake run test\api
         bake/bake run test\collections
+        
+  gcc-warnings:
+    timeout-minutes: 20
+    runs-on: ${{ matrix.os }}
+    env:
+      CC: gcc-${{ matrix.compiler-version }}
+      CXX: g++-${{ matrix.compiler-version }}  
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        compiler-version: [7, 8, 9, 10]
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Install bake               
+      run: |
+        git clone https://github.com/SanderMertens/bake
+        make -C bake/build-$(uname)
+        bake/bake setup
+
+    - name: Build Flecs
+      run: |
+        bake --strict
+        bake --strict --cfg release
+
+    - name: Build examples
+      run: |
+        bake examples/c --strict
+        bake examples/cpp --strict
+        bake examples/c --strict --cfg release
+        bake examples/cpp --strict --cfg release
+
+  clang-warnings:
+    timeout-minutes: 20
+    runs-on: ${{ matrix.os }}
+    env:
+      CC: clang-${{ matrix.compiler-version }}
+      CXX: clang++-${{ matrix.compiler-version }} 
+        
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        compiler-version: [8, 9]
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Install bake                
+      run: |
+        git clone https://github.com/SanderMertens/bake
+        make -C bake/build-$(uname)
+        bake/bake setup
+
+    - name: Build Flecs
+      run: |
+        bake --strict
+        bake --strict --cfg release
+
+    - name: Build examples
+      run: |
+        bake examples/c --strict
+        bake examples/cpp --strict
+        bake examples/c --strict --cfg release
+        bake examples/cpp --strict --cfg release
+
+  sanitized:
+    timeout-minutes: 20
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ macOS-latest ]
+        compiler: [ clang ]
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Install bake
+      run: |
+        git clone https://github.com/SanderMertens/bake
+        make -C bake/build-$(uname)
+        bake/bake setup
+        
+    - name: Build Flecs
+      run: bake --strict
+
+    - name: Run tests
+      run: |
+        bake examples/os_api/flecs-os_api-bake
+        bake run test/api --cfg sanitize
+        bake run test/cpp_api --cfg sanitize
+        bake run test/collections --cfg sanitize
+
+  amalgamated:
+    timeout-minutes: 5
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macOS-latest]
+        compiler: [gcc, clang]    
+    
+    steps:
+    - uses: actions/checkout@v2
+    - name: Build Flecs
+      run: ${{ matrix.compiler }} flecs.c --shared -fPIC -pedantic -Wall -Wextra -Wno-unused-parameter -Werror -Wshadow -Wconversion -Wno-missing-field-initializers

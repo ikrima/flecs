@@ -207,7 +207,7 @@ bool ecs_strbuf_append_intern(
     int32_t memLeftInElement = ecs_strbuf_memLeftInCurrentElement(b);
     int32_t memLeft = ecs_strbuf_memLeft(b);
 
-    if (!memLeft) {
+    if (memLeft <= 0) {
         return false;
     }
 
@@ -355,6 +355,7 @@ char* ecs_strbuf_get(ecs_strbuf_t *b) {
 
     if (b->elementCount) {
         if (b->buf) {
+            b->buf[b->current->pos] = '\0';
             result = ecs_os_strdup(b->buf);
         } else {
             void *next = NULL;

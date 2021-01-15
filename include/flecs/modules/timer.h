@@ -5,8 +5,7 @@
 #ifndef FLECS_TIMER_H
 #define FLECS_TIMER_H
 
-#include "flecs.h"
-#include "flecs/modules/pipeline.h"
+#include "pipeline.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -17,15 +16,15 @@ extern "C" {
 //// Components
 ////////////////////////////////////////////////////////////////////////////////
 
-FLECS_EXPORT
+FLECS_API
 extern ecs_type_t 
     ecs_type(EcsTimer),
     ecs_type(EcsRateFilter);
 
 /** Component used for timer functionality */
 typedef struct EcsTimer {
-    float timeout;         /* Timer timeout period */
-    float time;            /* Incrementing time value */
+    FLECS_FLOAT timeout;         /* Timer timeout period */
+    FLECS_FLOAT time;            /* Incrementing time value */
     int32_t fired_count;   /* Number of times ticked */
     bool active;           /* Is the timer active or not */
     bool single_shot;      /* Is this a single shot timer */
@@ -36,7 +35,7 @@ typedef struct EcsRateFilter {
     ecs_entity_t src;
     int32_t rate;
     int32_t tick_count;
-    float time_elapsed;   /* Time elapsed since last tick */
+    FLECS_FLOAT time_elapsed;   /* Time elapsed since last tick */
 } EcsRateFilter;
 
 
@@ -59,11 +58,11 @@ typedef struct EcsRateFilter {
  * @param timeout The timeout value.
  * @return The timer entity.
  */
-FLECS_EXPORT
+FLECS_API
 ecs_entity_t ecs_set_timeout(
     ecs_world_t *world,
     ecs_entity_t timer,
-    float timeout);
+    FLECS_FLOAT timeout);
 
 /** Get current timeout value for the specified timer.
  * This operation returns the value set by ecs_set_timeout. If no timer is
@@ -77,8 +76,8 @@ ecs_entity_t ecs_set_timeout(
  * @param timer The timer.
  * @return The current timeout value, or 0 if no timer is active.
  */
-FLECS_EXPORT
-float ecs_get_timeout(
+FLECS_API
+FLECS_FLOAT ecs_get_timeout(
     ecs_world_t *world,
     ecs_entity_t timer);
 
@@ -97,11 +96,11 @@ float ecs_get_timeout(
  * @param interval The interval value.
  * @return The timer entity.
  */
-FLECS_EXPORT
+FLECS_API
 ecs_entity_t ecs_set_interval(
     ecs_world_t *world,
     ecs_entity_t timer,
-    float interval);   
+    FLECS_FLOAT interval);   
 
 /** Get current interval value for the specified timer.
  * This operation returns the value set by ecs_set_interval. If no timer is
@@ -111,8 +110,8 @@ ecs_entity_t ecs_set_interval(
  * @param timer The timer for which to set the interval. If 0, an entity will be created.
  * @return The current interval value, or 0 if no timer is active.
  */
-FLECS_EXPORT
-float ecs_get_interval(
+FLECS_API
+FLECS_FLOAT ecs_get_interval(
     ecs_world_t *world,
     ecs_entity_t timer);
 
@@ -125,7 +124,7 @@ float ecs_get_interval(
  * @param world The world.
  * @param timer The timer to start.
  */
-FLECS_EXPORT
+FLECS_API
 void ecs_start_timer(
     ecs_world_t *world,
     ecs_entity_t timer);
@@ -137,7 +136,7 @@ void ecs_start_timer(
  * @param world The world.
  * @param timer The timer to stop.
  */
-FLECS_EXPORT
+FLECS_API
 void ecs_stop_timer(
     ecs_world_t *world,
     ecs_entity_t timer);
@@ -153,7 +152,7 @@ void ecs_stop_timer(
  * @param source The tick source (0 to use frames)
  * @return The filter entity.
  */
-FLECS_EXPORT
+FLECS_API
 ecs_entity_t ecs_set_rate_filter(
     ecs_world_t *world,
     ecs_entity_t filter,
@@ -180,7 +179,7 @@ ecs_entity_t ecs_set_rate_filter(
  * @param system The system to associate with the timer.
  * @param timer The timer to associate with the system.
  */ 
-FLECS_EXPORT
+FLECS_API
 void ecs_set_tick_source(
     ecs_world_t *world,
     ecs_entity_t system,
@@ -196,7 +195,7 @@ typedef struct FlecsTimer {
     int32_t dummy;
 } FlecsTimer;
 
-FLECS_EXPORT
+FLECS_API
 void FlecsTimerImport(
     ecs_world_t *world);
 

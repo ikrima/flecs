@@ -347,3 +347,54 @@ void Sparse_add_after_clear() {
 
     ecs_sparse_free(sp);
 }
+
+void Sparse_create_delete() {
+    ecs_sparse_t *sp = ecs_sparse_new(int);
+    test_assert(sp != NULL);
+    test_int(ecs_sparse_count(sp), 0);
+
+    uint64_t id = ecs_sparse_new_id(sp);
+    test_int(ecs_sparse_count(sp), 1);
+
+    ecs_sparse_remove(sp, id);
+    test_int(ecs_sparse_count(sp), 0);
+    test_assert(!ecs_sparse_is_alive(sp, id));
+
+    ecs_sparse_free(sp);
+}
+
+void Sparse_create_delete_2() {
+    ecs_sparse_t *sp = ecs_sparse_new(int);
+    test_assert(sp != NULL);
+    test_int(ecs_sparse_count(sp), 0);
+
+    uint64_t id_1 = ecs_sparse_new_id(sp);
+    test_int(ecs_sparse_count(sp), 1);
+    test_assert(ecs_sparse_is_alive(sp, id_1));
+    
+    uint64_t id_2 = ecs_sparse_new_id(sp);
+    test_int(ecs_sparse_count(sp), 2);
+    test_assert(ecs_sparse_is_alive(sp, id_2));
+
+    ecs_sparse_remove(sp, id_1);
+    test_int(ecs_sparse_count(sp), 1);
+    test_assert(!ecs_sparse_is_alive(sp, id_1));
+
+    ecs_sparse_remove(sp, id_2);
+    test_int(ecs_sparse_count(sp), 0);
+    test_assert(!ecs_sparse_is_alive(sp, id_2));
+
+    ecs_sparse_free(sp);
+}
+
+void Sparse_count_of_null() {
+    test_int(ecs_sparse_count(NULL), 0);
+}
+
+void Sparse_size_of_null() {
+    test_int(ecs_sparse_size(NULL), 0);
+}
+
+void Sparse_copy_null() {
+    test_assert(ecs_sparse_copy(NULL) == NULL);
+}

@@ -24,7 +24,7 @@ extern "C" {
 ////////////////////////////////////////////////////////////////////////////////
 
 /** Type handles to builtin components */
-FLECS_EXPORT
+FLECS_API
 extern ecs_type_t 
     ecs_type(EcsComponent),
     ecs_type(EcsComponentLifecycle),
@@ -40,14 +40,14 @@ extern ecs_type_t
 //// Functions used in declarative (macro) API
 ////////////////////////////////////////////////////////////////////////////////
 
-FLECS_EXPORT
+FLECS_API
 ecs_entity_t ecs_new_entity(
     ecs_world_t *world,
     ecs_entity_t e,
     const char *id,
     const char *components);
 
-FLECS_EXPORT
+FLECS_API
 ecs_entity_t ecs_new_component(
     ecs_world_t *world,
     ecs_entity_t e,
@@ -55,7 +55,7 @@ ecs_entity_t ecs_new_component(
     size_t size,
     size_t alignment);
 
-FLECS_EXPORT
+FLECS_API
 ecs_entity_t ecs_new_module(
     ecs_world_t *world,
     ecs_entity_t e,
@@ -63,21 +63,21 @@ ecs_entity_t ecs_new_module(
     size_t size,
     size_t alignment);
 
-FLECS_EXPORT
+FLECS_API
 ecs_entity_t ecs_new_type(
     ecs_world_t *world,
     ecs_entity_t e,
     const char *id,
     const char *components);
 
-FLECS_EXPORT
+FLECS_API
 ecs_entity_t ecs_new_prefab(
     ecs_world_t *world,
     ecs_entity_t e,
     const char *id,
     const char *sig);
 
-FLECS_EXPORT
+FLECS_API
 ecs_entity_t ecs_new_system(
     ecs_world_t *world,
     ecs_entity_t e,
@@ -86,7 +86,7 @@ ecs_entity_t ecs_new_system(
     const char *signature,
     ecs_iter_action_t action);
 
-FLECS_EXPORT
+FLECS_API
 ecs_entity_t ecs_new_trigger(
     ecs_world_t *world,
     ecs_entity_t e,
@@ -95,18 +95,18 @@ ecs_entity_t ecs_new_trigger(
     const char *component,
     ecs_iter_action_t action);
 
-FLECS_EXPORT
+FLECS_API
 ecs_entity_t ecs_new_pipeline(
     ecs_world_t *world,
     ecs_entity_t e,
     const char *name,
     const char *expr);
 
-FLECS_EXPORT
+FLECS_API
 char* ecs_module_path_from_c(
     const char *c_name);
 
-FLECS_EXPORT
+FLECS_API
 bool ecs_component_has_actions(
     ecs_world_t *world,
     ecs_entity_t component);
@@ -164,7 +164,7 @@ typedef struct ecs_sig_t {
 } ecs_sig_t;
 
 /** Parse signature. */
-FLECS_EXPORT
+FLECS_API
 void ecs_sig_init(
     ecs_world_t *world,
     const char *name,
@@ -172,12 +172,12 @@ void ecs_sig_init(
     ecs_sig_t *sig);
 
 /** Release signature resources */
-FLECS_EXPORT
+FLECS_API
 void ecs_sig_deinit(
     ecs_sig_t *sig);
 
 /** Add column to signature. */
-FLECS_EXPORT
+FLECS_API
 int ecs_sig_add(
     ecs_world_t *world,
     ecs_sig_t *sig,
@@ -189,14 +189,19 @@ int ecs_sig_add(
     const char *arg_name);
 
 /** Create query based on signature object. */
-FLECS_EXPORT
+FLECS_API
 ecs_query_t* ecs_query_new_w_sig(
     ecs_world_t *world,
     ecs_entity_t system,
     ecs_sig_t *sig);
 
+/** Get signature object from query */
+FLECS_API
+ecs_sig_t* ecs_query_get_sig(
+    ecs_query_t *query);
 
-#define ECS_INVALID_HANDLE (1)
+
+#define ECS_INVALID_ENTITY (1)
 #define ECS_INVALID_PARAMETER (2)
 #define ECS_INVALID_COMPONENT_ID (3)
 #define ECS_INVALID_EXPRESSION (4)
@@ -245,6 +250,7 @@ ecs_query_t* ecs_query_new_w_sig(
 #define ECS_COMPONENT_NAME_IN_USE (47)
 #define ECS_INCONSISTENT_NAME (48)
 #define ECS_INCONSISTENT_COMPONENT_ACTION (49)
+#define ECS_INVALID_OPERATION (50)
 
 /** Calculate offset from address */
 #define ECS_OFFSET(o, offset) (void*)(((uintptr_t)(o)) + ((uintptr_t)(offset)))

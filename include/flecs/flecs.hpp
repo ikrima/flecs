@@ -115,6 +115,7 @@ static const ecs_entity_t Instanceof = ECS_INSTANCEOF;
 static const ecs_entity_t Trait = ECS_TRAIT;
 static const ecs_entity_t Switch = ECS_SWITCH;
 static const ecs_entity_t Case = ECS_CASE;
+static const ecs_entity_t Owned = ECS_OWNED;
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -124,7 +125,7 @@ static const ecs_entity_t Case = ECS_CASE;
  */
 class unsafe_column {
 public:
-    unsafe_column(void* array, std::size_t size, std::size_t count, bool is_shared = false)
+    unsafe_column(void* array, size_t size, size_t count, bool is_shared = false)
         : m_array(array)
         , m_size(size)
         , m_count(count) 
@@ -180,7 +181,7 @@ public:
      * @param count Number of elements in component array.
      * @param is_shared Is the component shared or not.
      */
-    column(T* array, std::size_t count, bool is_shared = false)
+    column(T* array, size_t count, bool is_shared = false)
         : m_array(array)
         , m_count(count) 
         , m_is_shared(is_shared) {}
@@ -200,7 +201,7 @@ public:
      */
     T& operator[](size_t index) {
         ecs_assert(index < m_count, ECS_COLUMN_INDEX_OUT_OF_RANGE, NULL);
-        ecs_assert(!m_is_shared, ECS_INVALID_PARAMETER, NULL);
+        ecs_assert(!index || !m_is_shared, ECS_INVALID_PARAMETER, NULL);
         ecs_assert(m_array != nullptr, ECS_COLUMN_INDEX_OUT_OF_RANGE, NULL);
         return m_array[index];
     }
@@ -328,7 +329,7 @@ private:
 /** Class that enables iterating over table columns.
  */
 class iter final {
-    using row_iterator = _::range_iterator<int>;
+    using row_iterator = _::range_iterator<size_t>;
 public:
     /** Construct iterator from C iterator object.
      * This operation is typically not invoked directly by the user.
@@ -337,7 +338,7 @@ public:
      */
     iter(const ecs_iter_t *it) : m_iter(it) { 
         m_begin = 0;
-        m_end = it->count;
+        m_end = static_cast<std::size_t>(it->count);
     }
 
     row_iterator begin() const {
@@ -358,8 +359,8 @@ public:
 
     /** Number of entities to iterate over. 
      */
-    int32_t count() const {
-        return m_iter->count;
+    size_t count() const {
+        return static_cast<size_t>(m_iter->count);
     }
 
     /** Number of columns in iteator.
@@ -372,29 +373,43 @@ public:
      *
      * @param col The column id.
      */
-    int32_t column_size(int32_t col) const {
+    size_t column_size(int32_t col) const {
         return ecs_column_size(m_iter, col);
     }    
 
     /** Return delta_time of current frame. 
      */
-    float delta_time() const {
+    FLECS_FLOAT delta_time() const {
         return m_iter->delta_time;
     }
 
     /** Return time elapsed since last time system was invoked.
      */
-    float delta_system_time() const {
+    FLECS_FLOAT delta_system_time() const {
         return m_iter->delta_system_time;
     }
 
-    /** Returns whether column shared.
+    /** Return total time passed in simulation.
+     */
+    FLECS_FLOAT world_time() const {
+        return m_iter->world_time;
+    }
+
+    /** Returns whether column is shared.
      * 
      * @param col The column id.
      */
     bool is_shared(int32_t col) const {
         return !ecs_is_owned(m_iter, col);
     }
+
+    /** Returns whether column is owned.
+     * 
+     * @param col The column id.
+     */
+    bool is_owned(int32_t col) const {
+        return ecs_is_owned(m_iter, col);
+    }    
 
     /** Returns whether column is set.
      * 
@@ -442,7 +457,7 @@ public:
      *
      * @param row Row being iterated over.
      */
-    flecs::entity entity(int32_t row) const;
+    flecs::entity entity(size_t row) const;
 
     /** Obtain type of table being iterated over.
      */
@@ -465,8 +480,8 @@ public:
      * @param table_column Id of table column (corresponds with location in table type).
      * @return Pointer to table column.
      */
-    void* table_column(int32_t table_column) const {
-        return ecs_table_column(m_iter, table_column);
+    void* table_column(int32_t col) const {
+        return ecs_table_column(m_iter, col);
     }
 
     /** Obtain typed pointer to table column.
@@ -480,7 +495,8 @@ public:
         auto type = ecs_iter_type(m_iter);
         auto col = ecs_type_index_of(type, _::component_info<T>::id());
         ecs_assert(col != -1, ECS_INVALID_PARAMETER, NULL);
-        return flecs::column<T>(static_cast<T*>(ecs_table_column(m_iter, col)), m_iter->count, false);
+        return flecs::column<T>(static_cast<T*>(ecs_table_column(m_iter, col)), 
+            static_cast<std::size_t>(m_iter->count), false);
     }
 
     /** Obtain column with const type.
@@ -493,7 +509,7 @@ public:
      */
     template <typename T,
         typename std::enable_if<std::is_const<T>::value, void>::type* = nullptr>
-    flecs::column<T> column(unsigned int col) const {
+    flecs::column<T> column(int32_t col) const {
         return get_column<T>(col);
     }
 
@@ -592,7 +608,7 @@ private:
             ECS_COLUMN_TYPE_MISMATCH, NULL);
 #endif
 
-        int32_t count;
+        size_t count;
         bool is_shared = !ecs_is_owned(m_iter, column_id);
 
         /* If a shared column is retrieved with 'column', there will only be a
@@ -603,10 +619,12 @@ private:
         } else {
             /* If column is owned, there will be as many values as there are
              * entities. */
-            count = m_iter->count;
+            count = static_cast<size_t>(m_iter->count);
         }
-
-        return flecs::column<T>(static_cast<T*>(ecs_column_w_size(m_iter, sizeof(T), column_id)), count, is_shared);
+        
+        return flecs::column<T>(
+            static_cast<T*>(ecs_column_w_size(m_iter, sizeof(T), column_id)), 
+            count, is_shared);
     } 
 
     flecs::unsafe_column get_unsafe_column(int32_t column_id) const {
@@ -622,7 +640,7 @@ private:
         } else {
             /* If column is owned, there will be as many values as there are
              * entities. */
-            count = m_iter->count;
+            count = static_cast<size_t>(m_iter->count);
         }
 
         return flecs::unsafe_column(ecs_column_w_size(m_iter, 0, column_id), size, count, is_shared);
@@ -636,12 +654,12 @@ private:
     }       
 
     const ecs_iter_t *m_iter;
-    int32_t m_begin;
-    int32_t m_end;
+    std::size_t m_begin;
+    std::size_t m_end;
 };
 
 template <typename T>
-inline column<T>::column(iter &iter, int col) {
+inline column<T>::column(iter &iter, int32_t col) {
     *this = iter.column<T>(col);
 }
 
@@ -723,8 +741,27 @@ public:
      *
      * @param delta_time Custom delta_time. If 0 is provided, Flecs will automatically measure delta_tiem.
      */
-    bool progress(float delta_time = 0.0) const {
+    bool progress(FLECS_FLOAT delta_time = 0.0) const {
         return ecs_progress(m_world, delta_time);
+    }
+
+    /** Defer operations until end of frame. 
+     * When this operation is invoked while iterating, operations inbetween the
+     * defer_begin and defer_end operations are executed at the end of the frame.
+     *
+     * This operation is thread safe.
+     */
+    void defer_begin() {
+        ecs_defer_begin(m_world);
+    }
+
+    /** End block of operations to defer. 
+     * See defer_begin.
+     *
+     * This operation is thread safe.
+     */
+    void defer_end() {
+        ecs_defer_end(m_world);
     }
 
     /** Set number of threads.
@@ -759,7 +796,7 @@ public:
      *
      * @param target_fps Target frames per second.
      */
-    void set_target_fps(float target_fps) const {
+    void set_target_fps(FLECS_FLOAT target_fps) const {
         ecs_set_target_fps(m_world, target_fps);
     }
 
@@ -767,7 +804,7 @@ public:
      *
      * @return Configured frames per second.
      */
-    float get_target_fps() const {
+    FLECS_FLOAT get_target_fps() const {
         const ecs_world_info_t *stats = ecs_get_world_info(m_world);
         return stats->target_fps;
     }
@@ -785,7 +822,7 @@ public:
      *
      * @return Monotonically increasing frame count.
      */
-    void set_time_scale(float mul) const {
+    void set_time_scale(FLECS_FLOAT mul) const {
         ecs_set_time_scale(m_world, mul);
     }  
 
@@ -793,7 +830,7 @@ public:
      *
      * @return Monotonically increasing frame count.
      */
-    float get_time_scale() const {
+    FLECS_FLOAT get_time_scale() const {
         const ecs_world_info_t *stats = ecs_get_world_info(m_world);
         return stats->time_scale;
     }        
@@ -832,8 +869,8 @@ public:
      * @param type Type to preallocate memory for.
      * @param entity_count Number of entities to preallocate memory for.
      */
-    void dim_type(type_t type, std::int32_t entity_count) const {
-        ecs_dim_type(m_world, type, entity_count);
+    void dim_type(type_t t, std::int32_t entity_count) const {
+        ecs_dim_type(m_world, t, entity_count);
     }
 
     /** Set entity range.
@@ -858,6 +895,22 @@ public:
         ecs_enable_range_check(m_world, enabled);
     }
 
+    /** Disables inactive systems.
+     *
+     * This removes systems that are not matched with any entities from the main
+     * loop. Systems are only added to the main loop after they first match with
+     * entities, but are not removed automatically.
+     *
+     * This function allows an application to manually disable inactive systems
+     * which removes them from the main loop. Doing so will cause Flecs to
+     * rebuild the pipeline in the next iteration.
+     *
+     * @param level The tracing level.
+     */
+    void deactivate_systems() {
+        ecs_deactivate_systems(m_world);
+    }    
+
     /** Lookup entity by name.
      * 
      * @param name Entity name.
@@ -870,18 +923,80 @@ public:
      */    
     flecs::entity lookup(std::string& name) const;
 
+    /** Set singleton component.
+     */
+    template <typename T>
+    void set(T value) const;
+
+    /** Get mut singleton component.
+     */
+    template <typename T>
+    T* get_mut() const;
+
+    /** Mark singleton component as modified.
+     */
+    template <typename T>
+    void modified() const;
+
+    /** Patch singleton component.
+     */
+    template <typename T>
+    void patch(std::function<void(T&)> func) const;
+
+    /** Get singleton component.
+     */
+    template <typename T>
+    const T* get() const;
+
+    /** Test if world has singleton component.
+     */
+    template <typename T>
+    bool has() const;
+
+    /** Remove singleton component.
+     */
+    template <typename T>
+    void remove() const;
+
+    /** Get id for type.
+     */
+    template <typename T>
+    entity_t type_id() {
+        return _::component_info<T>::id(m_world);
+    }
+
+    /** Get singleton entity for type.
+     */
+    template <typename T>
+    flecs::entity singleton();
+
+    /** Create alias for component.
+     *
+     * @tparam Component to create an alias for.
+     * @param alias Alias for the component.
+     */
+    template <typename T>
+    flecs::entity use(const char *alias = nullptr);
+
+    /** Create alias for entity.
+     *
+     * @param name Name of the entity.
+     * @param alias Alias for the entity.
+     */
+    flecs::entity use(const char *name, const char *alias = nullptr);    
+
+    /** Create alias for entity.
+     *
+     * @param entity Entity for which to create the alias.
+     * @param alias Alias for the entity.
+     */
+    void use(flecs::entity entity, const char *alias = nullptr);   
+
     /** Delete all entities matching a filter.
      *
      * @param filter The filter to use for matching.
      */
     void delete_entities(flecs::filter filter) const;
-
-    /** Add component to all entities.
-     *
-     * @tparam T The component to add.
-     */
-    template <typename T>
-    void add() const;
 
     /** Add component to all entities matching a filter.
      *
@@ -916,13 +1031,6 @@ public:
      * @param filter The filter to use for matching.
      */    
     void add(flecs::entity entity, flecs::filter filter) const;
-
-    /** Remove component from all entities.
-     *
-     * @tparam T The component to remove.
-     */
-    template <typename T>
-    void remove() const;
 
     /** Remove component from all entities matching a filter.
      *
@@ -1399,6 +1507,18 @@ public:
 
     /** Add owned flag for component (forces ownership when instantiating)
      *
+     * @param entity The entity for which to add the OWNED flag
+     */    
+    base_type& add_owned(entity_t entity) const {
+        static_cast<base_type*>(this)->invoke(
+        [entity](world_t *world, entity_t id) {
+            ecs_add_entity(world, id, ECS_OWNED | entity);
+        });
+        return *static_cast<base_type*>(this);  
+    }
+
+    /** Add owned flag for component (forces ownership when instantiating)
+     *
      * @tparam T The component for which to add the OWNED flag
      */    
     template <typename T>
@@ -1409,6 +1529,14 @@ public:
         });
         return *static_cast<base_type*>(this);  
     }
+
+    /** Add owned flag for type entity.
+     * This will ensure that all components in the type are owned for instances
+     * of this entity.
+     *
+     * @param type The type for which to add the OWNED flag
+     */    
+    base_type& add_owned(flecs::type type) const;
 
     /** Add a switch to an entity by id.
      * The switch entity must be a type, that is it must have the EcsType
@@ -1474,7 +1602,7 @@ public:
         [sw_case](world_t *world, entity_t id) {
             ecs_add_entity(world, id, ECS_CASE | sw_case);
         });
-        return *static_cast<base_type*>(this);  
+        return *static_cast<base_type*>(this);
     }
 
     /** Add a switch to an entity by id.
@@ -1524,6 +1652,100 @@ public:
      */ 
     base_type& remove_case(const entity& sw_case) const;
 
+    /** Enable an entity.
+     * Enabled entities are matched with systems and can be searched with
+     * queries.
+     */
+    base_type& enable() const {
+        static_cast<base_type*>(this)->invoke(
+        [](world_t *world, entity_t id) {
+            ecs_enable(world, id, true);
+        });
+        return *static_cast<base_type*>(this);
+    }
+
+    /** Disable an entity.
+     * Disabled entities are not matched with systems and cannot be searched 
+     * with queries, unless explicitly specified in the query expression.
+     */
+    base_type& disable() const {
+        static_cast<base_type*>(this)->invoke(
+        [](world_t *world, entity_t id) {
+            ecs_enable(world, id, true);
+        });
+        return *static_cast<base_type*>(this);
+    }
+
+    /** Enable a component.
+     * This sets the enabled bit for this component. If this is the first time
+     * the component is enabled or disabled, the bitset is added.
+     *
+     * @tparam T The component to enable.
+     */   
+    template<typename T>
+    base_type& enable() const {
+        static_cast<base_type*>(this)->invoke(
+        [](world_t *world, entity_t id) {
+            ecs_enable_component_w_entity(world, id, _::component_info<T>::id(), true);
+        });
+        return *static_cast<base_type*>(this);
+    }  
+
+    /** Disable a component.
+     * This sets the enabled bit for this component. If this is the first time
+     * the component is enabled or disabled, the bitset is added.
+     *
+     * @tparam T The component to enable.
+     */   
+    template<typename T>
+    base_type& disable() const {
+        static_cast<base_type*>(this)->invoke(
+        [](world_t *world, entity_t id) {
+            ecs_enable_component_w_entity(world, id, _::component_info<T>::id(), false);
+        });
+        return *static_cast<base_type*>(this);
+    }  
+
+    /** Enable a component.
+     * See enable<T>.
+     *
+     * @param id The component to enable.
+     */   
+    base_type& enable(flecs::entity_t id) const {
+        static_cast<base_type*>(this)->invoke(
+        [id](world_t *world, entity_t e) {
+            ecs_enable_component_w_entity(world, e, id, true);
+        }); 
+        return *static_cast<base_type*>(this);       
+    }
+
+    /** Disable a component.
+     * See disable<T>.
+     *
+     * @param id The component to disable.
+     */   
+    base_type& disable(flecs::entity_t id) const {
+        static_cast<base_type*>(this)->invoke(
+        [id](world_t *world, entity_t e) {
+            ecs_enable_component_w_entity(world, e, id, false);
+        }); 
+        return *static_cast<base_type*>(this);       
+    }
+
+    /** Enable a component.
+     * See enable<T>.
+     *
+     * @param entity The component to enable.
+     */   
+    base_type& enable(const flecs::entity& entity) const;
+
+    /** Disable a component.
+     * See disable<T>.
+     *
+     * @param entity The component to disable.
+     */   
+    base_type& disable(const flecs::entity& entity) const;
+
     /** Set a component for an entity.
      * This operation overwrites the component value. If the entity did not yet
      * have the component, this operation will add it.
@@ -1535,6 +1757,8 @@ public:
     const base_type& set(T&& value) const {
         static_cast<base_type*>(this)->invoke(
         [&value](world_t *world, entity_t id) {
+            ecs_assert(_::component_info<T>::size() != 0, 
+                ECS_INVALID_PARAMETER, NULL);
             ecs_set_ptr_w_entity(
                 world, id, _::component_info<T>::id(world), sizeof(T), &value);
         });
@@ -1552,6 +1776,8 @@ public:
     const base_type& set(const T& value) const {
         static_cast<base_type*>(this)->invoke(
         [&value](world_t *world, entity_t id) {
+            ecs_assert(_::component_info<T>::size() != 0, 
+                ECS_INVALID_PARAMETER, NULL);
             ecs_set_ptr_w_entity(
                 world, id, _::component_info<T>::id(world), sizeof(T), &value);
         });
@@ -1570,6 +1796,8 @@ public:
     const base_type& set_trait(const T& value) const {
         static_cast<base_type*>(this)->invoke(
         [&value](world_t *world, entity_t id) {
+            ecs_assert(_::component_info<T>::size() != 0, 
+                ECS_INVALID_PARAMETER, NULL);
             ecs_set_ptr_w_entity(world, id, 
                 ecs_trait(_::component_info<C>::id(world), 
                     _::component_info<T>::id(world)),
@@ -1615,6 +1843,9 @@ public:
     const base_type& patch(std::function<void(T&, bool)> func) const {
         static_cast<base_type*>(this)->invoke(
         [&func](world_t *world, entity_t id) {
+            ecs_assert(_::component_info<T>::size() != 0, 
+                ECS_INVALID_PARAMETER, NULL);
+
             bool is_added;
             T *ptr = static_cast<T*>(ecs_get_mut_w_entity(
                 world, id, _::component_info<T>::id(world), &is_added));
@@ -1638,6 +1869,9 @@ public:
     const base_type& patch(std::function<void(T&)> func) const {
         static_cast<base_type*>(this)->invoke(
         [&func](world_t *world, entity_t id) {
+            ecs_assert(_::component_info<T>::size() != 0, 
+                ECS_INVALID_PARAMETER, NULL);
+
             bool is_added;
             T *ptr = static_cast<T*>(ecs_get_mut_w_entity(
                 world, id, _::component_info<T>::id(world), &is_added));
@@ -1660,12 +1894,18 @@ public:
     ref()
         : m_world( nullptr )
         , m_entity( 0 )
-        , m_ref() { }
+        , m_ref() 
+    {       
+    }
 
     ref(world_t *world, entity_t entity) 
         : m_world( world )
         , m_entity( entity )
-        , m_ref() {
+        , m_ref() 
+    {
+        ecs_assert(_::component_info<T>::size() != 0, 
+                ECS_INVALID_PARAMETER, NULL);
+
         ecs_get_ref_w_entity(
             m_world, &m_ref, m_entity, _::component_info<T>::id(world));
     }
@@ -1704,6 +1944,12 @@ private:
  */
 class entity : public entity_builder<entity> {
 public:
+    /** Default constructor.
+     */
+    explicit entity()
+        : m_world( nullptr )
+        , m_id( 0 ) { }
+
     /** Create entity.
      *
      * @param world The world in which to create the entity.
@@ -1790,12 +2036,6 @@ public:
         : m_world( world )
         , m_id(id) { }
 
-    /** Default constructor.
-     */
-    entity() 
-        : m_world(nullptr)
-        , m_id(0) { }
-
     /** Equality operator. */
     bool operator==(const entity& e) {
         return this->id() == e.id();
@@ -1874,7 +2114,7 @@ public:
      * @return A new entity with any roles removed.
      */
     flecs::entity remove_role() const {
-        return flecs::entity(m_world, m_id & ECS_ENTITY_MASK);
+        return flecs::entity(m_world, m_id & ECS_COMPONENT_MASK);
     }
 
     /** Check if entity has specified role.
@@ -1887,6 +2127,14 @@ public:
         return ((m_id & ECS_ROLE_MASK) == role);
     }
 
+    /** Check is entity is alive.
+     *
+     * @return True if the entity is alive, false otherwise.
+     */
+    bool is_alive() {
+        return ecs_is_alive(m_world, m_id);
+    }
+
     /** Return the entity name.
      *
      * @return The entity name, or an empty string if the entity has no name.
@@ -1894,7 +2142,7 @@ public:
     std::string name() const {
         const EcsName *name = static_cast<const EcsName*>(
             ecs_get_w_entity(m_world, m_id, ecs_entity(EcsName)));
-        if (name) {
+        if (name && name->value) {
             return std::string(name->value);
         } else {
             return std::string();
@@ -1917,21 +2165,9 @@ public:
         }
     }   
 
-    /** Enable an entity.
-     * Enabled entities are matched with systems and can be searched with
-     * queries.
-     */
-    void enable() const {
-        ecs_enable(m_world, m_id, true);
+    bool enabled() {
+        return !ecs_has_entity(m_world, m_id, flecs::Disabled);
     }
-
-    /** Disable an entity.
-     * Disabled entities are not matched with systems and cannot be searched 
-     * with queries, unless explicitly specified in the query expression.
-     */
-    void disable() const {
-        ecs_enable(m_world, m_id, false);
-    }     
 
     /** Return the world.
      *
@@ -1971,6 +2207,10 @@ public:
      */
     template <typename T>
     const T* get() const {
+        ecs_assert(m_world != NULL, ECS_INVALID_PARAMETER, NULL);
+        ecs_assert(m_id != 0, ECS_INVALID_PARAMETER, NULL);
+        ecs_assert(_::component_info<T>::size() != 0, 
+                ECS_INVALID_PARAMETER, NULL);
         return static_cast<const T*>(
             ecs_get_w_entity(m_world, m_id, _::component_info<T>::id(m_world)));
     }
@@ -1982,6 +2222,8 @@ public:
      *         have the component.
      */
     const void* get(flecs::entity component) const {
+        ecs_assert(m_world != NULL, ECS_INVALID_PARAMETER, NULL);
+        ecs_assert(m_id != 0, ECS_INVALID_PARAMETER, NULL);
         return ecs_get_w_entity(m_world, m_id, component.id());
     }
 
@@ -1992,6 +2234,8 @@ public:
      *         have the component.
      */
     const void* get(entity_t component_id) const {
+        ecs_assert(m_world != NULL, ECS_INVALID_PARAMETER, NULL);
+        ecs_assert(m_id != 0, ECS_INVALID_PARAMETER, NULL);
         return ecs_get_w_entity(m_world, m_id, component_id);
     } 
 
@@ -2007,6 +2251,10 @@ public:
      */
     template <typename T>
     T* get_mut(bool *is_added = nullptr) const {
+        ecs_assert(m_world != NULL, ECS_INVALID_PARAMETER, NULL);
+        ecs_assert(m_id != 0, ECS_INVALID_PARAMETER, NULL);
+        ecs_assert(_::component_info<T>::size() != 0, 
+                ECS_INVALID_PARAMETER, NULL);
         return static_cast<T*>(
             ecs_get_mut_w_entity(
                 m_world, m_id, _::component_info<T>::id(m_world), is_added));
@@ -2023,6 +2271,8 @@ public:
      * @return Pointer to the component value.
      */
     void* get_mut(flecs::entity component, bool *is_added = nullptr) const {
+        ecs_assert(m_world != NULL, ECS_INVALID_PARAMETER, NULL);
+        ecs_assert(m_id != 0, ECS_INVALID_PARAMETER, NULL);
         return ecs_get_mut_w_entity(m_world, m_id, component.id(), is_added);
     }
 
@@ -2037,6 +2287,8 @@ public:
      * @return Pointer to the component value.
      */
     void* get_mut(entity_t component_id, bool *is_added = nullptr) const {
+        ecs_assert(m_world != NULL, ECS_INVALID_PARAMETER, NULL);
+        ecs_assert(m_id != 0, ECS_INVALID_PARAMETER, NULL);
         return ecs_get_mut_w_entity(m_world, m_id, component_id, is_added);
     }
 
@@ -2049,6 +2301,10 @@ public:
      */
     template<typename T, typename C>
     const T* get_trait() const {
+        ecs_assert(m_world != NULL, ECS_INVALID_PARAMETER, NULL);
+        ecs_assert(m_id != 0, ECS_INVALID_PARAMETER, NULL);
+        ecs_assert(_::component_info<T>::size() != 0, 
+                ECS_INVALID_PARAMETER, NULL);
         return static_cast<const T*>(ecs_get_w_entity(m_world, m_id, ecs_trait(
             _::component_info<C>::id(m_world), _::component_info<T>::id(m_world))));
     }   
@@ -2062,6 +2318,10 @@ public:
      */
     template<typename T>
     const T* get_trait(flecs::entity component) const {
+        ecs_assert(m_world != NULL, ECS_INVALID_PARAMETER, NULL);
+        ecs_assert(m_id != 0, ECS_INVALID_PARAMETER, NULL);
+        ecs_assert(_::component_info<T>::size() != 0, 
+                ECS_INVALID_PARAMETER, NULL);
         return static_cast<const T*>(ecs_get_w_entity(m_world, m_id, ecs_trait(
             component.id(), _::component_info<T>::id(m_world))));
     }
@@ -2078,6 +2338,10 @@ public:
      */
     template<typename C>
     const C* get_trait_tag(flecs::entity trait) const {
+        ecs_assert(m_world != NULL, ECS_INVALID_PARAMETER, NULL);
+        ecs_assert(m_id != 0, ECS_INVALID_PARAMETER, NULL);
+        ecs_assert(_::component_info<C>::size() != 0, 
+                ECS_INVALID_PARAMETER, NULL);
         return static_cast<const C*>(ecs_get_w_entity(m_world, m_id, ecs_trait(
             _::component_info<C>::id(m_world), trait.id())));
     }
@@ -2092,6 +2356,8 @@ public:
      *         have the trait.
      */
     const void* get_trait(flecs::entity trait, flecs::entity component) const {
+        ecs_assert(m_world != NULL, ECS_INVALID_PARAMETER, NULL);
+        ecs_assert(m_id != 0, ECS_INVALID_PARAMETER, NULL);
         return ecs_get_w_entity(m_world, m_id, ecs_trait(
             component.id(), trait.id()));
     }
@@ -2109,6 +2375,10 @@ public:
      */
     template <typename T, typename C>
     T* get_trait_mut(bool *is_added = nullptr) const {
+        ecs_assert(m_world != NULL, ECS_INVALID_PARAMETER, NULL);
+        ecs_assert(m_id != 0, ECS_INVALID_PARAMETER, NULL);
+        ecs_assert(_::component_info<T>::size() != 0, 
+                ECS_INVALID_PARAMETER, NULL);
         return static_cast<T*>(
             ecs_get_mut_w_entity(
                 m_world, m_id, ecs_trait(
@@ -2130,6 +2400,10 @@ public:
      */
     template <typename T>
     T* get_trait_mut(flecs::entity component, bool *is_added = nullptr) const {
+        ecs_assert(m_world != NULL, ECS_INVALID_PARAMETER, NULL);
+        ecs_assert(m_id != 0, ECS_INVALID_PARAMETER, NULL);
+        ecs_assert(_::component_info<T>::size() != 0, 
+                ECS_INVALID_PARAMETER, NULL);
         return static_cast<T*>(
             ecs_get_mut_w_entity(
                 m_world, m_id, ecs_trait(
@@ -2153,6 +2427,10 @@ public:
      */
     template <typename C>
     C* get_trait_tag_mut(flecs::entity trait, bool *is_added = nullptr) const {
+        ecs_assert(m_world != NULL, ECS_INVALID_PARAMETER, NULL);
+        ecs_assert(m_id != 0, ECS_INVALID_PARAMETER, NULL);
+        ecs_assert(_::component_info<C>::size() != 0, 
+                ECS_INVALID_PARAMETER, NULL);
         return static_cast<C*>(
             ecs_get_mut_w_entity(
                 m_world, m_id, ecs_trait(
@@ -2167,6 +2445,10 @@ public:
      */
     template <typename T>
     void modified() const {
+        ecs_assert(m_world != NULL, ECS_INVALID_PARAMETER, NULL);
+        ecs_assert(m_id != 0, ECS_INVALID_PARAMETER, NULL);
+        ecs_assert(_::component_info<T>::size() != 0, 
+                ECS_INVALID_PARAMETER, NULL);
         ecs_modified_w_entity(m_world, m_id, _::component_info<T>::id(m_world));
     }
 
@@ -2175,6 +2457,8 @@ public:
      * @param component component that was modified.
      */
     void modified(flecs::entity component) const {
+        ecs_assert(m_world != NULL, ECS_INVALID_PARAMETER, NULL);
+        ecs_assert(m_id != 0, ECS_INVALID_PARAMETER, NULL);
         ecs_modified_w_entity(m_world, m_id, component.id());
     }
 
@@ -2183,6 +2467,8 @@ public:
      * @param component id of component that was modified.
      */
     void modified(entity_t component) const {
+        ecs_assert(m_world != NULL, ECS_INVALID_PARAMETER, NULL);
+        ecs_assert(m_id != 0, ECS_INVALID_PARAMETER, NULL);
         ecs_modified_w_entity(m_world, m_id, component);
     }        
 
@@ -2191,17 +2477,43 @@ public:
      * a faster alternative to repeatedly calling 'get' for the same component.
      *
      * @tparam T component for which to get a reference.
+     * @return The reference.
      */
     template <typename T>
     ref<T> get_ref() const {
+        ecs_assert(m_world != NULL, ECS_INVALID_PARAMETER, NULL);
+        ecs_assert(m_id != 0, ECS_INVALID_PARAMETER, NULL);
+        ecs_assert(_::component_info<T>::size() != 0, 
+                ECS_INVALID_PARAMETER, NULL);
         return ref<T>(m_world, m_id);
     }
+
+    /** Get parent from an entity.
+     * This operation retrieves the parent entity that has the specified 
+     * component. If no parent with the specified component is found, an entity
+     * with id 0 is returned. If multiple parents have the specified component,
+     * the operation returns the first encountered one.
+     *
+     * @tparam T The component for which to find the parent.
+     * @return The parent entity.
+     */
+    template <typename T>
+    flecs::entity get_parent() {
+        return flecs::entity(m_world, ecs_get_parent_w_entity(m_world, m_id, 
+            _::component_info<T>::id(m_world)));
+    }
+
+    flecs::entity get_parent(flecs::entity e) {
+        return flecs::entity(m_world, ecs_get_parent_w_entity(m_world, m_id, e.id()));
+    }    
 
     /** Clear an entity.
      * This operation removes all components from an entity without recycling
      * the entity id.
      */
     void clear() const {
+        ecs_assert(m_world != NULL, ECS_INVALID_PARAMETER, NULL);
+        ecs_assert(m_id != 0, ECS_INVALID_PARAMETER, NULL);
         ecs_clear(m_world, m_id);
     }
 
@@ -2210,6 +2522,8 @@ public:
      * flecs::entity object goes out of scope.
      */
     void destruct() const {
+        ecs_assert(m_world != NULL, ECS_INVALID_PARAMETER, NULL);
+        ecs_assert(m_id != 0, ECS_INVALID_PARAMETER, NULL);
         ecs_delete(m_world, m_id);
     }
 
@@ -2221,6 +2535,8 @@ public:
      * @return The found entity, or entity::null if no entity matched.
      */
     entity lookup(const char *path) const {
+        ecs_assert(m_world != NULL, ECS_INVALID_PARAMETER, NULL);
+        ecs_assert(m_id != 0, ECS_INVALID_PARAMETER, NULL);
         auto id = ecs_lookup_path_w_sep(m_world, m_id, path, "::", "::");
         return entity(m_world, id);
     }
@@ -2230,8 +2546,10 @@ public:
      * @param entity The entity id to check.
      * @return True if the entity has the provided entity id, false otherwise.
      */
-    bool has(entity_t entity) const {
-        return ecs_has_entity(m_world, m_id, entity);
+    bool has(entity_t e) const {
+        ecs_assert(m_world != NULL, ECS_INVALID_PARAMETER, NULL);
+        ecs_assert(m_id != 0, ECS_INVALID_PARAMETER, NULL);
+        return ecs_has_entity(m_world, m_id, e);
     }
 
     /** Check if entity has the provided parent.
@@ -2240,6 +2558,8 @@ public:
      * @return True if the entity has the provided parent id, false otherwise.
      */
     bool has_childof(entity_t parent) const {
+        ecs_assert(m_world != NULL, ECS_INVALID_PARAMETER, NULL);
+        ecs_assert(m_id != 0, ECS_INVALID_PARAMETER, NULL);
         return ecs_has_entity(m_world, m_id, ECS_CHILDOF | parent);
     }    
 
@@ -2249,6 +2569,8 @@ public:
      * @return True if the entity has the provided base id, false otherwise.
      */
     bool has_instanceof(entity_t base) const {
+        ecs_assert(m_world != NULL, ECS_INVALID_PARAMETER, NULL);
+        ecs_assert(m_id != 0, ECS_INVALID_PARAMETER, NULL);
         return ecs_has_entity(m_world, m_id, ECS_INSTANCEOF | base);
     }
 
@@ -2258,6 +2580,8 @@ public:
      * @return True if the entity has the provided type, false otherwise.
      */
     bool has(type_t type) const {
+        ecs_assert(m_world != NULL, ECS_INVALID_PARAMETER, NULL);
+        ecs_assert(m_id != 0, ECS_INVALID_PARAMETER, NULL);
         return ecs_has_type(m_world, m_id, type);
     }
 
@@ -2266,8 +2590,8 @@ public:
      * @param entity The entity to check.
      * @return True if the entity has the provided entity, false otherwise.
      */
-    bool has(const entity& entity) const {
-        return has(entity.id());
+    bool has(const entity& e) const {
+        return has(e.id());
     }
 
     /** Check if entity has the provided parent.
@@ -2304,8 +2628,10 @@ public:
      * @param entity The entity id to check.
      * @return True if the entity owns the provided entity id, false otherwise.
      */
-    bool owns(entity_t entity) const {
-        return ecs_owns_entity(m_world, m_id, entity, true);
+    bool owns(entity_t e) const {
+        ecs_assert(m_world != NULL, ECS_INVALID_PARAMETER, NULL);
+        ecs_assert(m_id != 0, ECS_INVALID_PARAMETER, NULL);
+        return ecs_owns_entity(m_world, m_id, e, true);
     }
 
     /** Check if entity owns the provided type.
@@ -2315,6 +2641,8 @@ public:
      * @return True if the entity owns the provided type, false otherwise.
      */
     bool owns(type_t type) const {
+        ecs_assert(m_world != NULL, ECS_INVALID_PARAMETER, NULL);
+        ecs_assert(m_id != 0, ECS_INVALID_PARAMETER, NULL);
         return ecs_type_owns_type(m_world, ecs_get_type(m_world, m_id), type, true);
     }
 
@@ -2324,8 +2652,8 @@ public:
      * @param entity The entity to check.
      * @return True if the entity owns the provided entity, false otherwise.
      */
-    bool owns(const entity& entity) const {
-        return owns(entity.id());
+    bool owns(const entity& e) const {
+        return owns(e.id());
     }
 
     /** Check if entity owns the provided component.
@@ -2347,6 +2675,8 @@ public:
      */
     template<typename T, typename C>
     bool has_trait() const {
+        ecs_assert(m_world != NULL, ECS_INVALID_PARAMETER, NULL);
+        ecs_assert(m_id != 0, ECS_INVALID_PARAMETER, NULL);
         return ecs_has_entity(m_world, m_id, ecs_trait(
             _::component_info<C>::id(m_world), 
             _::component_info<T>::id(m_world)));
@@ -2360,6 +2690,8 @@ public:
      */
     template<typename T>
     bool has_trait(flecs::entity component) const {
+        ecs_assert(m_world != NULL, ECS_INVALID_PARAMETER, NULL);
+        ecs_assert(m_id != 0, ECS_INVALID_PARAMETER, NULL);
         return ecs_has_entity(m_world, m_id, ecs_trait(
             component.id(), _::component_info<T>::id(m_world)));
     }
@@ -2373,6 +2705,8 @@ public:
      */
     template<typename C>
     bool has_trait_tag(flecs::entity trait) const {
+        ecs_assert(m_world != NULL, ECS_INVALID_PARAMETER, NULL);
+        ecs_assert(m_id != 0, ECS_INVALID_PARAMETER, NULL);
         return ecs_has_entity(m_world, m_id, ecs_trait(
            _::component_info<C>::id(m_world), trait.id()));
     }
@@ -2384,9 +2718,11 @@ public:
      * @param component The component for which to check the trait.
      * @return True if the entity has the provided trait, false otherwise.
      */
-    bool has_trait(flecs::entity trait, flecs::entity entity) const {
+    bool has_trait(flecs::entity trait, flecs::entity e) const {
+        ecs_assert(m_world != NULL, ECS_INVALID_PARAMETER, NULL);
+        ecs_assert(m_id != 0, ECS_INVALID_PARAMETER, NULL);
         return ecs_has_entity(m_world, m_id, ecs_trait(
-            entity.id(), trait.id()));
+            e.id(), trait.id()));
     }
 
     /** Check if entity has the provided switch.
@@ -2402,6 +2738,8 @@ public:
      * @return True if the entity has the provided case, false otherwise.
      */
     bool has_case(entity_t sw_case) const {
+        ecs_assert(m_world != NULL, ECS_INVALID_PARAMETER, NULL);
+        ecs_assert(m_id != 0, ECS_INVALID_PARAMETER, NULL);
         return ecs_has_entity(m_world, m_id, flecs::Case | sw_case);
     }
 
@@ -2426,13 +2764,43 @@ public:
      */
     flecs::entity get_case(flecs::type sw) const;
 
+    /** Test if component is enabled.
+     *
+     * @tparam T The component to test.
+     * @return True if the component is enabled, false if it has been disabled.
+     */
+    template<typename T>
+    bool is_enabled() {
+        return ecs_is_component_enabled_w_entity(
+            m_world, m_id, _::component_info<T>::id(m_world));
+    }
+
+    /** Test if component is enabled.
+     *
+     * @param id The component to test.
+     * @return True if the component is enabled, false if it has been disabled.
+     */
+    bool is_enabled(flecs::entity_t id) {
+        return ecs_is_component_enabled_w_entity(
+            m_world, m_id, id);
+    }
+
+    /** Test if component is enabled.
+     *
+     * @param entity The component to test.
+     * @return True if the component is enabled, false if it has been disabled.
+     */
+    bool is_enabled(const flecs::entity& e) {
+        return is_enabled(e.id());
+    }
+
     /** Get current delta time.
      * Convenience function so system implementations can get delta_time, even
      * if they are using the .each() function.
      *
      * @return Current delta_time.
      */
-    float delta_time() const {
+    FLECS_FLOAT delta_time() const {
         const ecs_world_info_t *stats = ecs_get_world_info(m_world);
         return stats->delta_time;
     }
@@ -2480,12 +2848,12 @@ public:
     }
 
     type(const flecs::world& world, type_t t)
-        : entity( world )
+        : entity( world.c_ptr(), 0 )
         , m_type( t )
         , m_normalized( t ) { }
 
     type(world_t *world, type_t t)
-        : entity( world )
+        : entity( world, 0 )
         , m_type( t )
         , m_normalized( t ) { }
 
@@ -2605,10 +2973,12 @@ public:
     }
 
     void enable() const {
+        ecs_assert(m_id != 0, ECS_INVALID_OPERATION, NULL);
         ecs_enable(m_world, m_id, true);
     }
 
     void disable() const {
+        ecs_assert(m_id != 0, ECS_INVALID_OPERATION, NULL);
         ecs_enable(m_world, m_id, false);
     }
 
@@ -2618,6 +2988,7 @@ public:
 
 private:
     void sync_from_me() {
+        ecs_assert(m_id != 0, ECS_INVALID_OPERATION, NULL);
         EcsType *tc = ecs_get_mut(m_world, m_id, EcsType, NULL);
         if (tc) {
             tc->type = m_type;
@@ -2626,6 +2997,7 @@ private:
     }
 
     void sync_from_flecs() {
+        ecs_assert(m_id != 0, ECS_INVALID_OPERATION, NULL);
         EcsType *tc = ecs_get_mut(m_world, m_id, EcsType, NULL);
         if (tc) {
             m_type = tc->type;
@@ -2672,36 +3044,39 @@ private:
 //// Register component, provide global access to component handles / metadata
 ////////////////////////////////////////////////////////////////////////////////
 
-/* Trick to obtain typename from type, as described here
- * https://blog.molecular-matters.com/2015/12/11/getting-the-type-of-a-template-argument-as-string-without-rtti/
- */
-
 namespace _
 {
+    // Trick to obtain typename from type, as described here
+    // https://blog.molecular-matters.com/2015/12/11/getting-the-type-of-a-template-argument-as-string-without-rtti/
+    //
+    // The code from the link has been modified to work with more types, and across
+    // multiple compilers.
+    //
     struct name_util {
+        /* Remove parts from typename that aren't needed for component name */
         static void trim_name(char *typeName) {
             ecs_size_t len = ecs_os_strlen(typeName);
             
             /* Remove 'const' */
             ecs_size_t const_len = ecs_os_strlen("const ");
-            if (!ecs_os_strncmp(typeName, "const ", const_len)) {
-                memmove(typeName, typeName + const_len, len - const_len);
+            if ((len > const_len) && !ecs_os_strncmp(typeName, "const ", const_len)) {
+                ecs_os_memmove(typeName, typeName + const_len, len - const_len);
                 typeName[len - const_len] = '\0';
                 len -= const_len;
             }
 
             /* Remove 'struct' */
             ecs_size_t struct_len = ecs_os_strlen("struct ");
-            if (!ecs_os_strncmp(typeName, "struct ", struct_len)) {
-                memmove(typeName, typeName + struct_len, len - struct_len);
+            if ((len > struct_len) && !ecs_os_strncmp(typeName, "struct ", struct_len)) {
+                ecs_os_memmove(typeName, typeName + struct_len, len - struct_len);
                 typeName[len - struct_len] = '\0';
                 len -= struct_len;
             }
 
             /* Remove 'class' */
             ecs_size_t class_len = ecs_os_strlen("class ");
-            if (!ecs_os_strncmp(typeName, "class ", class_len)) {
-                memmove(typeName, typeName + class_len, len - class_len);
+            if ((len > class_len) && !ecs_os_strncmp(typeName, "class ", class_len)) {
+                ecs_os_memmove(typeName, typeName + class_len, len - class_len);
                 typeName[len - class_len] = '\0';
                 len -= class_len;
             }            
@@ -2723,6 +3098,12 @@ namespace _
         }
     };
 
+// Compiler-specific conversion from __PRETTY_FUNCTION__ to component name. 
+// This code uses a trick that instantiates a function for the component type. 
+// Then __PRETTY_FUNCTION__ is used to obtain the name of the function. Because
+// the result of __PRETTY_FUNCTION__ is not standardized, there are different
+// implementations for clang, gcc and msvc. Code that uses a different compiler
+// needs to register component names explicitly.
 #if defined(__clang__)
   static const unsigned int FRONT_SIZE = sizeof("static const char* flecs::_::name_helper<") - 1u;
   static const unsigned int BACK_SIZE = sizeof(">::name() [T = ]") - 1u;
@@ -2732,7 +3113,7 @@ namespace _
   {
     static const char* name(void) {
       static const size_t size = (sizeof(__PRETTY_FUNCTION__) - FRONT_SIZE - BACK_SIZE) / 2 + 1u;
-      static char typeName[size] = {};
+      static char typeName[size + 6] = {};
       memcpy(typeName, __PRETTY_FUNCTION__ + FRONT_SIZE, size - 1u);
       name_util::trim_name(typeName);
       return typeName;
@@ -2747,7 +3128,7 @@ namespace _
   {
     static const char* name(void) {
       static const size_t size = sizeof(__PRETTY_FUNCTION__) - FRONT_SIZE - BACK_SIZE;
-      static char typeName[size] = {};
+      static char typeName[size + 6] = {};
       memcpy(typeName, __PRETTY_FUNCTION__ + FRONT_SIZE, size - 1u);
       name_util::trim_name(typeName);
       return typeName;
@@ -2762,7 +3143,7 @@ namespace _
   {
     static const char* name(void) {
       static const size_t size = sizeof(__FUNCTION__) - FRONT_SIZE - BACK_SIZE;
-      static char typeName[size] = {};
+      static char typeName[size + 6] = {};
       memcpy(typeName, __FUNCTION__ + FRONT_SIZE, size - 1u);
       name_util::trim_name(typeName);
       return typeName;
@@ -2771,6 +3152,14 @@ namespace _
 #elif
 #error "implicit component registration not supported"
 #endif
+
+// The following functions are lifecycle callbacks that are automatically
+// registered with flecs to ensure component lifecycle is handled correctly. Not
+// all types require this, yet callbacks are registered by default, which
+// introduces some overhead when working with components.
+//
+// An application can optimize this by explicitly registering a component as a
+// plain old datatype, with world.pod_component<T>().
 
 template <typename T>
 void component_ctor(
@@ -2782,6 +3171,12 @@ void component_ctor(
     int32_t count,
     void *ctx)
 {
+    (void)world;
+    (void)component;
+    (void)entity_ptr;
+    (void)size;
+    (void)ctx;
+
     ecs_assert(size == sizeof(T), ECS_INTERNAL_ERROR, NULL);
     T *t_ptr = static_cast<T*>(ptr);
     
@@ -2800,6 +3195,12 @@ void component_dtor(
     int32_t count,
     void *ctx)
 {
+    (void)world;
+    (void)component;
+    (void)entity_ptr;
+    (void)size;
+    (void)ctx;
+
     ecs_assert(size == sizeof(T), ECS_INTERNAL_ERROR, NULL);
     T *t_ptr = static_cast<T*>(ptr);
     
@@ -2820,6 +3221,13 @@ void component_copy(
     int32_t count,
     void *ctx)
 {
+    (void)world;
+    (void)component;
+    (void)dst_entity;
+    (void)src_entity;
+    (void)size;
+    (void)ctx;
+
     ecs_assert(size == sizeof(T), ECS_INTERNAL_ERROR, NULL);
     T *t_dst_ptr = static_cast<T*>(dst_ptr);
     const T *t_src_ptr = static_cast<const T*>(src_ptr);
@@ -2841,6 +3249,13 @@ void component_move(
     int32_t count,
     void *ctx)
 {
+    (void)world;
+    (void)component;
+    (void)dst_entity;
+    (void)src_entity;
+    (void)size;
+    (void)ctx;
+
     ecs_assert(size == sizeof(T), ECS_INTERNAL_ERROR, NULL);
     T *t_dst_ptr = static_cast<T*>(dst_ptr);
     T *t_src_ptr = static_cast<T*>(src_ptr);
@@ -2850,6 +3265,7 @@ void component_move(
     }
 }
 
+// Register component lifecycle callbacks with flecs.
 template<typename T>
 void register_lifecycle_actions(
     ecs_world_t *world,
@@ -2865,103 +3281,245 @@ void register_lifecycle_actions(
         // End TPLibMod
         EcsComponentLifecycle cl{};
         if (ctor) {
-            cl.ctor = _::component_ctor<typename std::remove_const<typename std::remove_pointer<T>::type>::type>;
+            cl.ctor = _::component_ctor<
+                typename std::remove_const<
+                    typename std::remove_pointer<T>::type>::type>;
         }
         if (dtor) {
-            cl.dtor = _::component_dtor<typename std::remove_const<typename std::remove_pointer<T>::type>::type>;
+            cl.dtor = _::component_dtor<
+                typename std::remove_const<
+                    typename std::remove_pointer<T>::type>::type>;
         }
         if (copy) {
-            cl.copy = _::component_copy<typename std::remove_const<typename std::remove_pointer<T>::type>::type>;
+            cl.copy = _::component_copy<
+                typename std::remove_const<
+                    typename std::remove_pointer<T>::type>::type>;
         }
         if (move) {
-            cl.move = _::component_move<typename std::remove_const<typename std::remove_pointer<T>::type>::type>;
+            cl.move = _::component_move<
+                typename std::remove_const<
+                    typename std::remove_pointer<T>::type>::type>;
         }
+
         ecs_set_component_actions_w_entity( world, component, &cl);
     }
 }
 
+// Class that holds component identifier and name.
+// This class is used by most component operations to obtain the component id in
+// a transparent way for the application. The component id is stored in a static
+// member of a class, and is shared by all worlds in an application. As such,
+// each world in an application must (and will) have the same id.
+//
+// Because of how global (templated) variables are instantiated, it is possible
+// that different instances for the same component exist across different
+// translation units. This is handled transparently by flecs. When a component
+// id is requested from the component_info class, but the id is uninitialized, a 
+// lookup by name will be performed for the component on the world, which will 
+// return the id with which the component was already registered. This means 
+// component identifiers are eventually consistent across translation units.
+//
+// When a component id is requested for a world that had not yet registered the
+// component, it will be registered with the existing identifier. This ensures
+// that multiple worlds in the same application use the same component ids.
+//
+// There are a few limitations of this approach.
+//
+// 1) When two worlds register components in different orders, it is possible
+//    that different components receive the same identifier. When a world 
+//    attempts to re-register a component with a different identifier, an error
+//    will be thrown. To prevent this from happening, worlds should register
+//    components in the same order.
+//
+// 2) Component names are used to ensure that different translation units use
+//    the same identifiers. If a component is registered under different names
+//    in the same application, id conflicts can occur.
+//
+// Known issues:
+//
+// It seems like component registration does not always work correctly in Unreal
+// engine when recreating a world. A plausible cause for this is the hot 
+// reloading of dynamic libraries by the engine. A workaround for this issue is
+// to call flecs::_::component_info<T>::reset() before recreating the world.
+// This will reset the global component state and avoids conflicts. The exact
+// cause of the issue is investigated here: 
+//   https://github.com/SanderMertens/flecs/issues/293
+
 template <typename T>
 class component_info final {
 public:
-    static void init(world_t* world, entity_t entity) {
+    // Initialize component identifier
+    static void init(world_t* world, entity_t entity, bool allow_tag = true) {
+        // If an identifier was already set, check for consistency
         if (s_id) {
+            // If an identifier was registered, a name should've been registered
+            // as well.
+            ecs_assert(s_name.c_str() != nullptr, ECS_INTERNAL_ERROR, NULL);
+
+            // A component cannot be registered using a different identifier.
             ecs_assert(s_id == entity, ECS_INCONSISTENT_COMPONENT_ID, 
                 _::name_helper<T>::name());
 
+            // Ensure the entity has the same name as what was registered.
             if (s_id >= EcsFirstUserComponentId) {
                 char *path = ecs_get_fullpath(world, entity);
-                ecs_assert(!strcmp(path, s_name), 
+                ecs_assert(!strcmp(path, s_name.c_str()), 
                     ECS_INCONSISTENT_COMPONENT_NAME, 
                     _::name_helper<T>::name());
                 ecs_os_free(path);
             }
+
+            // Component was already registered and data is consistent with new
+            // identifier, so nothing else to be done.
+            return;
         }
 
+        // Component wasn't registered yet, set the values. Register component
+        // name as the fully qualified flecs path.
+        char *path = ecs_get_fullpath(world, entity);
         s_id = entity;
-        s_type = ecs_type_from_entity(world, entity);
-        s_name = ecs_get_fullpath(world, entity);
+        s_name = path;
+        s_allow_tag = allow_tag;
+
+        // s_name is an std::string, so it will have made a copy
+        ecs_os_free(path);
     }
 
-    static entity_t id_no_lifecycle(world_t *world = nullptr, const char *name = nullptr) {
+    // Obtain a component identifier without registering lifecycle callbacks.
+    static entity_t id_no_lifecycle(world_t *world = nullptr, 
+        const char *name = nullptr, bool allow_tag = true) 
+    {
+        // If no id has been registered yet, do it now.
         if (!s_id) {
             if (!name) {
+                // If no name was provided, retrieve the name implicitly from
+                // the name_helper class.
                 name = _::name_helper<T>::name();
             }
 
+            s_allow_tag = allow_tag;
+
+            // If no world was provided, we can't implicitly register the 
+            // component. While there are a few cases where calling this 
+            // function without a world is OK, in general functions should 
+            // always provide a world to enable implicit registration.
             ecs_assert(world != nullptr, ECS_COMPONENT_NOT_REGISTERED, name);
 
             // Create entity with name first. This ensurs that the component is
             // created in the right location in the hierarchy, in case a scoped
-            // name is used.
+            // name is used. This allows registering components with the same
+            // name in different namespaces.
+            //
+            // If the component was already registered for this world, this will 
+            // resolve the existing component identifier. This enables 
+            // transparent component registeration across multiple translation 
+            // units, as long as the same world is used.
+            //
+            // The last parameter ('true') ensures that when the component was
+            // not yet registered, a new component identifier is created. 
+            // Component identifiers and entity identifiers are equivalent,
+            // though a pool of identifiers at the start of the id range is 
+            // reserved for components. This is a performance optimization, as
+            // low ids in some parts of the code allow for direct indexing.
             flecs::world w(world);
             flecs::entity result = entity(w, name, true);
             
+            // Now use the resulting identifier to register the component. Note
+            // that the name is not passed into this function, as the entity was
+            // already created with the correct name.
             ecs_entity_t entity = ecs_new_component(
                 world, result.id(), nullptr, 
-                sizeof(typename std::remove_pointer<T>::type), 
-                alignof(typename std::remove_pointer<T>::type));
-
+                size(), 
+                alignment());
+            
+            // The identifier returned by the function should be the same as the
+            // identifier that was passed in.
             ecs_assert(entity == result.id(), ECS_INTERNAL_ERROR, NULL);
 
+            // Init the component_info instance with the identiifer.
             init(world, entity);
         }
 
-        ecs_assert(s_id != 0, ECS_INTERNAL_ERROR, NULL);
-
-        return s_id;        
-    }
-
-    static entity_t id(world_t *world = nullptr, const char *name = nullptr) {
-        if (!s_id) {
-            id_no_lifecycle(world, name);
-            register_lifecycle_actions<T>(world, s_id,
-                true, true, true, true);
-        }
-
+        // By now we should have a valid identifier
         ecs_assert(s_id != 0, ECS_INTERNAL_ERROR, NULL);
 
         return s_id;
     }
 
-    static const char* name(world_t *world = nullptr) {
+    // Obtain a component identifier, register lifecycle callbacks if this is
+    // the first time the component is used.
+    static entity_t id(world_t *world = nullptr, const char *name = nullptr, 
+        bool allow_tag = true) 
+    {
+        // If no id has been registered yet, do it now.
         if (!s_id) {
-            ecs_assert(world != nullptr, ECS_COMPONENT_NOT_REGISTERED, 
-                _::name_helper<T>::name());
+            // This will register a component id, but will not register 
+            // lifecycle callbacks.
+            id_no_lifecycle(world, name, allow_tag);
 
+            // Register lifecycle callbacks, but only if the component has a
+            // size. Components that don't have a size are tags, and tags don't
+            // require construction/destruction/copy/move's. */
+            if (size()) {
+                register_lifecycle_actions<T>(world, s_id,
+                    true, true, true, true);
+            }
+        }
+
+        // By now we should have a valid identifier
+        ecs_assert(s_id != 0, ECS_INTERNAL_ERROR, NULL);
+
+        return s_id;
+    }
+
+    // Obtain a component name
+    static const char* name(world_t *world = nullptr) {
+        // If no id has been registered yet, do it now.
+        if (!s_id) {
+            id(world);
+        }
+
+        // By now we should have a valid identifier
+        ecs_assert(s_id != 0, ECS_INTERNAL_ERROR, NULL);
+
+        // If the id is set, the name should also have been set
+        return s_name.c_str();
+    }
+
+    // Obtain a component name, don't register lifecycle if the component hadn't
+    // been registered yet. While functionally the same could be achieved by
+    // first calling id_no_lifecycle() and then name(), this function ensures
+    // that the lifecycle callback templates are not instantiated. This allows
+    // some types (such as module classes) to be created without a default
+    // constructor.
+    static const char* name_no_lifecycle(world_t *world = nullptr) {
+        // If no id has been registered yet, do it now.
+        if (!s_id) {
             id_no_lifecycle(world);
         }
 
-        ecs_assert(s_name != nullptr, ECS_INTERNAL_ERROR, NULL);
+        // By now we should have a valid identifier
+        ecs_assert(s_id != 0, ECS_INTERNAL_ERROR, NULL);
 
-        return s_name;
-    }
+        // Return 
+        return s_name.c_str();
+    }    
 
+    // Return the type of a component.
+    // The type is a vector of component ids. This will return a type with just
+    // the current component id.
     static type_t type(world_t *world = nullptr) {
+        // If no id has been registered yet, do it now.
         if (!s_id) {
-            ecs_assert(world != nullptr, ECS_COMPONENT_NOT_REGISTERED, 
-                _::name_helper<T>::name());
+            id(world);
+        }
 
-            id_no_lifecycle(world);
+        // By now we should have a valid identifier
+        ecs_assert(s_id != 0, ECS_INTERNAL_ERROR, NULL);        
+
+        // Create a type from the component id.
+        if (!s_type) {
+            s_type = ecs_type_from_entity(world, s_id);
         }
 
         ecs_assert(s_type != nullptr, ECS_INTERNAL_ERROR, NULL);
@@ -2969,6 +3527,31 @@ public:
         return s_type;
     }
 
+    // Return the size of a component.
+    static size_t size() {
+        // C++ types that have no members still have a size. Use std::is_empty
+        // to check if the type is empty. If so, use 0 for the component size.
+        //
+        // If s_allow_tag is set to false, the size returned by C++ is used.
+        // This is useful in cases where class instances are still required, as
+        // is the case with module classes.
+        if (s_allow_tag && std::is_empty<T>::value) {
+            return 0;
+        } else {
+            return sizeof(typename std::remove_pointer<T>::type);
+        }
+    }
+
+    // Return the alignment of a component.
+    static size_t alignment() {
+        if (size() == 0) {
+            return 0;
+        } else {
+            return alignof(typename std::remove_pointer<T>::type);
+        }
+    }
+
+    // Was the component already registered.
     static bool registered() {
         return s_id != 0;
     }
@@ -2978,18 +3561,21 @@ public:
     static void reset() {
         s_id = 0;
         s_type = NULL;
-        s_name = NULL;
+        s_name.clear();
     }
 
 private:
     static entity_t s_id;
     static type_t s_type;
-    static const char *s_name;
+    static std::string s_name;
+    static bool s_allow_tag;
 };
 
+// Global templated variables that hold component identifier and other info
 template <typename T> entity_t component_info<T>::s_id( 0 );
 template <typename T> type_t component_info<T>::s_type( nullptr );
-template <typename T> const char* component_info<T>::s_name( nullptr );
+template <typename T> std::string component_info<T>::s_name("");
+template <typename T> bool component_info<T>::s_allow_tag( true );
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -3000,7 +3586,7 @@ template <typename T> const char* component_info<T>::s_name( nullptr );
 
 /** Plain old datatype, no lifecycle actions are registered */
 template <typename T>
-flecs::entity pod_component(const flecs::world& world, const char *name = nullptr) {
+flecs::entity pod_component(const flecs::world& world, const char *name = nullptr, bool allow_tag = true) {
     if (!name) {
         name = _::name_helper<T>::name();
     }
@@ -3011,7 +3597,7 @@ flecs::entity pod_component(const flecs::world& world, const char *name = nullpt
     if (_::component_info<T>::registered()) {
         /* To support components across multiple worlds, ensure that the
          * component ids are the same. */
-        id = _::component_info<T>::id_no_lifecycle(world_ptr, name);
+        id = _::component_info<T>::id_no_lifecycle(world_ptr, name, allow_tag);
 
         /* If entity is not empty check if the name matches */
         if (ecs_get_type(world_ptr, id) != nullptr) {
@@ -3037,9 +3623,11 @@ flecs::entity pod_component(const flecs::world& world, const char *name = nullpt
          * If the component was registered already, nothing will change. */
         ecs_entity_t entity = ecs_new_component(
             world.c_ptr(), id, nullptr, 
-            sizeof(typename std::remove_pointer<T>::type), 
-            alignof(typename std::remove_pointer<T>::type)); 
-        ECS_UNUSED(entity);
+            _::component_info<T>::size(), 
+            _::component_info<T>::alignment());
+        
+        (void)entity;
+        
         ecs_assert(entity == id, ECS_INTERNAL_ERROR, NULL);
 
         /* This functionality could have been put in id_no_lifecycle, but since
@@ -3050,17 +3638,19 @@ flecs::entity pod_component(const flecs::world& world, const char *name = nullpt
     } else {
         /* If the component is not yet registered, ensure no other component
          * or entity has been registered with this name */
-        ecs_entity_t e = ecs_lookup_fullpath(world_ptr, name);
-        ECS_UNUSED(e);
-        ecs_assert(e == 0, ECS_COMPONENT_NAME_IN_USE, name);
+        ecs_entity_t entity = ecs_lookup_fullpath(world_ptr, name);
 
-        id = _::component_info<T>::id_no_lifecycle(world_ptr, name);
+        (void)entity;
+
+        ecs_assert(entity == 0, ECS_COMPONENT_NAME_IN_USE, name);
+
+        id = _::component_info<T>::id_no_lifecycle(world_ptr, name, allow_tag);
     }
 
-    _::component_info<T>::init(world_ptr, id);
-    _::component_info<const T>::init(world_ptr, id);
-    _::component_info<T*>::init(world_ptr, id);
-    _::component_info<T&>::init(world_ptr, id);
+    _::component_info<T>::init(world_ptr, id, allow_tag);
+    _::component_info<const T>::init(world_ptr, id, allow_tag);
+    _::component_info<T*>::init(world_ptr, id, allow_tag);
+    _::component_info<T&>::init(world_ptr, id, allow_tag);
     
     return world.entity(id);
 }
@@ -3070,8 +3660,10 @@ template <typename T>
 flecs::entity component(const flecs::world& world, const char *name = nullptr) {
     flecs::entity result = pod_component<T>(world, name);
 
-    _::register_lifecycle_actions<T>(world.c_ptr(), result.id(),
-        true, true, true, true);
+    if (_::component_info<T>::size()) {
+        _::register_lifecycle_actions<T>(world.c_ptr(), result.id(),
+            true, true, true, true);
+    }
 
     return result;
 }
@@ -3100,7 +3692,7 @@ flecs::entity_t type_id() {
 template <typename T>
 flecs::entity module(const flecs::world& world, const char *name = nullptr) {
     ecs_set_scope(world.c_ptr(), 0);
-    flecs::entity result = pod_component<T>(world, name);
+    flecs::entity result = pod_component<T>(world, name, false);
     ecs_set_scope(world.c_ptr(), result.id());
     return result;
 }
@@ -3123,14 +3715,14 @@ flecs::entity import(world& world) {
 
         ecs_set_scope(world.c_ptr(), scope);
 
-        flecs::entity m = world.lookup(_::component_info<T>::name(world.c_ptr()));
+        flecs::entity m = world.lookup(_::component_info<T>::name_no_lifecycle(world.c_ptr()));
 
         ecs_set_ptr_w_entity(
             world.c_ptr(),
-             m.id(),
-             _::component_info<T>::id_no_lifecycle(world.c_ptr()), 
-             sizeof(T),
-             module_data);
+            m.id(),
+            _::component_info<T>::id_no_lifecycle(world.c_ptr()), 
+            _::component_info<T>::size(),
+            module_data);
 
         ecs_log_pop();
 
@@ -3244,17 +3836,18 @@ public:
 
 private:
     /* Dummy function when last component has been added */
-    void populate_columns(ecs_iter_t *iter, int index) { 
+    void populate_columns(ecs_iter_t *iter, size_t index) { 
         (void)iter;
         (void)index;
     }
 
     /* Populate columns array recursively */
     template <typename T, typename... Targs>
-    void populate_columns(ecs_iter_t *iter, int index, T comp, Targs... comps) {
-        void *ptr = ecs_column_w_size(iter, sizeof(*comp), index + 1);
+    void populate_columns(ecs_iter_t *iter, size_t index, T comp, Targs... comps) {
+        int32_t column = static_cast<int32_t>(index + 1);
+        void *ptr = ecs_column_w_size(iter, sizeof(*comp), column);
         m_columns[index].ptr = ptr;
-        m_columns[index].is_shared = !ecs_is_owned(iter, index + 1) && ptr != nullptr;
+        m_columns[index].is_shared = !ecs_is_owned(iter, column) && ptr != nullptr;
         populate_columns(iter, index + 1, comps ...);
     }
 };
@@ -3273,7 +3866,7 @@ public:
     // Invoke system
     template <typename... Targs,
         typename std::enable_if<sizeof...(Targs) == sizeof...(Components), void>::type* = nullptr>
-    static void call_system(ecs_iter_t *iter, Func func, int index, Columns& columns, Targs... comps) {
+    static void call_system(ecs_iter_t *iter, Func func, size_t index, Columns& columns, Targs... comps) {
         flecs::iter iter_wrapper(iter);
         (void)index;
         (void)columns;
@@ -3281,14 +3874,15 @@ public:
         // Use any_column so we can transparently use shared components
         for (auto row : iter_wrapper) {
             func(iter_wrapper.entity(row), (_::any_column<typename std::remove_reference<Components>::type>(
-                 (typename std::remove_reference< typename std::remove_pointer<Components>::type >::type*)comps.ptr, iter->count, comps.is_shared))[row]...);
+                 (typename std::remove_reference< typename std::remove_pointer<Components>::type >::type*)comps.ptr, 
+                    static_cast<size_t>(iter->count), comps.is_shared))[row]...);
         }
     }
 
     // Add components one by one to parameter pack
     template <typename... Targs,
         typename std::enable_if<sizeof...(Targs) != sizeof...(Components), void>::type* = nullptr>
-    static void call_system(ecs_iter_t *iter, Func func, int index, Columns& columns, Targs... comps) {
+    static void call_system(ecs_iter_t *iter, Func func, size_t index, Columns& columns, Targs... comps) {
         call_system(iter, func, index + 1, columns, comps..., columns[index]);
     }
 
@@ -3351,6 +3945,48 @@ private:
     Func m_func;
 };
 
+////////////////////////////////////////////////////////////////////////////////
+//// Utility class to invoke a system iterate action
+////////////////////////////////////////////////////////////////////////////////
+
+template <typename Func, typename ... Components>
+class iter_invoker {
+    using Columns = typename column_args<Components ...>::Columns;
+
+public:
+    explicit iter_invoker(Func func) 
+        : m_func(func) { }
+
+    /* Invoke system */
+    template <typename... Targs,
+        typename std::enable_if<sizeof...(Targs) == sizeof...(Components), void>::type* = nullptr>
+    static void call_system(ecs_iter_t *iter, Func func, size_t index, Columns& columns, Targs... comps) {
+        (void)index;
+        (void)columns;
+        flecs::iter iter_wrapper(iter);
+        func(iter_wrapper, ((typename std::remove_reference< typename std::remove_pointer<Components>::type >::type*)comps.ptr)...);
+    }
+
+    /** Add components one by one to parameter pack */
+    template <typename... Targs,
+        typename std::enable_if<sizeof...(Targs) != sizeof...(Components), void>::type* = nullptr>
+    static void call_system(ecs_iter_t *iter, Func func, size_t index, Columns& columns, Targs... comps) {
+        call_system(iter, func, index + 1, columns, comps..., columns[index]);
+    }
+
+    /** Callback provided to flecs */
+    static void run(ecs_iter_t *iter) {
+        const Context *ctx = ecs_get(iter->world, iter->system, EcsContext);
+        iter_invoker *self = (iter_invoker*)ctx->ctx;        
+        Func func = self->m_func; 
+        column_args<Components...> columns(iter);
+        call_system(iter, func, 0, columns.m_columns);
+    }   
+
+private:
+    Func m_func;
+};
+
 } // namespace _
 
 
@@ -3360,11 +3996,114 @@ private:
 
 class query_base {
 public:
+    /** Get pointer to C query object.
+     */
     query_t* c_ptr() const {
         return m_query;
     }
 
+    /** Sort the output of a query.
+     * This enables sorting of entities across matched tables. As a result of this
+     * operation, the order of entities in the matched tables may be changed. 
+     * Resorting happens when a query iterator is obtained, and only if the table
+     * data has changed.
+     *
+     * If multiple queries that match the same (sub)set of tables specify different 
+     * sorting functions, resorting is likely to happen every time an iterator is
+     * obtained, which can significantly slow down iterations.
+     *
+     * The sorting function will be applied to the specified component. Resorting
+     * only happens if that component has changed, or when the entity order in the
+     * table has changed. If no component is provided, resorting only happens when
+     * the entity order changes.
+     *
+     * @tparam T The component used to sort.
+     * @param compare The compare function used to sort the components.
+     */
+    template <typename T>
+    void order_by(int(*compare)(flecs::entity_t, const T*, flecs::entity_t, const T*)) {
+        ecs_query_order_by(m_world, m_query, 
+            flecs::_::component_info<T>::id(m_world),
+            (ecs_compare_action_t)compare);
+    }
+
+    /** Sort the output of a query.
+     * Same as order_by<T>, but with component identifier.
+     *
+     * @param component The component used to sort.
+     * @param compare The compare function used to sort the components.
+     */
+    void order_by(flecs::entity component, int(*compare)(flecs::entity_t, const void*, flecs::entity_t, const void*)) {
+        ecs_query_order_by(m_world, m_query, component.id(), compare);
+    }    
+
+    /** Group and sort matched tables.
+     * Similar yo ecs_query_order_by, but instead of sorting individual entities, this
+     * operation only sorts matched tables. This can be useful of a query needs to
+     * enforce a certain iteration order upon the tables it is iterating, for 
+     * example by giving a certain component or tag a higher priority.
+     *
+     * The sorting function assigns a "rank" to each type, which is then used to
+     * sort the tables. Tables with higher ranks will appear later in the iteration.
+     * 
+     * Resorting happens when a query iterator is obtained, and only if the set of
+     * matched tables for a query has changed. If table sorting is enabled together
+     * with entity sorting, table sorting takes precedence, and entities will be
+     * sorted within each set of tables that are assigned the same rank.
+     *
+     * @tparam T The component used to determine the group rank.
+     * @param rank The rank action.
+     */
+    template <typename T>
+    void group_by(int(*rank)(flecs::world_t*, flecs::entity_t, flecs::type_t type)) {
+        ecs_query_group_by(m_world, m_query, 
+            flecs::_::component_info<T>::id(m_world), rank);
+    }
+
+    /** Group and sort matched tables.
+     * Same as group_by<T>, but with component identifier.
+     *
+     * @param component The component used to determine the group rank.
+     * @param rank The rank action.
+     */
+    void group_by(flecs::entity component, int(*rank)(flecs::world_t*, flecs::entity_t, flecs::type_t type)) {
+        ecs_query_group_by(m_world, m_query, component.id(), rank);
+    }
+
+    /** Returns whether the query data changed since the last iteration.
+     * This operation must be invoked before obtaining the iterator, as this will
+     * reset the changed state. The operation will return true after:
+     * - new entities have been matched with
+     * - matched entities were deleted
+     * - matched components were changed
+     * 
+     * @return true if entities changed, otherwise false.
+     */
+    bool changed() {
+        return ecs_query_changed(m_query);
+    }
+
+    /** Returns whether query is orphaned.
+     * When the parent query of a subquery is deleted, it is left in an orphaned
+     * state. The only valid operation on an orphaned query is deleting it. Only
+     * subqueries can be orphaned.
+     *
+     * @return true if query is orphaned, otherwise false.
+     */
+    bool orphaned() {
+        return ecs_query_orphaned(m_query);
+    }
+
+    /** Free the query.
+     */
+    void destruct() {
+        ecs_query_free(m_query);
+        m_world = nullptr;
+        m_query = nullptr;
+    }
+
 protected:
+    world_t *m_world;
     query_t *m_query;
 };
 
@@ -3374,6 +4113,7 @@ class query : public query_base {
 
 public:
     query() { 
+        m_world = nullptr;
         m_query = nullptr;
     }
 
@@ -3383,6 +4123,7 @@ public:
             ecs_abort(ECS_INVALID_PARAMETER, NULL);
         }
 
+        m_world = world.c_ptr();
         m_query = ecs_query_new(world.c_ptr(), str.str().c_str());
     }
 
@@ -3392,11 +4133,13 @@ public:
             ecs_abort(ECS_INVALID_PARAMETER, NULL);
         }
 
+        m_world = world.c_ptr();
         m_query = ecs_subquery_new(world.c_ptr(), parent.c_ptr(), str.str().c_str());
-    }    
+    }
 
     explicit query(const world& world, const char *expr) {
         std::stringstream str;
+        m_world = world.c_ptr();
         if (!_::pack_args_to_string<Components...>(world.c_ptr(), str, true)) {
             m_query = ecs_query_new(world.c_ptr(), expr);
         } else {
@@ -3407,13 +4150,14 @@ public:
 
     explicit query(const world& world, query_base& parent, const char *expr) {
         std::stringstream str;
+        m_world = world.c_ptr();
         if (!_::pack_args_to_string<Components...>(world.c_ptr(), str, true)) {
             m_query = ecs_subquery_new(world.c_ptr(), parent.c_ptr(), expr);
         } else {
             str << "," << expr;
             m_query = ecs_subquery_new(world.c_ptr(), parent.c_ptr(), str.str().c_str());
         }
-    }    
+    }
 
     query_iterator<Components...> begin() const;
 
@@ -3421,23 +4165,35 @@ public:
 
     template <typename Func>
     void each(Func func) const {
-        ecs_iter_t iter = ecs_query_iter(m_query);
+        ecs_iter_t it = ecs_query_iter(m_query);
 
-        while (ecs_query_next(&iter)) {
-            _::column_args<Components...> columns(&iter);
+        while (ecs_query_next(&it)) {
+            _::column_args<Components...> columns(&it);
             _::each_invoker<Func, Components...> ctx(func);
-            ctx.call_system(&iter, func, 0, columns.m_columns);
+            ctx.call_system(&it, func, 0, columns.m_columns);
         }
     }
 
+    /* DEPRECATED */
     template <typename Func>
     void action(Func func) const {
-        ecs_iter_t iter = ecs_query_iter(m_query);
+        ecs_iter_t it = ecs_query_iter(m_query);
 
-        while (ecs_query_next(&iter)) {
-            _::column_args<Components...> columns(&iter);
+        while (ecs_query_next(&it)) {
+            _::column_args<Components...> columns(&it);
             _::action_invoker<Func, Components...> ctx(func);
-            ctx.call_system(&iter, func, 0, columns.m_columns);
+            ctx.call_system(&it, func, 0, columns.m_columns);
+        }
+    }  
+
+    template <typename Func>
+    void iter(Func func) const {
+        ecs_iter_t it = ecs_query_iter(m_query);
+
+        while (ecs_query_next(&it)) {
+            _::column_args<Components...> columns(&it);
+            _::iter_invoker<Func, Components...> ctx(func);
+            ctx.call_system(&it, func, 0, columns.m_columns);
         }
     }    
 };
@@ -3533,7 +4289,7 @@ private:
 
 class system_runner_fluent {
 public:
-    system_runner_fluent(world_t *world, entity_t id, float delta_time, void *param)
+    system_runner_fluent(world_t *world, entity_t id, FLECS_FLOAT delta_time, void *param)
         : m_world(world)
         , m_id(id)
         , m_delta_time(delta_time)
@@ -3564,7 +4320,7 @@ public:
 private:
     world_t *m_world;
     entity_t m_id;
-    float m_delta_time;
+    FLECS_FLOAT m_delta_time;
     void *m_param;
     flecs::filter m_filter;
     std::int32_t m_offset;
@@ -3590,6 +4346,10 @@ public:
             ecs_assert(m_id != 0, ECS_INTERNAL_ERROR, NULL);
         }
 
+    explicit system(const flecs::world& world, flecs::entity id) 
+        : entity(world, id.id())
+        , m_finalized(true) { }
+
     system& signature(const char *signature) {
         ecs_assert(!m_finalized, ECS_INVALID_PARAMETER, NULL);
         ecs_assert(!m_signature, ECS_INVALID_PARAMETER, NULL);
@@ -3603,7 +4363,7 @@ public:
         return *this;
     }
 
-    system& interval(float interval) {
+    system& interval(FLECS_FLOAT interval) {
         if (!m_finalized) {
             m_interval = interval;
         } else {
@@ -3612,8 +4372,12 @@ public:
         return *this;
     }
 
+    FLECS_FLOAT interval() {
+        return ecs_get_interval(m_world, m_id);
+    }
+
     // DEPRECATED: use interval instead
-    system& period(float period) {
+    system& period(FLECS_FLOAT period) {
         return this->interval(period);
     }
 
@@ -3637,7 +4401,7 @@ public:
         ecs_enable(m_world, m_id, false);
     }
 
-    void set_period(float period) const {
+    void set_period(FLECS_FLOAT period) const {
         ecs_set_interval(m_world, m_id, period);
     }
 
@@ -3655,19 +4419,17 @@ public:
         }
     }
 
-    system_runner_fluent run(float delta_time = 0.0f, void *param = nullptr) const {
+    system_runner_fluent run(FLECS_FLOAT delta_time = 0.0f, void *param = nullptr) const {
         return system_runner_fluent(m_world, m_id, delta_time, param);
     }
 
-    /* Action (or each) is mandatory and always the last thing that is added in 
-     * the fluent method chain. Create system signature from both template 
-     * parameters and anything provided by the signature method. */
+    /* DEPRECATED. Use iter instead. */
     template <typename Func>
     system& action(Func func) {
         ecs_assert(!m_finalized, ECS_INVALID_PARAMETER, NULL);
         auto ctx = new _::action_invoker<Func, Components...>(func);
 
-        create_system(func, _::action_invoker<Func, Components...>::run, false);
+        create_system(_::action_invoker<Func, Components...>::run, false);
 
         EcsContext ctx_value = {ctx};
         ecs_set_ptr(m_world, m_id, EcsContext, &ctx_value);
@@ -3675,13 +4437,29 @@ public:
         return *this;
     }
 
+     /* Iter (or each) is mandatory and always the last thing that 
+      * is added in the fluent method chain. Create system signature from both 
+      * template parameters and anything provided by the signature method. */
+    template <typename Func>
+    system& iter(Func func) {
+        ecs_assert(!m_finalized, ECS_INVALID_PARAMETER, NULL);
+        auto ctx = new _::iter_invoker<Func, Components...>(func);
+
+        create_system(_::iter_invoker<Func, Components...>::run, false);
+
+        EcsContext ctx_value = {ctx};
+        ecs_set_ptr(m_world, m_id, EcsContext, &ctx_value);
+
+        return *this;
+    }    
+
     /* Each is similar to action, but accepts a function that operates on a
      * single entity */
     template <typename Func>
     system& each(Func func) {
         auto ctx = new _::each_invoker<Func, Components...>(func);
 
-        create_system(func, _::each_invoker<Func, Components...>::run, true);
+        create_system(_::each_invoker<Func, Components...>::run, true);
 
         EcsContext ctx_value = {ctx};
         ecs_set_ptr(m_world, m_id, EcsContext, &ctx_value);
@@ -3691,8 +4469,8 @@ public:
 
     ~system() = default;
 private:
-    template <typename Func, typename Invoker>
-    entity_t create_system(Func func, Invoker invoker, bool is_each) {
+    template <typename Invoker>
+    entity_t create_system(Invoker invoker, bool is_each) {
         ecs_assert(m_id != 0, ECS_INTERNAL_ERROR, NULL);
 
         entity_t e;
@@ -3707,7 +4485,7 @@ private:
 
         if (!signature.length()) {
             signature = "0";
-        }        
+        }
 
         if (is_trigger) {
             e = ecs_new_trigger(
@@ -3729,9 +4507,11 @@ private:
 
         ecs_assert(e == m_id, ECS_INTERNAL_ERROR, NULL);
 
-        if (m_interval) {
+        if (m_interval != 0) {
             ecs_set_interval(m_world, e, m_interval);
         }
+
+        m_finalized = true;
 
         return e;
     }
@@ -3769,11 +4549,11 @@ private:
         } 
 
         return str.str();       
-    }       
+    }
 
     ecs_entity_t m_kind;
     const char *m_signature = nullptr;
-    float m_interval;
+    FLECS_FLOAT m_interval;
     bool m_on_demand;
     bool m_hidden;
     bool m_finalized; // After set to true, call no more fluent functions
@@ -3990,8 +4770,8 @@ public:
         m_reader = ecs_reader_init_w_iter(&it, ecs_snapshot_next);
     }
 
-    std::size_t read(char *buffer, std::size_t size) {
-        return ecs_reader_read(buffer, size, &m_reader);
+    int32_t read(char *buffer, std::int64_t size) {
+        return ecs_reader_read(buffer, static_cast<int32_t>(size), &m_reader);
     }
 
 private:
@@ -4009,8 +4789,8 @@ public:
         m_writer = ecs_writer_init(world.c_ptr());
     }
 
-    int write(const char *buffer, std::size_t size) {
-        return ecs_writer_write(buffer, size, &m_writer);
+    int32_t write(const char *buffer, std::int64_t size) {
+        return ecs_writer_write(buffer, static_cast<int32_t>(size), &m_writer);
     }
 
 private:
@@ -4179,8 +4959,12 @@ inline typename entity_builder<base>::base_type& entity_builder<base>::set_trait
             sizeof(T), &value);
     });
     return *static_cast<base_type*>(this);
-}  
+}
 
+template <typename base>
+inline typename entity_builder<base>::base_type& entity_builder<base>::add_owned(flecs::type type) const {
+    return add_owned(type.id());
+}
 
 template <typename base>
 inline typename entity_builder<base>::base_type& entity_builder<base>::add_switch(const entity& sw) const {
@@ -4212,6 +4996,16 @@ inline typename entity_builder<base>::base_type& entity_builder<base>::remove_ca
     return remove_case(sw_case.id());
 }
 
+template <typename base>
+inline typename entity_builder<base>::base_type& entity_builder<base>::enable(const entity& e) const {
+    return enable(e.id());
+}
+
+template <typename base>
+inline typename entity_builder<base>::base_type& entity_builder<base>::disable(const entity& e) const {
+    return disable(e.id());
+}
+
 inline bool entity::has_switch(flecs::type type) const {
     return ecs_has_entity(m_world, m_id, flecs::Switch | type.id());
 }
@@ -4233,8 +5027,8 @@ inline flecs::world iter::world() const {
     return flecs::world(m_iter->world);
 }
 
-inline flecs::entity iter::entity(int32_t row) const {
-    ecs_assert(row < m_iter->count, ECS_COLUMN_INDEX_OUT_OF_RANGE, NULL);
+inline flecs::entity iter::entity(size_t row) const {
+    ecs_assert(row < (size_t)m_iter->count, ECS_COLUMN_INDEX_OUT_OF_RANGE, NULL);
     return flecs::entity(m_iter->world, m_iter->entities[row]);
 }
 
@@ -4268,37 +5062,25 @@ inline void world::delete_entities(flecs::filter filter) const {
 }
 
 template <typename T>
-inline void world::add() const {
-    ecs_bulk_add_remove_type(
-        m_world, _::component_info<T>::type(m_world), nullptr, nullptr);
-}
-
-template <typename T>
 inline void world::add(flecs::filter filter) const {
     ecs_bulk_add_remove_type(
         m_world, _::component_info<T>::type(m_world), nullptr, filter.c_ptr());
 }
 
-inline void world::add(flecs::type type) const {
-    ecs_bulk_add_remove_type(m_world, type.c_ptr(), nullptr, nullptr);
+inline void world::add(flecs::type t) const {
+    ecs_bulk_add_remove_type(m_world, t.c_ptr(), nullptr, nullptr);
 }
 
-inline void world::add(flecs::type type, flecs::filter filter) const {
-    ecs_bulk_add_remove_type(m_world, type.c_ptr(), nullptr, filter.c_ptr());
+inline void world::add(flecs::type t, flecs::filter filter) const {
+    ecs_bulk_add_remove_type(m_world, t.c_ptr(), nullptr, filter.c_ptr());
 }
 
-inline void world::add(class flecs::entity entity) const {
-    ecs_bulk_add_remove_type(m_world, entity.to_type().c_ptr(), nullptr, nullptr);
+inline void world::add(class flecs::entity e) const {
+    ecs_bulk_add_remove_type(m_world, e.to_type().c_ptr(), nullptr, nullptr);
 }
 
-inline void world::add(class flecs::entity entity, flecs::filter filter) const {
-    ecs_bulk_add_remove_type(m_world, entity.to_type().c_ptr(), nullptr, filter.c_ptr());
-}
-
-template <typename T>
-inline void world::remove() const {
-    ecs_bulk_add_remove_type(
-        m_world, nullptr, _::component_info<T>::type(m_world), nullptr);
+inline void world::add(class flecs::entity e, flecs::filter filter) const {
+    ecs_bulk_add_remove_type(m_world, e.to_type().c_ptr(), nullptr, filter.c_ptr());
 }
 
 template <typename T>
@@ -4307,20 +5089,20 @@ inline void world::remove(flecs::filter filter) const {
         m_world, nullptr, _::component_info<T>::type(m_world), filter.c_ptr());
 }
 
-inline void world::remove(flecs::type type) const {
-    ecs_bulk_add_remove_type(m_world, nullptr, type.c_ptr(), nullptr);
+inline void world::remove(flecs::type t) const {
+    ecs_bulk_add_remove_type(m_world, nullptr, t.c_ptr(), nullptr);
 }
 
-inline void world::remove(flecs::type type, flecs::filter filter) const {
-    ecs_bulk_add_remove_type(m_world, nullptr, type.c_ptr(), filter.c_ptr());
+inline void world::remove(flecs::type t, flecs::filter filter) const {
+    ecs_bulk_add_remove_type(m_world, nullptr, t.c_ptr(), filter.c_ptr());
 }
 
-inline void world::remove(class entity entity) const {
-    ecs_bulk_add_remove_type(m_world, nullptr, entity.to_type().c_ptr(), nullptr);
+inline void world::remove(class entity e) const {
+    ecs_bulk_add_remove_type(m_world, nullptr, e.to_type().c_ptr(), nullptr);
 }
 
-inline void world::remove(class entity entity, flecs::filter filter) const {
-    ecs_bulk_add_remove_type(m_world, nullptr, entity.to_type().c_ptr(), filter.c_ptr());
+inline void world::remove(class entity e, flecs::filter filter) const {
+    ecs_bulk_add_remove_type(m_world, nullptr, e.to_type().c_ptr(), filter.c_ptr());
 }
 
 inline flecs::world_filter world::filter(const flecs::filter& filter) const {
@@ -4345,6 +5127,36 @@ inline void world::init_builtin_components() {
     pod_component<Name>("flecs::core::Name");
 }
 
+template <typename T>
+inline flecs::entity world::use(const char *alias) {
+    entity_t id = _::component_info<T>::id(m_world);
+    const char *name = alias;
+    if (!name) {
+        // If no name is defined, use the entity name without the scope
+        name = ecs_get_name(m_world, id);
+    }
+    ecs_use(m_world, id, name);
+    return flecs::entity(m_world, id);
+}
+
+inline flecs::entity world::use(const char *name, const char *alias) {
+    entity_t id = ecs_lookup_path_w_sep(m_world, 0, name, "::", "::");
+    ecs_assert(id != 0, ECS_INVALID_PARAMETER, NULL);
+
+    ecs_use(m_world, id, alias);
+    return flecs::entity(m_world, id);
+}
+
+inline void world::use(flecs::entity e, const char *alias) {
+    entity_t id = e.id();
+    const char *name = alias;
+    if (!name) {
+        // If no name is defined, use the entity name without the scope
+        ecs_get_name(m_world, id);
+    }
+    ecs_use(m_world, id, alias);
+}
+
 inline entity world::lookup(const char *name) const {
     auto id = ecs_lookup_path_w_sep(m_world, 0, name, "::", "::");
     return flecs::entity(*this, id);
@@ -4353,6 +5165,53 @@ inline entity world::lookup(const char *name) const {
 inline entity world::lookup(std::string& name) const {
     auto id = ecs_lookup_path_w_sep(m_world, 0, name.c_str(), "::", "::");
     return flecs::entity(*this, id);
+}
+
+template <typename T>
+void world::set(T value) const {
+    flecs::entity e(m_world, _::component_info<T>::id(m_world));
+    e.set<T>(value);
+}
+
+template <typename T>
+T* world::get_mut() const {
+    flecs::entity e(m_world, _::component_info<T>::id(m_world));
+    return e.get_mut<T>();
+}
+
+template <typename T>
+void world::modified() const {
+    flecs::entity e(m_world, _::component_info<T>::id(m_world));
+    return e.modified<T>();
+}
+
+template <typename T>
+void world::patch(std::function<void(T&)> func) const {
+    flecs::entity e(m_world, _::component_info<T>::id(m_world));
+    e.patch<T>(func);
+} 
+
+template <typename T>
+const T* world::get() const {
+    flecs::entity e(m_world, _::component_info<T>::id(m_world));
+    return e.get<T>();
+}
+
+template <typename T>
+bool world::has() const {
+    flecs::entity e(m_world, _::component_info<T>::id(m_world));
+    return e.has<T>();
+}
+
+template <typename T>
+void world::remove() const {
+    flecs::entity e(m_world, _::component_info<T>::id(m_world));
+    e.remove<T>();
+}
+
+template <typename T>
+flecs::entity world::singleton() {
+    return flecs::entity(m_world, _::component_info<T>::id(m_world));
 }
 
 template <typename... Args>
@@ -4462,7 +5321,7 @@ bool pack_args_to_string(world_t *world, std::stringstream& str, bool is_each) {
         (optional_modifier<Components>())...
     };        
 
-    int i = 0;
+    size_t i = 0;
     for (auto id : ids) {
         if (i) {
             str << ",";

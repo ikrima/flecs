@@ -1,12 +1,7 @@
 #include <api.h>
 
-static
-void install_test_abort() {
-    ecs_os_set_api_defaults();
-    ecs_os_api_t os_api = ecs_os_api;
-    os_api.abort_ = test_abort;
-    ecs_os_set_api(&os_api);
-    ecs_tracing_enable(-2);
+void Type_setup() {
+    ecs_tracing_enable(-3);
 }
 
 void Type_type_of_1_tostr() {
@@ -80,11 +75,11 @@ void Type_type_from_array() {
 
     ECS_TYPE(world, Type, Position, Velocity);
 
-    ecs_entity_t entities[2] = {ecs_entity(Position), ecs_entity(Velocity)};
+    ecs_entity_t entities[2] = {ecs_typeid(Position), ecs_typeid(Velocity)};
     ecs_type_t t = ecs_type_find(world, entities, 2);
     test_assert(t == ecs_type(Type));
-    test_assert( ecs_type_has_entity(world, t, ecs_entity(Position)));
-    test_assert( ecs_type_has_entity(world, t, ecs_entity(Velocity)));
+    test_assert( ecs_type_has_entity(world, t, ecs_typeid(Position)));
+    test_assert( ecs_type_has_entity(world, t, ecs_typeid(Velocity)));
 
     ecs_fini(world);
 }
@@ -97,11 +92,11 @@ void Type_type_from_array_unsorted() {
 
     ECS_TYPE(world, Type, Position, Velocity);
 
-    ecs_entity_t entities[2] = {ecs_entity(Velocity), ecs_entity(Position)};
+    ecs_entity_t entities[2] = {ecs_typeid(Velocity), ecs_typeid(Position)};
     ecs_type_t t = ecs_type_find(world, entities, 2);
     test_assert(t == ecs_type(Type));
-    test_assert( ecs_type_has_entity(world, t, ecs_entity(Position)));
-    test_assert( ecs_type_has_entity(world, t, ecs_entity(Velocity)));
+    test_assert( ecs_type_has_entity(world, t, ecs_typeid(Position)));
+    test_assert( ecs_type_has_entity(world, t, ecs_typeid(Velocity)));
 
     ecs_fini(world);
 }
@@ -114,8 +109,8 @@ void Type_type_has() {
 
     ECS_TYPE(world, Type, Position, Velocity);
 
-    test_assert( ecs_type_has_entity(world, ecs_type(Type), ecs_entity(Position)));
-    test_assert( ecs_type_has_entity(world, ecs_type(Type), ecs_entity(Velocity)));
+    test_assert( ecs_type_has_entity(world, ecs_type(Type), ecs_typeid(Position)));
+    test_assert( ecs_type_has_entity(world, ecs_type(Type), ecs_typeid(Velocity)));
 
     ecs_fini(world);
 }
@@ -128,8 +123,8 @@ void Type_type_has_not() {
 
     ECS_TYPE(world, Type, Position);
 
-    test_assert( ecs_type_has_entity(world, ecs_type(Type), ecs_entity(Position)));
-    test_assert( !ecs_type_has_entity(world, ecs_type(Type), ecs_entity(Velocity)));
+    test_assert( ecs_type_has_entity(world, ecs_type(Type), ecs_typeid(Position)));
+    test_assert( !ecs_type_has_entity(world, ecs_type(Type), ecs_typeid(Velocity)));
 
     ecs_fini(world);
 }
@@ -139,7 +134,7 @@ void Type_zero_type_has_not() {
 
     ECS_COMPONENT(world, Position);
 
-    test_assert( !ecs_type_has_entity(world, 0, ecs_entity(Position)));
+    test_assert( !ecs_type_has_entity(world, 0, ecs_typeid(Position)));
 
     ecs_fini(world);
 }
@@ -152,11 +147,11 @@ void Type_type_has_prefab() {
 
     ECS_TYPE(world, Type, Position, Velocity);
 
-    ecs_entity_t entities[2] = {ecs_entity(Position), ecs_entity(Velocity) | ECS_INSTANCEOF};
+    ecs_entity_t entities[2] = {ecs_typeid(Position), ecs_typeid(Velocity) | ECS_INSTANCEOF};
     ecs_type_t t = ecs_type_find(world, entities, 2);
     test_assert(t != ecs_type(Type));
-    test_assert( ecs_type_has_entity(world, t, ecs_entity(Position)));
-    test_assert( ecs_type_has_entity(world, t, ECS_INSTANCEOF | ecs_entity(Velocity)));
+    test_assert( ecs_type_has_entity(world, t, ecs_typeid(Position)));
+    test_assert( ecs_type_has_entity(world, t, ECS_INSTANCEOF | ecs_typeid(Velocity)));
 
     ecs_fini(world);
 }
@@ -169,11 +164,11 @@ void Type_type_has_container() {
 
     ECS_TYPE(world, Type, Position, Velocity);
 
-    ecs_entity_t entities[2] = {ecs_entity(Position), ecs_entity(Velocity) | ECS_CHILDOF};
+    ecs_entity_t entities[2] = {ecs_typeid(Position), ecs_typeid(Velocity) | ECS_CHILDOF};
     ecs_type_t t = ecs_type_find(world, entities, 2);
     test_assert(t != ecs_type(Type));
-    test_assert( ecs_type_has_entity(world, t, ecs_entity(Position)));
-    test_assert( ecs_type_has_entity(world, t, ECS_CHILDOF | ecs_entity(Velocity)));
+    test_assert( ecs_type_has_entity(world, t, ecs_typeid(Position)));
+    test_assert( ecs_type_has_entity(world, t, ECS_CHILDOF | ecs_typeid(Velocity)));
 
     ecs_fini(world);
 }
@@ -186,11 +181,11 @@ void Type_type_has_prefab_container() {
 
     ECS_TYPE(world, Type, Position, Velocity);
 
-    ecs_entity_t entities[2] = {ecs_entity(Position), ecs_entity(Velocity) | ECS_INSTANCEOF | ECS_CHILDOF};
+    ecs_entity_t entities[2] = {ecs_typeid(Position), ecs_typeid(Velocity) | ECS_INSTANCEOF | ECS_CHILDOF};
     ecs_type_t t = ecs_type_find(world, entities, 2);
     test_assert(t != ecs_type(Type));
-    test_assert( ecs_type_has_entity(world, t, ecs_entity(Position)));
-    test_assert( ecs_type_has_entity(world, t, ECS_INSTANCEOF | ECS_CHILDOF | ecs_entity(Velocity)));
+    test_assert( ecs_type_has_entity(world, t, ecs_typeid(Position)));
+    test_assert( ecs_type_has_entity(world, t, ECS_INSTANCEOF | ECS_CHILDOF | ecs_typeid(Velocity)));
 
     ecs_fini(world);
 }
@@ -203,7 +198,7 @@ void Type_type_has_trait() {
 
     ECS_TYPE(world, Type, TRAIT | Trait > Position);
 
-    ecs_entity_t entities[2] = {ecs_trait(ecs_entity(Position), Trait)};
+    ecs_entity_t entities[2] = {ecs_trait(ecs_typeid(Position), Trait)};
     ecs_type_t t = ecs_type_find(world, entities, 1);
     test_assert(t == ecs_type(Type));
     test_assert( ecs_type_has_entity(world, t, ECS_TRAIT | Trait));
@@ -219,10 +214,10 @@ void Type_type_has_trait_exact() {
 
     ECS_TYPE(world, Type, TRAIT | Trait > Position);
 
-    ecs_entity_t entities[2] = {ecs_trait(ecs_entity(Position), Trait)};
+    ecs_entity_t entities[2] = {ecs_trait(ecs_typeid(Position), Trait)};
     ecs_type_t t = ecs_type_find(world, entities, 1);
     test_assert(t == ecs_type(Type));
-    test_assert( ecs_type_has_entity(world, t, ecs_trait(ecs_entity(Position), Trait)));
+    test_assert( ecs_type_has_entity(world, t, ecs_trait(ecs_typeid(Position), Trait)));
 
     ecs_fini(world);
 }
@@ -287,7 +282,7 @@ void Type_type_owns_trait() {
 
     ECS_TYPE(world, Type, TRAIT | Trait > Position);
 
-    ecs_entity_t entities[2] = {ecs_trait(ecs_entity(Position), Trait)};
+    ecs_entity_t entities[2] = {ecs_trait(ecs_typeid(Position), Trait)};
     ecs_type_t t = ecs_type_find(world, entities, 1);
     test_assert(t == ecs_type(Type));
     test_assert( ecs_type_owns_entity(world, t, ECS_TRAIT | Trait, true));
@@ -303,10 +298,10 @@ void Type_type_owns_trait_exact() {
 
     ECS_TYPE(world, Type, TRAIT | Trait > Position);
 
-    ecs_entity_t entities[2] = {ecs_trait(ecs_entity(Position), Trait)};
+    ecs_entity_t entities[2] = {ecs_trait(ecs_typeid(Position), Trait)};
     ecs_type_t t = ecs_type_find(world, entities, 1);
     test_assert(t == ecs_type(Type));
-    test_assert( ecs_type_owns_entity(world, t, ecs_trait(ecs_entity(Position), Trait), true));
+    test_assert( ecs_type_owns_entity(world, t, ecs_trait(ecs_typeid(Position), Trait), true));
 
     ecs_fini(world);
 }
@@ -378,9 +373,9 @@ void Type_type_merge() {
     test_int( ecs_vector_count(t), 3);
 
     ecs_entity_t *entities = ecs_vector_first(t, ecs_entity_t);
-    test_int(entities[0], ecs_entity(Position));
-    test_int(entities[1], ecs_entity(Velocity));
-    test_int(entities[2], ecs_entity(Mass));
+    test_int(entities[0], ecs_typeid(Position));
+    test_int(entities[1], ecs_typeid(Velocity));
+    test_int(entities[2], ecs_typeid(Mass));
 
     ecs_fini(world);
 }
@@ -400,9 +395,9 @@ void Type_type_merge_overlap() {
     test_int( ecs_vector_count(t), 3);
 
     ecs_entity_t *entities = ecs_vector_first(t, ecs_entity_t);
-    test_int(entities[0], ecs_entity(Position));
-    test_int(entities[1], ecs_entity(Velocity));
-    test_int(entities[2], ecs_entity(Mass));
+    test_int(entities[0], ecs_typeid(Position));
+    test_int(entities[1], ecs_typeid(Velocity));
+    test_int(entities[2], ecs_typeid(Mass));
 
     ecs_fini(world);
 }
@@ -422,8 +417,8 @@ void Type_type_merge_overlap_one() {
     test_int( ecs_vector_count(t), 2);
 
     ecs_entity_t *entities = ecs_vector_first(t, ecs_entity_t);
-    test_int(entities[0], ecs_entity(Position));
-    test_int(entities[1], ecs_entity(Velocity));
+    test_int(entities[0], ecs_typeid(Position));
+    test_int(entities[1], ecs_typeid(Velocity));
 
     ecs_fini(world);
 }
@@ -438,8 +433,8 @@ void Type_type_merge_overlap_w_flag() {
     ECS_TYPE(world, Type1, Position, Velocity);
 
     ecs_entity_t type2_entities[2];
-    type2_entities[0] = ecs_entity(Mass);
-    type2_entities[1] = ecs_entity(Velocity) | ECS_INSTANCEOF;
+    type2_entities[0] = ecs_typeid(Mass);
+    type2_entities[1] = ecs_typeid(Velocity) | ECS_INSTANCEOF;
     ecs_type_t type2 = ecs_type_find(world, type2_entities, 2);
 
     ecs_type_t t = ecs_type_merge(world, ecs_type(Type1), type2, 0);
@@ -447,10 +442,10 @@ void Type_type_merge_overlap_w_flag() {
     test_int( ecs_vector_count(t), 4);
 
     ecs_entity_t *entities = ecs_vector_first(t, ecs_entity_t);
-    test_int(entities[0], ecs_entity(Position));
-    test_int(entities[1], ecs_entity(Velocity));
-    test_int(entities[2], ecs_entity(Mass));
-    test_int(entities[3], ecs_entity(Velocity) | ECS_INSTANCEOF);
+    test_int(entities[0], ecs_typeid(Position));
+    test_int(entities[1], ecs_typeid(Velocity));
+    test_int(entities[2], ecs_typeid(Mass));
+    test_int(entities[3], ecs_typeid(Velocity) | ECS_INSTANCEOF);
 
     ecs_fini(world);
 }
@@ -463,13 +458,13 @@ void Type_type_merge_overlap_w_flags_from_both() {
     ECS_COMPONENT(world, Mass);
 
     ecs_entity_t type1_entities[2];
-    type1_entities[0] = ecs_entity(Position);
-    type1_entities[1] = ecs_entity(Velocity) | ECS_CHILDOF;
+    type1_entities[0] = ecs_typeid(Position);
+    type1_entities[1] = ecs_typeid(Velocity) | ECS_CHILDOF;
     ecs_type_t ecs_type(Type1) = ecs_type_find(world, type1_entities, 2);
 
     ecs_entity_t type2_entities[2];
-    type2_entities[0] = ecs_entity(Mass);
-    type2_entities[1] = ecs_entity(Velocity) | ECS_INSTANCEOF;
+    type2_entities[0] = ecs_typeid(Mass);
+    type2_entities[1] = ecs_typeid(Velocity) | ECS_INSTANCEOF;
     ecs_type_t type2 = ecs_type_find(world, type2_entities, 2);
 
     ecs_type_t t = ecs_type_merge(world, ecs_type(Type1), type2, 0);
@@ -477,10 +472,10 @@ void Type_type_merge_overlap_w_flags_from_both() {
     test_int( ecs_vector_count(t), 4);
 
     ecs_entity_t *entities = ecs_vector_first(t, ecs_entity_t);
-    test_int(entities[0], ecs_entity(Position));
-    test_int(entities[1], ecs_entity(Mass));
-    test_int(entities[2], ecs_entity(Velocity) | ECS_CHILDOF);
-    test_int(entities[3], ecs_entity(Velocity) | ECS_INSTANCEOF);
+    test_int(entities[0], ecs_typeid(Position));
+    test_int(entities[1], ecs_typeid(Mass));
+    test_int(entities[2], ecs_typeid(Velocity) | ECS_CHILDOF);
+    test_int(entities[3], ecs_typeid(Velocity) | ECS_INSTANCEOF);
 
     ecs_fini(world);
 }
@@ -493,15 +488,15 @@ void Type_type_add() {
     ECS_COMPONENT(world, Velocity);
     ECS_TYPE(world, Type, Position);
 
-    ecs_type_t new_type = ecs_type_add(world, ecs_type(Type), ecs_entity(Velocity));
+    ecs_type_t new_type = ecs_type_add(world, ecs_type(Type), ecs_typeid(Velocity));
     test_assert(new_type != NULL);
     test_assert(new_type != ecs_type(Type));
 
     ecs_entity_t *type_array = ecs_vector_first(new_type, ecs_entity_t);
     test_assert(type_array != NULL);
     test_int(ecs_vector_count(new_type), 2);
-    test_int(type_array[0], ecs_entity(Position));
-    test_int(type_array[1], ecs_entity(Velocity));
+    test_int(type_array[0], ecs_typeid(Position));
+    test_int(type_array[1], ecs_typeid(Velocity));
 
     ecs_fini(world);
 }
@@ -512,13 +507,13 @@ void Type_type_add_empty() {
     ECS_COMPONENT(world, Position);
     ECS_COMPONENT(world, Velocity);
 
-    ecs_type_t new_type = ecs_type_add(world, NULL, ecs_entity(Velocity));
+    ecs_type_t new_type = ecs_type_add(world, NULL, ecs_typeid(Velocity));
     test_assert(new_type != NULL);
 
     ecs_entity_t *type_array = ecs_vector_first(new_type, ecs_entity_t);
     test_assert(type_array != NULL);
     test_int(ecs_vector_count(new_type), 1);
-    test_int(type_array[0], ecs_entity(Velocity));
+    test_int(type_array[0], ecs_typeid(Velocity));
 
     ecs_fini(world);
 }
@@ -530,15 +525,15 @@ void Type_type_add_entity_again() {
     ECS_COMPONENT(world, Velocity);
     ECS_TYPE(world, Type, Position, Velocity);
 
-    ecs_type_t new_type = ecs_type_add(world, ecs_type(Type), ecs_entity(Velocity));
+    ecs_type_t new_type = ecs_type_add(world, ecs_type(Type), ecs_typeid(Velocity));
     test_assert(new_type != NULL);
     test_assert(new_type == ecs_type(Type));
 
     ecs_entity_t *type_array = ecs_vector_first(new_type, ecs_entity_t);
     test_assert(type_array != NULL);
     test_int(ecs_vector_count(new_type), 2);
-    test_int(type_array[0], ecs_entity(Position));
-    test_int(type_array[1], ecs_entity(Velocity));
+    test_int(type_array[0], ecs_typeid(Position));
+    test_int(type_array[1], ecs_typeid(Velocity));
 
     ecs_fini(world);
 }
@@ -550,15 +545,15 @@ void Type_type_add_out_of_order() {
     ECS_COMPONENT(world, Velocity);
     ECS_TYPE(world, Type, Velocity);
 
-    ecs_type_t new_type = ecs_type_add(world, ecs_type(Type), ecs_entity(Position));
+    ecs_type_t new_type = ecs_type_add(world, ecs_type(Type), ecs_typeid(Position));
     test_assert(new_type != NULL);
     test_assert(new_type != ecs_type(Type));
 
     ecs_entity_t *type_array = ecs_vector_first(new_type, ecs_entity_t);
     test_assert(type_array != NULL);
     test_int(ecs_vector_count(new_type), 2);
-    test_int(type_array[0], ecs_entity(Position));
-    test_int(type_array[1], ecs_entity(Velocity));
+    test_int(type_array[0], ecs_typeid(Position));
+    test_int(type_array[1], ecs_typeid(Velocity));
 
     ecs_fini(world);
 }
@@ -571,7 +566,7 @@ void Type_type_add_existing() {
     ECS_TYPE(world, Type1, Position, Velocity);
     ECS_TYPE(world, Type2, Position);
 
-    ecs_type_t new_type = ecs_type_add(world, ecs_type(Type2), ecs_entity(Velocity));
+    ecs_type_t new_type = ecs_type_add(world, ecs_type(Type2), ecs_typeid(Velocity));
     test_assert(new_type != NULL);
     test_assert(new_type != ecs_type(Type2));
     test_assert(new_type == ecs_type(Type1));
@@ -579,8 +574,8 @@ void Type_type_add_existing() {
     ecs_entity_t *type_array = ecs_vector_first(new_type, ecs_entity_t);
     test_assert(type_array != NULL);
     test_int(ecs_vector_count(new_type), 2);
-    test_int(type_array[0], ecs_entity(Position));
-    test_int(type_array[1], ecs_entity(Velocity));
+    test_int(type_array[0], ecs_typeid(Position));
+    test_int(type_array[1], ecs_typeid(Velocity));
 
     ecs_fini(world);
 }
@@ -591,14 +586,14 @@ void Type_type_add_empty_existing() {
     ECS_COMPONENT(world, Velocity);
     ECS_TYPE(world, Type1, Velocity);
 
-    ecs_type_t new_type = ecs_type_add(world,  NULL, ecs_entity(Velocity));
+    ecs_type_t new_type = ecs_type_add(world,  NULL, ecs_typeid(Velocity));
     test_assert(new_type != NULL);
     test_assert(new_type == ecs_type(Type1));
 
     ecs_entity_t *type_array = ecs_vector_first(new_type, ecs_entity_t);
     test_assert(type_array != NULL);
     test_int(ecs_vector_count(new_type), 1);
-    test_int(type_array[0], ecs_entity(Velocity));
+    test_int(type_array[0], ecs_typeid(Velocity));
 
     ecs_fini(world);
 }
@@ -611,7 +606,7 @@ void Type_type_add_out_of_order_existing() {
     ECS_TYPE(world, Type1, Velocity);
     ECS_TYPE(world, Type2, Position, Velocity);
 
-    ecs_type_t new_type = ecs_type_add(world, ecs_type(Type1), ecs_entity(Position));
+    ecs_type_t new_type = ecs_type_add(world, ecs_type(Type1), ecs_typeid(Position));
     test_assert(new_type != NULL);
     test_assert(new_type != ecs_type(Type1));
     test_assert(new_type == ecs_type(Type2));
@@ -619,8 +614,8 @@ void Type_type_add_out_of_order_existing() {
     ecs_entity_t *type_array = ecs_vector_first(new_type, ecs_entity_t);
     test_assert(type_array != NULL);
     test_int(ecs_vector_count(new_type), 2);
-    test_int(type_array[0], ecs_entity(Position));
-    test_int(type_array[1], ecs_entity(Velocity));
+    test_int(type_array[0], ecs_typeid(Position));
+    test_int(type_array[1], ecs_typeid(Velocity));
 
     ecs_fini(world);
 }
@@ -633,16 +628,16 @@ void Type_type_of_2_add() {
     ECS_COMPONENT(world, Mass);
     ECS_TYPE(world, Type, Position, Mass);
 
-    ecs_type_t new_type = ecs_type_add(world, ecs_type(Type), ecs_entity(Velocity));
+    ecs_type_t new_type = ecs_type_add(world, ecs_type(Type), ecs_typeid(Velocity));
     test_assert(new_type != NULL);
     test_assert(new_type != ecs_type(Type));
 
     ecs_entity_t *type_array = ecs_vector_first(new_type, ecs_entity_t);
     test_assert(type_array != NULL);
     test_int(ecs_vector_count(new_type), 3);
-    test_int(type_array[0], ecs_entity(Velocity));
-    test_int(type_array[1], ecs_entity(Position));
-    test_int(type_array[2], ecs_entity(Mass));
+    test_int(type_array[0], ecs_typeid(Velocity));
+    test_int(type_array[1], ecs_typeid(Position));
+    test_int(type_array[2], ecs_typeid(Mass));
 
     ecs_fini(world);
 }
@@ -655,16 +650,16 @@ void Type_type_of_3_add_entity_again() {
     ECS_COMPONENT(world, Mass);
     ECS_TYPE(world, Type, Velocity, Position, Mass);
 
-    ecs_type_t new_type = ecs_type_add(world, ecs_type(Type), ecs_entity(Velocity));
+    ecs_type_t new_type = ecs_type_add(world, ecs_type(Type), ecs_typeid(Velocity));
     test_assert(new_type != NULL);
     test_assert(new_type == ecs_type(Type));
 
     ecs_entity_t *type_array = ecs_vector_first(new_type, ecs_entity_t);
     test_assert(type_array != NULL);
     test_int(ecs_vector_count(new_type), 3);
-    test_int(type_array[0], ecs_entity(Velocity));
-    test_int(type_array[1], ecs_entity(Position));
-    test_int(type_array[2], ecs_entity(Mass));
+    test_int(type_array[0], ecs_typeid(Velocity));
+    test_int(type_array[1], ecs_typeid(Position));
+    test_int(type_array[2], ecs_typeid(Mass));
 
     ecs_fini(world);
 }
@@ -748,30 +743,6 @@ void Type_type_from_empty_entity() {
     ecs_fini(world);
 }
 
-static
-void TypeFromEntity(ecs_iter_t *it) {
-    ecs_entity_t e = ecs_new(it->world, 0);
-    test_assert(e != 0);
-
-    ecs_type_t t = ecs_type_from_entity(it->world, e);
-    test_assert(t != NULL);
-
-    test_int(ecs_vector_count(t), 1);
-
-    ecs_entity_t *array = ecs_vector_first(t, ecs_entity_t);
-    test_int(array[0], e);
-}
-
-void Type_type_from_empty_entity_in_progress() {
-    ecs_world_t *world = ecs_init();
-
-    ECS_SYSTEM(world, TypeFromEntity, EcsOnUpdate, 0);
-
-    ecs_progress(world, 1);
-
-    ecs_fini(world);
-}
-
 void Type_get_type() {
     ecs_world_t *world = ecs_init();
 
@@ -785,7 +756,7 @@ void Type_get_type() {
     
     ecs_entity_t *type_array = ecs_vector_first(t, ecs_entity_t);
     test_assert(type_array != NULL);
-    test_int(type_array[0], ecs_entity(Position));
+    test_int(type_array[0], ecs_typeid(Position));
 
     ecs_fini(world);
 }
@@ -819,7 +790,7 @@ void Type_entity_from_type() {
 
     ecs_entity_t e = ecs_type_to_entity(world, ecs_type(MyType));
     test_assert(e != 0);
-    test_assert(e == ecs_entity(Position));
+    test_assert(e == ecs_typeid(Position));
 
     ecs_fini(world);
 }
@@ -898,14 +869,14 @@ void Type_type_remove() {
     ECS_COMPONENT(world, Velocity);
     ECS_TYPE(world, Type, Position, Velocity);
 
-    ecs_type_t new_type = ecs_type_remove(world, ecs_type(Type), ecs_entity(Velocity));
+    ecs_type_t new_type = ecs_type_remove(world, ecs_type(Type), ecs_typeid(Velocity));
     test_assert(new_type != NULL);
     test_assert(new_type != ecs_type(Type));
 
     ecs_entity_t *type_array = ecs_vector_first(new_type, ecs_entity_t);
     test_assert(type_array != NULL);
     test_int(ecs_vector_count(new_type), 1);
-    test_int(type_array[0], ecs_entity(Position));
+    test_int(type_array[0], ecs_typeid(Position));
 
     ecs_fini(world);
 }
@@ -916,7 +887,7 @@ void Type_type_remove_empty() {
     ECS_COMPONENT(world, Position);
     ECS_TYPE(world, Type, 0);
 
-    ecs_type_t new_type = ecs_type_remove(world, ecs_type(Type), ecs_entity(Position));
+    ecs_type_t new_type = ecs_type_remove(world, ecs_type(Type), ecs_typeid(Position));
     test_assert(new_type == NULL);
 
     ecs_fini(world);
@@ -929,7 +900,7 @@ void Type_type_remove_non_existing() {
     ECS_COMPONENT(world, Velocity);
     ECS_TYPE(world, Type, Position);
 
-    ecs_type_t new_type = ecs_type_remove(world, ecs_type(Type), ecs_entity(Velocity));
+    ecs_type_t new_type = ecs_type_remove(world, ecs_type(Type), ecs_typeid(Velocity));
     test_assert(new_type != NULL);
     test_assert(new_type == ecs_type(Type));
 
@@ -1046,8 +1017,8 @@ void Type_type_from_expr() {
 
     ecs_type_t type = ecs_type_from_str(world, "Position, Velocity");
     test_int(ecs_vector_count(type), 2);
-    test_assert(ecs_type_has_entity(world, type, ecs_entity(Position)));
-    test_assert(ecs_type_has_entity(world, type, ecs_entity(Velocity)));
+    test_assert(ecs_type_has_entity(world, type, ecs_typeid(Position)));
+    test_assert(ecs_type_has_entity(world, type, ecs_typeid(Velocity)));
 
     ecs_fini(world);
 }
@@ -1064,8 +1035,8 @@ void Type_type_from_expr_scope() {
 
     ecs_type_t type = ecs_type_from_str(world, "Position, scope.Velocity");
     test_int(ecs_vector_count(type), 2);
-    test_assert(ecs_type_has_entity(world, type, ecs_entity(Position)));
-    test_assert(ecs_type_has_entity(world, type, ecs_entity(Velocity)));
+    test_assert(ecs_type_has_entity(world, type, ecs_typeid(Position)));
+    test_assert(ecs_type_has_entity(world, type, ecs_typeid(Velocity)));
 
     ecs_fini(world);
 }
@@ -1125,7 +1096,7 @@ void Type_type_from_expr_trait_w_comp() {
 
     ecs_type_t type = ecs_type_from_str(world, "TRAIT | Trait > Position");
     test_int(ecs_vector_count(type), 1);
-    test_assert(ecs_type_has_entity(world, type, ecs_trait(ecs_entity(Position), Trait)));
+    test_assert(ecs_type_has_entity(world, type, ecs_trait(ecs_typeid(Position), Trait)));
 
     ecs_fini(world);
 }
@@ -1293,6 +1264,22 @@ void Type_entity_not_str() {
     ecs_fini(world);
 }
 
+void Type_entity_str_small_buffer() {
+    ecs_world_t *world = ecs_init();
+
+    ECS_ENTITY(world, Foo, 0);
+
+    ecs_entity_t e = ECS_INSTANCEOF | Foo;
+
+    char buffer[10];
+    size_t result = ecs_entity_str(world, e, buffer, 10);
+    test_str(buffer, "INSTANCEO");
+    test_int(strlen(buffer), 9);
+    test_int(strlen("INSTANCEOF|Foo"), result);
+
+    ecs_fini(world);
+}
+
 void Type_role_childof_str() {
     ecs_entity_t e = ECS_CHILDOF;
     test_str(ecs_role_str(e), "CHILDOF");
@@ -1336,4 +1323,14 @@ void Type_role_xor_str() {
 void Type_role_not_str() {
     ecs_entity_t e = ECS_NOT;
     test_str(ecs_role_str(e), "NOT");
+}
+
+void Type_role_owned_str() {
+    ecs_entity_t e = ECS_OWNED;
+    test_str(ecs_role_str(e), "OWNED");
+}
+
+void Type_role_disabled_str() {
+    ecs_entity_t e = ECS_DISABLED;
+    test_str(ecs_role_str(e), "DISABLED");
 }

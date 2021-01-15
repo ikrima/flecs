@@ -544,7 +544,10 @@ void Entity_delete() {
     test_assert(!e.has<Velocity>());
 
     auto e2 = world.entity();
-    test_assert(e2.id() == e.id());
+
+    // Entity ids should be equal without the generation
+    test_assert((int32_t)e2.id() == (int32_t)e.id());
+    test_assert(e2.id() != e.id());
 }
 
 void Entity_clear() {
@@ -616,4 +619,182 @@ void Entity_force_owned_nested() {
     test_assert(e.owns<Position>());
     test_assert(e.has<Velocity>());
     test_assert(!e.owns<Velocity>());
+}
+
+void Entity_force_owned_type() {
+    flecs::world world;
+
+    auto type = world.type()
+        .add<Position>()
+        .add<Velocity>();
+
+    auto prefab = world.prefab()
+        .add<Position>()
+        .add<Velocity>()
+        .add<Rotation>()
+        .add_owned(type);
+
+    auto e = world.entity()
+        .add_instanceof(prefab);
+    
+    test_assert(e.has<Position>());
+    test_assert(e.owns<Position>());
+    test_assert(e.has<Velocity>());
+    test_assert(e.owns<Velocity>());
+    test_assert(e.has<Rotation>());
+    test_assert(!e.owns<Rotation>());
+}
+
+void Entity_force_owned_type_w_trait() {
+    flecs::world world;
+
+    auto type = world.type()
+        .add_trait<Position, Velocity>()
+        .add<Velocity>();
+
+    auto prefab = world.prefab()
+        .add_trait<Position, Velocity>()
+        .add<Rotation>()
+        .add_owned(type);
+
+    auto e = world.entity()
+        .add_instanceof(prefab);
+    
+    test_assert((e.has_trait<Position, Velocity>()));
+    test_assert(e.has<Rotation>());
+    test_assert(!e.owns<Rotation>());
+
+    const Position *pp = prefab.get_trait<Position, Velocity>();
+    const Position *p = e.get_trait<Position, Velocity>();
+    test_assert(pp != p);
+}
+
+struct MyTag { };
+
+void Entity_tag_has_size_zero() {
+    flecs::world world;
+
+    auto comp = world.component<MyTag>();
+
+    auto ptr = comp.get<flecs::Component>();
+    test_int(ptr->size, 0);
+    test_int(ptr->alignment, 0);
+}
+
+void Entity_get_null_name() {
+    flecs::world world;
+
+    auto e = world.entity()
+        .set<flecs::Name>({nullptr});
+
+    auto n = e.name();
+    test_assert(n.size() == 0);
+}
+
+void Entity_get_parent() {
+    flecs::world world;
+
+    auto parent1 = world.entity()
+        .add<Position>();
+
+    auto parent2 = world.entity()
+        .add<Velocity>();
+
+    auto parent3 = world.entity()
+        .add<Mass>();
+
+    auto child = world.entity()
+        .add_childof(parent1)
+        .add_childof(parent2)
+        .add_childof(parent3);
+
+    auto p = child.get_parent<Velocity>();
+    test_assert(p.id() != 0);
+    test_assert(p == parent2);
+}
+
+void Entity_get_parent_w_tag() {
+    flecs::world world;
+
+    auto TagA = world.entity();
+    auto TagB = world.entity();
+    auto TagC = world.entity();
+
+    auto parent1 = world.entity()
+        .add(TagA);
+
+    auto parent2 = world.entity()
+        .add(TagB);
+
+    auto parent3 = world.entity()
+        .add(TagC);
+
+    auto child = world.entity()
+        .add_childof(parent1)
+        .add_childof(parent2)
+        .add_childof(parent3);
+
+    auto p = child.get_parent(TagB);
+    test_assert(p.id() != 0);
+    test_assert(p == parent2);
+}
+
+void Entity_is_component_enabled() {
+    flecs::world world;
+
+    auto e = world.entity()
+        .add<Position>();
+
+    test_assert(e.is_enabled<Position>());
+}
+
+void Entity_is_enabled_component_enabled() {
+    flecs::world world;
+
+    auto e = world.entity()
+        .add<Position>()
+        .enable<Position>();
+
+    test_assert(e.is_enabled<Position>());
+}
+
+void Entity_is_disabled_component_enabled() {
+    flecs::world world;
+
+    auto e = world.entity()
+        .add<Position>()
+        .disable<Position>();
+
+    test_assert(!e.is_enabled<Position>());
+}
+
+void Entity_get_type() {
+    flecs::world world;
+
+    auto entity = world.entity();
+    test_assert(entity.id() != 0);
+
+    auto type_1 = entity.type();
+    test_assert(type_1.id() == 0);
+    test_int(type_1.vector().size(), 0);
+
+    auto type_2 = entity.type();
+    test_assert(type_2.id() == 0);
+    test_int(type_1.vector().size(), 0);
+}
+
+void Entity_get_nonempty_type() {
+    flecs::world world;
+
+    auto entity = world.entity()
+        .add<Position>();
+    test_assert(entity.id() != 0);
+
+    auto type_1 = entity.type();
+    test_assert(type_1.id() == 0);
+    test_int(type_1.vector().size(), 1);
+
+    auto type_2 = entity.type();
+    test_assert(type_2.id() == 0);
+    test_int(type_1.vector().size(), 1);
 }

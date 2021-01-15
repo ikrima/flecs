@@ -41,6 +41,11 @@ typedef struct ecs_data_t ecs_data_t;
 //// Non-opaque types
 ////////////////////////////////////////////////////////////////////////////////
 
+struct ecs_record_t {
+    ecs_table_t *table;  /* Identifies a type (and table) in world */
+    int32_t row;         /* Table row of the entity */
+};
+
 /** Cached reference. */
 struct ecs_ref_t {
     ecs_entity_t entity;    /**< Entity of the reference */
@@ -48,7 +53,6 @@ struct ecs_ref_t {
     void *table;            /**< Last known table */
     int32_t row;            /**< Last known location in table */
     int32_t alloc_count;    /**< Last known alloc count of table */
-    ecs_stage_t *stage;     /**< Last known stage */
     ecs_record_t *record;   /**< Pointer to record, if in main stage */
     const void *ptr;        /**< Cached ptr */
 };
@@ -70,11 +74,22 @@ typedef struct ecs_page_iter_t {
     int32_t remaining;
 } ecs_page_iter_t;
 
+/** Table specific data for iterators */
+typedef struct ecs_iter_table_t {
+    int32_t *columns;        /**< Mapping from query columns to table columns */
+    ecs_table_t *table;       /**< The current table. */
+    ecs_data_t *data;         /**< Table component data */
+    ecs_entity_t *components; /**< Components in current table */
+    ecs_type_t *types;        /**< Components in current table */
+    ecs_ref_t *references;    /**< References to entities (from query) */
+} ecs_iter_table_t;
+
 /** Scope-iterator specific data */
 typedef struct ecs_scope_iter_t {
     ecs_filter_t filter;
     ecs_vector_t *tables;
     int32_t index;
+    ecs_iter_table_t table;
 } ecs_scope_iter_t;
 
 /** Filter-iterator specific data */
@@ -82,15 +97,24 @@ typedef struct ecs_filter_iter_t {
     ecs_filter_t filter;
     ecs_sparse_t *tables;
     int32_t index;
+    ecs_iter_table_t table;
 } ecs_filter_iter_t;
+
+/** Iterator flags used to quickly select the optimal iterator algorithm */
+typedef enum ecs_query_iter_kind_t {
+    EcsQuerySimpleIter,     /**< No paging, sorting or sparse columns */
+    EcsQueryPagedIter,      /**< Regular iterator with paging */
+    EcsQuerySortedIter,     /**< Sorted iterator */
+    EcsQuerySwitchIter      /**< Switch type iterator */
+} ecs_query_iter_kind_t;
 
 /** Query-iterator specific data */
 typedef struct ecs_query_iter_t {
-    ecs_query_t *query;
     ecs_page_iter_t page_iter;
     int32_t index;
     int32_t sparse_smallest;
     int32_t sparse_first;
+    int32_t bitset_first;
 } ecs_query_iter_t;  
 
 /** Query-iterator specific data */
@@ -98,41 +122,43 @@ typedef struct ecs_snapshot_iter_t {
     ecs_filter_t filter;
     ecs_vector_t *tables; /* ecs_table_leaf_t */
     int32_t index;
+    ecs_iter_table_t table;
 } ecs_snapshot_iter_t;  
 
 /** The ecs_iter_t struct allows applications to iterate tables.
  * Queries and filters, among others, allow an application to iterate entities
  * that match a certain set of components. Because of how data is stored 
- * internally, entiites with a given set of components may be stored in multiple
+ * internally, entities with a given set of components may be stored in multiple
  * consecutive arrays, stored across multiple tables. The ecs_iter_t type 
  * enables iteration across tables. */
 struct ecs_iter_t {
-    ecs_world_t *world;          /**< The world */
-    ecs_entity_t system;         /**< The current system (if applicable) */
+    ecs_world_t *world;           /**< The world */
+    ecs_world_t *real_world;      /**< Actual world. This differs from world when using threads.  */
+    ecs_entity_t system;          /**< The current system (if applicable) */
+    ecs_query_iter_kind_t kind;
 
-    int32_t *columns;        /**< Mapping from query columns to table columns */
-    int32_t table_count;         /**< Active table count for query */
+    ecs_iter_table_t *table;      /**< Table related data */
+    ecs_query_t *query;           /**< Current query being evaluated */
+    int32_t table_count;          /**< Active table count for query */
     int32_t inactive_table_count; /**< Inactive table count for query */
-    int32_t column_count;        /**< Number of columns for system */
-    ecs_table_t *table;          /**< The current table. */
-    void *table_columns;         /**< Table component data */
-    ecs_query_t *query;          /**< Current query being evaluated */
-    ecs_ref_t *references;       /**< References to entities (from query) */
-    ecs_entity_t *components;    /**< Components in current table */
-    ecs_entity_t *entities;      /**< Entity identifiers */
+    int32_t column_count;         /**< Number of columns for system */
+    
+    void *table_columns;          /**< Table component data */
+    ecs_entity_t *entities;       /**< Entity identifiers */
 
-    void *param;                 /**< User data passed system (EcsContext) */
-    float delta_time;            /**< Time elapsed since last frame */
-    float delta_system_time;     /**< Time elapsed since last system invocation */
-    float world_time;            /**< Time elapsed since start of simulation */
-    int32_t frame_offset;       /**< Offset relative to frame */
-    int32_t table_offset;       /**< Current active table being processed */
-    int32_t offset;             /**< Offset relative to current table */
-    int32_t count;              /**< Number of entities to process by system */
-    int32_t total_count;        /**< Total number of entities in table */
+    void *param;                  /**< User data (EcsContext or param argument) */
+    FLECS_FLOAT delta_time;       /**< Time elapsed since last frame */
+    FLECS_FLOAT delta_system_time;/**< Time elapsed since last system invocation */
+    FLECS_FLOAT world_time;       /**< Time elapsed since start of simulation */
+
+    int32_t frame_offset;         /**< Offset relative to frame */
+    int32_t table_offset;         /**< Current active table being processed */
+    int32_t offset;               /**< Offset relative to current table */
+    int32_t count;                /**< Number of entities to process by system */
+    int32_t total_count;          /**< Total number of entities in table */
 
     ecs_entities_t *triggered_by; /**< Component(s) that triggered the system */
-    ecs_entity_t interrupted_by; /**< When set, system execution is interrupted */
+    ecs_entity_t interrupted_by;  /**< When set, system execution is interrupted */
 
     union {
         ecs_scope_iter_t parent;

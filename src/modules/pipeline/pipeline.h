@@ -12,6 +12,13 @@ typedef struct ecs_pipeline_op_t {
     int32_t count;              /**< Number of systems to run before merge */
 } ecs_pipeline_op_t;
 
+typedef struct EcsPipelineQuery {
+    ecs_query_t *query;
+    ecs_query_t *build_query;
+    int32_t match_count;
+    ecs_vector_t *ops;
+} EcsPipelineQuery;
+
 ////////////////////////////////////////////////////////////////////////////////
 //// Pipeline API
 ////////////////////////////////////////////////////////////////////////////////
@@ -30,7 +37,7 @@ void ecs_pipeline_end(
 void ecs_pipeline_progress(
     ecs_world_t *world,
     ecs_entity_t pipeline,
-    float delta_time);
+    FLECS_FLOAT delta_time);
 
 
 ////////////////////////////////////////////////////////////////////////////////

@@ -14,13 +14,6 @@ int16_t ecs_to_i16(
     return (int16_t)v;
 }
 
-int32_t ecs_to_i32(
-    int64_t v)
-{
-    ecs_assert(v < INT32_MAX, ECS_INTERNAL_ERROR, NULL);
-    return (int32_t)v;
-}
-
 uint32_t ecs_to_u32(
     uint64_t v)
 {
@@ -42,25 +35,18 @@ ecs_size_t ecs_from_size_t(
    return (ecs_size_t)size;
 }
 
-ecs_entity_t ecs_to_entity(
-    int64_t v)
+int32_t ecs_next_pow_of_2(
+    int32_t n)
 {
-    ecs_assert(v >= 0, ECS_INTERNAL_ERROR, NULL);
-    return (ecs_entity_t)v;
-}
+    n --;
+    n |= n >> 1;
+    n |= n >> 2;
+    n |= n >> 4;
+    n |= n >> 8;
+    n |= n >> 16;
+    n ++;
 
-int64_t ecs_from_entity(
-    ecs_entity_t v)
-{
-    ecs_assert(v < INT64_MAX, ECS_INTERNAL_ERROR, NULL);
-    return (int64_t)v;
-}
-
-int32_t ecs_from_entity_to_i32(
-    ecs_entity_t v)
-{
-    ecs_assert(v < INT32_MAX, ECS_INTERNAL_ERROR, NULL);
-    return (int32_t)v;
+    return n;
 }
 
 /** Convert time to double */

@@ -16,27 +16,38 @@ void Vector_count_empty(void);
 void Vector_get(void);
 void Vector_get_first(void);
 void Vector_get_last(void);
+void Vector_get_last_from_empty(void);
+void Vector_get_last_from_null(void);
 void Vector_get_empty(void);
 void Vector_get_out_of_bound(void);
 void Vector_add_empty(void);
 void Vector_add_resize(void);
-void Vector_remove(void);
-void Vector_remove_first(void);
-void Vector_remove_last(void);
-void Vector_remove_empty(void);
-void Vector_remove_all(void);
-void Vector_remove_out_of_bound(void);
 void Vector_sort_rnd(void);
 void Vector_sort_sorted(void);
 void Vector_sort_empty(void);
+void Vector_sort_null(void);
 void Vector_size_of_null(void);
 void Vector_set_size_smaller_than_count(void);
 void Vector_pop_elements(void);
+void Vector_pop_null(void);
+void Vector_reclaim(void);
+void Vector_grow(void);
+void Vector_copy(void);
+void Vector_copy_null(void);
+void Vector_memory(void);
+void Vector_memory_from_null(void);
+void Vector_addn_to_null(void);
+void Vector_addn_to_0_size(void);
+void Vector_set_min_count(void);
+void Vector_set_min_size(void);
+void Vector_set_min_size_to_smaller(void);
 
 // Testsuite 'Queue'
 void Queue_setup(void);
 void Queue_free_empty(void);
 void Queue_push(void);
+void Queue_from_array(void);
+void Queue_last(void);
 
 // Testsuite 'Map'
 void Map_setup(void);
@@ -52,11 +63,13 @@ void Map_get_unknown(void);
 void Map_iter(void);
 void Map_iter_empty(void);
 void Map_iter_zero_buckets(void);
+void Map_iter_null(void);
 void Map_remove(void);
 void Map_remove_empty(void);
 void Map_remove_unknown(void);
 void Map_grow(void);
 void Map_set_size_0(void);
+void Map_ensure(void);
 
 // Testsuite 'Sparse'
 void Sparse_setup(void);
@@ -78,6 +91,28 @@ void Sparse_add_after_clear(void);
 void Sparse_memory_null(void);
 void Sparse_copy(void);
 void Sparse_restore(void);
+void Sparse_create_delete(void);
+void Sparse_create_delete_2(void);
+void Sparse_count_of_null(void);
+void Sparse_size_of_null(void);
+void Sparse_copy_null(void);
+
+// Testsuite 'Strbuf'
+void Strbuf_setup(void);
+void Strbuf_append(void);
+void Strbuf_appendstr(void);
+void Strbuf_appendstrn(void);
+void Strbuf_appendstr_null(void);
+void Strbuf_append_list(void);
+void Strbuf_append_nested_list(void);
+void Strbuf_large_str(void);
+void Strbuf_empty_str(void);
+void Strbuf_append_zerocopy(void);
+void Strbuf_append_zerocopy_only(void);
+void Strbuf_append_zerocopy_const(void);
+void Strbuf_reset(void);
+void Strbuf_merge(void);
+void Strbuf_app_buffer(void);
 
 bake_test_case Vector_testcases[] = {
     {
@@ -105,6 +140,14 @@ bake_test_case Vector_testcases[] = {
         Vector_get_last
     },
     {
+        "get_last_from_empty",
+        Vector_get_last_from_empty
+    },
+    {
+        "get_last_from_null",
+        Vector_get_last_from_null
+    },
+    {
         "get_empty",
         Vector_get_empty
     },
@@ -121,30 +164,6 @@ bake_test_case Vector_testcases[] = {
         Vector_add_resize
     },
     {
-        "remove",
-        Vector_remove
-    },
-    {
-        "remove_first",
-        Vector_remove_first
-    },
-    {
-        "remove_last",
-        Vector_remove_last
-    },
-    {
-        "remove_empty",
-        Vector_remove_empty
-    },
-    {
-        "remove_all",
-        Vector_remove_all
-    },
-    {
-        "remove_out_of_bound",
-        Vector_remove_out_of_bound
-    },
-    {
         "sort_rnd",
         Vector_sort_rnd
     },
@@ -157,6 +176,10 @@ bake_test_case Vector_testcases[] = {
         Vector_sort_empty
     },
     {
+        "sort_null",
+        Vector_sort_null
+    },
+    {
         "size_of_null",
         Vector_size_of_null
     },
@@ -167,6 +190,54 @@ bake_test_case Vector_testcases[] = {
     {
         "pop_elements",
         Vector_pop_elements
+    },
+    {
+        "pop_null",
+        Vector_pop_null
+    },
+    {
+        "reclaim",
+        Vector_reclaim
+    },
+    {
+        "grow",
+        Vector_grow
+    },
+    {
+        "copy",
+        Vector_copy
+    },
+    {
+        "copy_null",
+        Vector_copy_null
+    },
+    {
+        "memory",
+        Vector_memory
+    },
+    {
+        "memory_from_null",
+        Vector_memory_from_null
+    },
+    {
+        "addn_to_null",
+        Vector_addn_to_null
+    },
+    {
+        "addn_to_0_size",
+        Vector_addn_to_0_size
+    },
+    {
+        "set_min_count",
+        Vector_set_min_count
+    },
+    {
+        "set_min_size",
+        Vector_set_min_size
+    },
+    {
+        "set_min_size_to_smaller",
+        Vector_set_min_size_to_smaller
     }
 };
 
@@ -178,6 +249,14 @@ bake_test_case Queue_testcases[] = {
     {
         "push",
         Queue_push
+    },
+    {
+        "from_array",
+        Queue_from_array
+    },
+    {
+        "last",
+        Queue_last
     }
 };
 
@@ -231,6 +310,10 @@ bake_test_case Map_testcases[] = {
         Map_iter_zero_buckets
     },
     {
+        "iter_null",
+        Map_iter_null
+    },
+    {
         "remove",
         Map_remove
     },
@@ -249,6 +332,10 @@ bake_test_case Map_testcases[] = {
     {
         "set_size_0",
         Map_set_size_0
+    },
+    {
+        "ensure",
+        Map_ensure
     }
 };
 
@@ -324,6 +411,85 @@ bake_test_case Sparse_testcases[] = {
     {
         "restore",
         Sparse_restore
+    },
+    {
+        "create_delete",
+        Sparse_create_delete
+    },
+    {
+        "create_delete_2",
+        Sparse_create_delete_2
+    },
+    {
+        "count_of_null",
+        Sparse_count_of_null
+    },
+    {
+        "size_of_null",
+        Sparse_size_of_null
+    },
+    {
+        "copy_null",
+        Sparse_copy_null
+    }
+};
+
+bake_test_case Strbuf_testcases[] = {
+    {
+        "append",
+        Strbuf_append
+    },
+    {
+        "appendstr",
+        Strbuf_appendstr
+    },
+    {
+        "appendstrn",
+        Strbuf_appendstrn
+    },
+    {
+        "appendstr_null",
+        Strbuf_appendstr_null
+    },
+    {
+        "append_list",
+        Strbuf_append_list
+    },
+    {
+        "append_nested_list",
+        Strbuf_append_nested_list
+    },
+    {
+        "large_str",
+        Strbuf_large_str
+    },
+    {
+        "empty_str",
+        Strbuf_empty_str
+    },
+    {
+        "append_zerocopy",
+        Strbuf_append_zerocopy
+    },
+    {
+        "append_zerocopy_only",
+        Strbuf_append_zerocopy_only
+    },
+    {
+        "append_zerocopy_const",
+        Strbuf_append_zerocopy_const
+    },
+    {
+        "reset",
+        Strbuf_reset
+    },
+    {
+        "merge",
+        Strbuf_merge
+    },
+    {
+        "app_buffer",
+        Strbuf_app_buffer
     }
 };
 
@@ -332,33 +498,40 @@ static bake_test_suite suites[] = {
         "Vector",
         Vector_setup,
         NULL,
-        22,
+        31,
         Vector_testcases
     },
     {
         "Queue",
         Queue_setup,
         NULL,
-        2,
+        4,
         Queue_testcases
     },
     {
         "Map",
         Map_setup,
         NULL,
-        17,
+        19,
         Map_testcases
     },
     {
         "Sparse",
         Sparse_setup,
         NULL,
-        18,
+        23,
         Sparse_testcases
+    },
+    {
+        "Strbuf",
+        Strbuf_setup,
+        NULL,
+        14,
+        Strbuf_testcases
     }
 };
 
 int main(int argc, char *argv[]) {
     ut_init(argv[0]);
-    return bake_test_run("collections", argc, argv, suites, 4);
+    return bake_test_run("collections", argc, argv, suites, 5);
 }

@@ -25,7 +25,7 @@ int main(int argc, char *argv[]) {
      * run this system if there is interest in any of its [out] columns. In this
      * case the system will only be ran if there is interest in Position. */
     ecs.system<>(nullptr, "[out] Position, Velocity").on_demand()
-        .action([](flecs::iter& it){
+        .iter([](flecs::iter& it){
             flecs::column<Position> p(it, 1);
             flecs::column<Velocity> v(it, 2);
 
@@ -43,7 +43,7 @@ int main(int argc, char *argv[]) {
      * provide a value for it. If there are any OnDemand systems that provide
      * 'Position' as an output, they will be enabled. */
     auto PrintPosition = ecs.system<const Position, Printable>()
-        .each([](flecs::entity e, const Position& p, Printable& printable) {
+        .each([](flecs::entity e, const Position& p, Printable&) {
             std::cout << "Position of " << e.name() 
                 << " is {" << p.x << ", " << p.y << "}" 
                 << std::endl; 

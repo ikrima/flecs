@@ -97,8 +97,9 @@ Addons are located in the `src/addons` and `include/addons` folders. The followi
 
 Addon         | Description                                      | Constant            |
 --------------|--------------------------------------------------|---------------------|
-Bulk          | Efficient operations that run on many entities   | FLECS_BULK          | 
+Bulk          | Efficient operations that run on many entities   | FLECS_BULK          |
 Dbg           | Debug API for inspection of internals            | FLECS_DBG           |
+Direct Access | Low-level API for direct access to component data| FLECS_DIRECT_ACCESS |
 Module        | Organize components and systems in modules       | FLECS_MODULE        | 
 Queue         | A queue data structure                           | FLECS_QUEUE         |
 Reader_writer | Serialize components to series of bytes          | FLECS_READER_WRITER | 
@@ -159,7 +160,7 @@ int main(int argc, char *argv[]) {
     ecs_entity_t e = ecs_new(world, 0);
 
     // Builtin entities use PascalCase
-    ecs_add(world, EcsSingleton, Position);
+    ecs_add(world, EcsWorld, Position);
     
     return ecs_fini(world);
 }
@@ -281,11 +282,11 @@ From a readability perspective this code looks fine as we can easily tell what i
 Let's first remove the `ECS_COMPONENT` macro and replace it with equivalent code (details are omitted for brevity):
 
 ```c
-ecs_entity_t ecs_entity(Position) = ecs_new_component(world, "Position", sizeof(Position));
-ecs_type_t ecs_type(Position) = ecs_type_from_entity(world, ecs_entity(Position));
+ecs_entity_t ecs_typeid(Position) = ecs_new_component(world, "Position", sizeof(Position));
+ecs_type_t ecs_type(Position) = ecs_type_from_entity(world, ecs_typeid(Position));
 ```
 
-The first line actually registers the component with Flecs, and captures its name and size. The result is stored in a variable with name `ecs_entity(Position)`. Here, `ecs_entity` is a macro that translates the typename of the component to a variable name. The actual name of the variable is:
+The first line actually registers the component with Flecs, and captures its name and size. The result is stored in a variable with name `ecs_typeid(Position)`. Here, `ecs_entity` is a macro that translates the typename of the component to a variable name. The actual name of the variable is:
 
 ```c
 FLECS__EPosition
@@ -308,7 +309,7 @@ Position *p = ecs_get(world, e, Position);
 Translates into:
 
 ```c
-Position *p = (Position*)ecs_get_w_entity(world, e, ecs_entity(Position));
+Position *p = (Position*)ecs_get_w_entity(world, e, ecs_typeid(Position));
 ```
 
 As you can see, the `ecs_get` macro casts the result of the function to the correct type, so a compiler will throw a warning when an application tries to assign the result of the operation to a variable of the wrong type.
@@ -323,7 +324,7 @@ Translates into:
 
 ```c
 ecs_set_ptr_w_entity
-    (world, e, ecs_entity(Position), sizeof(Position), 
+    (world, e, ecs_typeid(Position), sizeof(Position), 
     &(Position){10, 20});
 ```
 
@@ -444,9 +445,41 @@ const char *name = ecs_get_name(world, e);
 ### Id recycling
 Entity identifiers are reused when deleted. The `ecs_new` operation will first attempt to recycle a deleted identifier before producing a new one. If no identifier can be recycled, it will return the last issued identifier + 1. 
 
-Entity identifiers can only be recycled if they have been deleted with `ecs_delete`. Repeatedly calling `ecs_delete` with `ecs_new` will cause unbounded memory growth, as the framework stores a list of entity identifiers that can be recycled. An application should never delete an identifier that has not been returned by `ecs_new`, and never delete the returned identifier more than once.
+Entity identifiers can only be recycled if they have been deleted with `ecs_delete`. When `ecs_delete` is invoked, the generation count of the entity is increased. The generation is encoded in the entity identifier, which means that any existing entity identifiers with the old generation encoded in it will be considered not alive. Calling a delete multiple times on an entity that is not alive has no effect.
 
-When using multiple threads, the `ecs_new` operation guarantees that the returned identifiers are unique, by using atomic increments instead of a simple increment operation. Ids will not be recycled when using multiple threads, since this would require locking global administration.
+When using multiple threads, the `ecs_new` operation guarantees that the returned identifiers are unique, by using atomic increments instead of a simple increment operation. New ids generated from a thread will not be recycled ids, since this would require taking a lock on the administration. While this does not representa memory leak, it could cause ids to rise over time. If this happens and is an issue, an application should precreate the ids.
+
+### Generations
+When an entity is deleted, the generation count for that entity id is increased. The entity generation count enables an application to test whether an entity is still alive or whether it has been deleted, even after the id has been recycled. Consider:
+
+```c
+ecs_entity_t e = ecs_new(world, 0);
+ecs_delete(world, e); // Increases generation
+
+e = ecs_new(world, 0); // Recycles id, but with new generation
+```
+
+The generation is encoded in the entity id, which means that even though the base id is the same in the above example, the value returned by the second `ecs_new` is different than the first.
+
+To test whether an entity is alive, an application can use the `ecs_is_alive` call:
+
+```c
+ecs_entity_t e_1 = ecs_new(world, 0);
+ecs_delete(world, e_1);
+
+ecs_entity_t e_2 = ecs_new(world, 0);
+ecs_is_alive(world, e_1); // false
+ecs_is_alive(world, e_2); // true
+```
+
+It is not allowed to invoke operations on an entity that is not alive, and doing so may result in an assert. The only operation that is allowed on an entity that is not alive is `ecs_delete`. Calling delete multiple times on an entity that is not alive will not increase the generation. Additionally, it is also not allowed to add child entities to an entity that is not alive. This will also result in an assert.
+
+There are 16 bits reserved for generation in the entity id, which means that an application can delete the same id 65536 times before the generation resets to 0. To get the current generation of an entity, applications can use the `ECS_GENERATION` macro. To extract the entity id without the generation, an application can apply the `ECS_ENTITY_MASK` with a bitwise and:
+
+```c
+ecs_entity_t generation = ECS_GENERATION(e);
+ecs_entity_t id = e | ECS_ENTITY_MASK;
+```
 
 ### Manual id generation
 Applications do not have to rely on `ecs_new` and `ecs_delete` to create and delete entity identifiers. Entity ids may be used directly, like in this example:
@@ -765,14 +798,14 @@ int main() {
 }
 ```
 
-There are also operations which operate on a single component at a time, like `ecs_get` and `ecs_set`. These operations require a component handle of type `ecs_entity_t`. The `ECS_COMPONENT` macro defines a variable of type `ecs_entity_t`that contains the id of the component. The variable defined by `ECS_COMPONENT` can be accessed by the application with `ecs_entity(ComponentName)`. The following example shows how to pass an entity handle to another function:
+There are also operations which operate on a single component at a time, like `ecs_get` and `ecs_set`. These operations require a component handle of type `ecs_entity_t`. The `ECS_COMPONENT` macro defines a variable of type `ecs_entity_t`that contains the id of the component. The variable defined by `ECS_COMPONENT` can be accessed by the application with `ecs_typeid(ComponentName)`. The following example shows how to pass an entity handle to another function:
 
 ```c
 typedef struct Position {
     float x, y;
 } Position;
 
-void set_position(ecs_world_t *t, ecs_entity_t ecs_entity(Position)) {
+void set_position(ecs_world_t *t, ecs_entity_t ecs_typeid(Position)) {
     ecs_entity_t e = ecs_new(world, 0);
     ecs_set(world, e, Position, {10, 20});
 }
@@ -782,7 +815,7 @@ int main() {
 
     ECS_COMPONENT(world, Position);
 
-    set_position(world, ecs_entity(Position));
+    set_position(world, ecs_typeid(Position));
 
     ecs_fini(world);
 }
@@ -806,11 +839,56 @@ int main() {
 
     ecs_entity_t e = ecs_new(world, Position);
 
-    Position *p = get_position(world, e, ecs_entity(Position));
+    Position *p = get_position(world, e, ecs_typeid(Position));
 
     ecs_fini(world);
 }
 ```
+
+### Component disabling
+Components can be disabled, which prevents them from being matched with queries. Contrary to removing a component, disabling a component does not remove it from an entity. When a component is enabled after disabling it, the original value of the component is restored.
+
+To enable or disable a component, use the `ecs_enable_component` function:
+
+```c
+typedef struct Position {
+    float x, y;
+} Position;
+
+int main() {
+    ecs_world_t *world = ecs_init();
+
+    ECS_COMPONENT(world, Position);
+
+    ecs_entity_t e = ecs_new(world, Position);
+
+    /* Component is enabled by default */
+
+    /* Disable the component */
+    ecs_enable_component(world, e, Position, false);
+
+    /* Will return false */
+    printf("%d\n", ecs_is_component_enabled(world, e, Position));
+
+    /* Re-enable the component */
+    ecs_enable_component(world, e, Position, true);
+
+    ecs_fini(world);
+}
+```
+
+Component disabling works by maintaining a bitset alongside the component array. When a component is enabled or disabled, the bit that corresponds with the entity is set to 1 or 0. Bitsets are not created by default. Only after invoking the `ecs_enable_component` operation for an entity will be entity be moved to a table that keeps track of a bitset for that component.
+
+When a query is matched with a table that has a bitset for a component, it will automatically use the bitset to skip disabled values. If an entity contains multiple components tracked by a bitset, the query will evaluate each bitset and only yield entities for which all components are enabled. To ensure optimal performance, the query will always return the largest range of enabled components. Nonetheless, iterating a table with a bitset is slower than a regular table.
+
+If a query is matched with a table that has one or more bitsets, but the query does not match with components tracked by a bitset, there is no performance penalty.
+
+Component disabling can be used to temporarily suspend and resume a component value. It can also be used as a faster alternative to `ecs_add`/`ecs_remove`. Since the operation only needs to set a bit, it is a significantly faster alternative to adding/removing components, at the cost of a slightly slower iteration speed. If a component needs to be added or removed frequently, enabling/disabling is recommended.
+
+#### Limitations
+Component disabling does not work for components not matched with the entity. If a query matches with a component from a base (prefab) or parent entity and the component is disabled for that entity, the query will not take this into account. If entities with disabled components from a base or parent entity need to be skipped. a query should manually check this.
+
+Because component disabling is implemented with a type role, it cannot be used together with other type roles. This means that it is not possible to disable, for example, an `INSTANCEOF` or `CHILDOF` relationship.
 
 ## Tagging
 Tags are much like components, but they are not associated with a data type. Tags are typically used to add a flag to an entity, for example to indicate that an entity is an Enemy:
@@ -870,6 +948,42 @@ int main() {
 ```
 
 Anyone who paid careful attention to this example will notice that the `ecs_add_entity` operation accepts two regular entities. 
+
+### Switchable tags
+Switchable tags are sets of regular tags that can be added to an entity, except that only one of the set can be active at the same time. This is particularly useful when storing state machines. Consider the following example:
+
+```c
+/* Create a Movement switch machine with 3 cases */
+ECS_TAG(world, Standing);
+ECS_TAG(world, Walking);
+ECS_TAG(world, Running);
+ECS_TYPE(world, Movement, Standing, Walking, Running); 
+
+/* Create a few entities with various state combinations */
+ecs_entity_t e = ecs_new(world, 0);
+
+/* Add the switch to the entity. This lets Flecs know that only one of the tags
+ * in the Movement type may be active at the same time. */
+ecs_add_entity(world, e, ECS_SWITCH | Movement);
+
+/* Add the Standing case to the entity */
+ecs_add_entity(world, e, ECS_CASE | Standing);
+
+/* Add the Walking case to the entity. This removes Standing */
+ecs_add_entity(world, e, ECS_CASE | Walking);
+
+/* Add the Running case to the entity. This removes Walking */
+ecs_add_entity(world, e, ECS_CASE | Running);
+```
+
+Switchable tags aren't just convenient, they are also very fast, as changing a case does not move the entity between archetypes like regular tags do. This makes switchable components particularly useful for fast-changing data, like states in a state machine. Systems can query for switchable tags by using the `SWITCH` and `CASE` roles:
+
+```c
+/* Subscribe for all entities that are Walking, and have the switch Direction */
+ECS_SYSTEM(world, Walk, EcsOnUpdate, CASE | Walking, SWITCH | Direction);
+```
+
+See the [switch example](https://github.com/SanderMertens/flecs/blob/master/examples/c/44_switch/src/main.c) for more details.
 
 ## Queries
 Queries allow an application to iterate entities that match a component expression, called a signature (see "Signatures"). Queries are stateful, in that they are registered with the world, and keep track of a list of entities (archetypes) that they match with. Whenever a new combination of entities is introduced (usually through an `ecs_add` or `ecs_remove` operation) it will be matched with the system, and if it matches, stored in a list with matched tables. This continuous matching process means that when an application starts iterating the query, it does not need to evaluate the query signature, which makes queries the most performant way to iterate entities.
@@ -957,7 +1071,10 @@ OWNED    | Match only owned components (default)
 SHARED   | Match only shared components
 ANY      | Match owned or shared components
 PARENT   | Match component from parent
-CASCADE  | Match component from parent, iterate depth-first
+CASCADE  | Match component from parent, iterate breadth-first
+SYSTEM   | Match component added to system
+Entity   | Get component directly from a named entity
+$        | Match singleton component
 Nothing  | Do not get the component from an entity, just pass in handle
 
 This is an example of a query that requests the `Position` component from both the entity and its parent:
@@ -1080,7 +1197,7 @@ while (ecs_query_next(&it)) {
 If an entity does not have a parent with the specified component, the query will not match with the entity.
 
 #### CASCADE
-The `CASCADE` modifier is like the `PARENT` modifier, except that it iterates entities depth-first, calculated by counting the number of parents from an entity to the root. Another difference with `PARENT` is that `CASCADE` matches with the root of a tree, which does not have a parent with the specified component. This requires `CASCADE` queries to check if the parent component is available:
+The `CASCADE` modifier is like the `PARENT` modifier, except that it iterates entities breadth-first, calculated by counting the number of parents from an entity to the root. Another difference with `PARENT` is that `CASCADE` matches with the root of a tree, which does not have a parent with the specified component. This requires `CASCADE` queries to check if the parent component is available:
 
 ```c
 ecs_query_t *query = ecs_query_new(world, "Position, CASCADE:Position");
@@ -1101,6 +1218,95 @@ while (ecs_query_next(&it)) {
 ```
 
 The `CASCADE` modifier is useful for systems that need a certain parent component to be written before the child component is written, which is the case when, for example, transforming from local coordinates to world coordinates.
+
+#### SYSTEM
+The `SYSTEM` modifier automatically adds a component to the system that can be retrieved from the system, and is an easy way to pass data to a system. It can be used like this in a signature:
+
+```
+SYSTEM:MySystemContext
+```
+
+This adds the `MySystemContext` component to the system. An application can get/set this component by using regular ECS operations:
+
+```c
+typedef struct {
+  int value;
+} MySystemContext;
+
+ECS_SYSTEM(world, MySystem, EcsOnUpdate, Position, SYSTEM:MySystemContext);
+
+ecs_set(world, MySystem, MySystemContext, { .value = 10 });
+```
+
+When iterating the system, the component can be retrieved just like other components:
+
+```c
+void MySystem(ecs_iter_t *it) {
+   Position *p = ecs_column(it, Position, 1);
+   MySystemContext *ctx = ecs_column(it, MySystemContext, 2);
+   
+   for (int i = 0; i < it.count; i ++) {
+     p[i].x += ctx->value; // Note that this is a pointer, not an array
+   }
+}
+```
+
+#### Entity
+A query can request a component from a named entity directly as is shown in the following example:
+
+```c
+// Shortcut to creating a new named entity
+ecs_entity_t e = ecs_set(world, 0, EcsName, {.value = "MyEntity"});
+ecs_set(world, e, Velocity, {1, 2});
+
+ecs_query_t *q = ecs_query_new(world, "Position, MyEntity:Velocity");
+
+ecs_iter_t it = ecs_query_iter(query);
+
+while (ecs_query_next(&it)) {
+    Position *p = ecs_column(&it, Position, 1);
+    Velocity *v = ecs_column(&it, Velocity, 2);
+
+    for (int i = 0; i < it.count; i ++) {
+      p[i].x += v->x;
+      p[i].y += v->y;      
+    }
+}
+```
+
+If the named entity does not have the specified component, the query will not match anything.
+
+#### Singleton
+The singleton modifier matches a component from a singleton entity. Singletons are entities that are both a component and an entity with an instance of the component. An application can set a singleton component by using the singleton API:
+
+```c
+ecs_singleton_set(world, Game, { .max_speed = 100 });
+```
+
+Alternatively the regular API can also be used:
+
+```c
+ecs_set(world, ecs_typeid(Game), Game, { .max_speed = 100 });
+```
+
+Singleton components can be retrieved from queries like this:
+
+```c
+ecs_query_t *query = ecs_query_new(world, "Position, $Game");
+
+ecs_iter_t it = ecs_query_iter(query);
+
+while (ecs_query_next(&it)) {
+    Position *p = ecs_column(&it, Position, 1);
+    Game *g = ecs_column(&it, Game, 2);
+
+    for (int i = 0; i < it.count; i ++) {
+      p[i].x += g->max_speed;
+    }
+}
+```
+
+If the singleton does not exist, the query will not match anything.
 
 #### Nothing
 The nothing modifier does not get the component from an entity, but instead just passes its identifier to a query or system. An example:
@@ -1212,7 +1418,7 @@ Applications are able to access entities in order, by using sorted queries. Sort
 
 ```c
 ecs_query_t q = ecs_query_new(world, "Position");
-ecs_query_order_by(world, q, ecs_entity(Position), compare_position);
+ecs_query_order_by(world, q, ecs_typeid(Position), compare_position);
 ```
 
 This will sort the query by the `Position` component. The function also accepts a compare function, which looks like this:
@@ -1316,7 +1522,7 @@ while (ecs_filter_next(&it)) {
     ecs_type_t table_type = ecs_iter_type(&it);
 
     /* First Retrieve the column index for Position */
-    int32_t p_index = ecs_type_index_of(table_type, ecs_entity(Position));
+    int32_t p_index = ecs_type_index_of(table_type, ecs_typeid(Position));
 
     /* Now use the column index to get the Position array from the table */
     Position *p = ecs_table_column(&it, p_index);
@@ -1398,6 +1604,106 @@ void Move(ecs_iter_t *it) {
     // ...
 }
 ```
+
+### Monitors
+A monitor is a special kind of system that is executed once when a condition becomes true. A monitor is created just like a regular system, but with the `EcsMonitor` tag:
+
+```c
+ECS_SYSTEM(world, OnPV, EcsMonitor, Position, Velocity);
+```
+
+This example illustrates when the monitor is invoked:
+
+```c
+// Condition is not true: monitor is not invoked
+ecs_entity_t e = ecs_new(world, Position);
+
+// Condition is true for the first time: monitor is invoked!
+ecs_add(world, e, Velocity);
+
+// Condition is still true: monitor is not invoked
+ecs_add(world, e, Mass);
+
+// Condition is no longer true: monitor is not invoked
+ecs_remove(world, e, Position);
+
+// Condition is true again: monitor is invoked!
+ecs_add(world, e, Position);
+```
+
+Note that monitors are never invoked by `ecs_progress`.
+
+An monitor is implemented the same way as a regular system:
+
+```c
+void OnPV(ecs_iter_t *it) {
+    Position *p = ecs_column(it, Position, 1);
+    Velocity *v = ecs_column(it, Velocity, 2);
+
+    for (int i = 0; i < it->count; i ++) {
+        /* Monitor code. Note that components may not have
+         * been initialized when the monitor is invoked */
+    }
+}
+```
+
+### OnSet Systems
+OnSet systems are ran whenever the value of one of the components the system subscribes for changes. An OnSet system is created just like a regular system, but with the `EcsOnSet` tag:
+
+```c
+ECS_SYSTEM(world, OnSetPV, EcsOnSet, Position, Velocity);
+```
+
+This example illustrates when the monitor is invoked:
+
+```c
+ecs_entity_t e = ecs_new(world, 0);
+
+// The entity does not have Velocity, so system is not invoked
+ecs_set(world, e, Position, {10, 20});
+
+// The entity has both components, but Velocity is not set
+ecs_add(world, e, Velocity);
+
+// The entity has both components, so system is invoked!
+ecs_set(world, e, Velocity, {1, 2});
+
+// The entity has both components, so system is invoked!
+ecs_set(world, e, Position, {11, 22});
+```
+
+An OnSet system is implemented the same way as a regular system:
+
+```c
+void OnSetPV(ecs_iter_t *it) {
+    Position *p = ecs_column(it, Position, 1);
+    Velocity *v = ecs_column(it, Velocity, 2);
+
+    for (int i = 0; i < it->count; i ++) {
+        /* Trigger code */
+    }
+}
+```
+
+The opposite of an `EcsOnSet` system is an `EcsUnSet` system:
+
+```c
+ECS_SYSTEM(world, UnSetP, EcsUnSet, Position);
+```
+
+An UnSet system is invoked when an entity no longer has a value for the specified component:
+
+```c
+ecs_entity_t e = ecs_set(world, 0, Position, {10, 20});
+
+// The UnSet system is invoked
+ecs_remove(world, e, Position);
+```
+
+OnSet and UnSet systems are typically invoked when components are set and removed, but there are two edge cases:
+
+- A component is removed but the entity inherits a value for the component from a base entity. In this case OnSet is invoked, because the value for the component changed.
+- The entity does not have the component, but the base that has the component is removed. In this case UnSet is invoked, since the entity no longer has the component.
 
 ## Triggers
 Triggers are callbacks that are executed when a component is added or removed from an entity. Triggers are similar to systems, but unlike systems they can only match a single component. This is an example of a trigger that is executed when the Position component is added:
@@ -1574,7 +1880,7 @@ ECS_ENTITY(world, child, CHILDOF | parent);
 ```
 
 ### Iteration
-Applications can iterate hierarchies depth first with the `ecs_scope_iter` API in C, and the `children()` iterator in C++. This example shows how to iterate all the children of an entity:
+Applications can iterate hierarchies breadth first with the `ecs_scope_iter` API in C, and the `children()` iterator in C++. This example shows how to iterate all the children of an entity:
 
 ```cpp
 ecs_iter_t it = ecs_scope_iter(world, parent);
@@ -1746,7 +2052,7 @@ ecs_set(world, base, Position, {10, 20});
 ecs_entity_t derived = ecs_new_w_entity(world, ECS_INSTANCEOF | base);
 
 // Create instance of 'derived', which is also an instance of base
-ecs_entity_t base = ecs_new_w_entity(world, ECS_INSTANCEOF | derived);
+ecs_entity_t instance = ecs_new_w_entity(world, ECS_INSTANCEOF | derived);
 
 // All three entities now share Position
 ecs_get(world, base, Position) == ecs_get(world, instance, Position); // 1
@@ -1812,7 +2118,7 @@ In some scenarios it is desirable that an entity is initialized with a specific 
 ecs_entity_t Base = ecs_set(world, 0, Position, {10, 20});
 
 // Mark as OWNED. This ensures that when base is instantiated, Position is overridden
-ecs_add_entity(world, world, Base, ECS_OWNED | ecs_entity(Position));
+ecs_add_entity(world, world, Base, ECS_OWNED | ecs_typeid(Position));
 
 // Create entity from BaseType. This adds the INSTANCEOF relationship in addition 
 // to overriding Position, effectively initializing the Position component for the instance.
@@ -2039,8 +2345,8 @@ To create a trait from a trait identifier and a component identifier, an applica
 ECS_COMPONENT(world, Trait);
 ECS_COMPONENT(world, Component);
 
-ecs_entity_t lo = ecs_entity(Component);
-ecs_entity_t hi = ecs_entity(Trait);
+ecs_entity_t lo = ecs_typeid(Component);
+ecs_entity_t hi = ecs_typeid(Trait);
 
 ecs_entity_t trait = (lo + hi << 32) | ECS_TRAIT;
 ```
@@ -2048,7 +2354,7 @@ ecs_entity_t trait = (lo + hi << 32) | ECS_TRAIT;
 The API provides a convenience macro to make this easier:
 
 ```c
-ecs_entity_t trait = ecs_trait(ecs_entity(Component), ecs_entity(Trait));
+ecs_entity_t trait = ecs_trait(ecs_typeid(Component), ecs_typeid(Trait));
 ```
 
 To extract the component id from a trait, an application must get the lower 32 bits of an entity identifier. The API provides the convenience `ecs_entity_t_lo` macro to do this:
@@ -2058,11 +2364,11 @@ To extract the component id from a trait, an application must get the lower 32 b
 ecs_entity_t comp = ecs_entity_t_lo(trait);
 ```
 
-To obtain the trait, the application first has to remove the `ECS_TRAIT` role, after which the upper 32 bits should be used. To remove the `ECS_TRAIT` role the application can apply the `ECS_ENTITY_MASK` mask with a bitwise AND, after which the trait component id can be obtained with `ecs_entity_t_hi`:
+To obtain the trait, the application first has to remove the `ECS_TRAIT` role, after which the upper 32 bits should be used. To remove the `ECS_TRAIT` role the application can apply the `ECS_COMPONENT_MASK` mask with a bitwise AND, after which the trait component id can be obtained with `ecs_entity_t_hi`:
 
 ```c
 // This extracts the id of Trait
-ecs_entity_t trait_comp = ecs_entity_t_hi(trait & ECS_ENTITY_MASK);
+ecs_entity_t trait_comp = ecs_entity_t_hi(trait & ECS_COMPONENT_MASK);
 ```
 
 ### Traits as entity relationships
@@ -2099,7 +2405,118 @@ if (Jane.has_trait(IsSibling, Jeff)) {
 }
 ```
 
+## Deferred operations
+Applications can defer entity with the `ecs_defer_begin` and `ecs_defer_end` functions. This records all operations that happen inside the begin - end block, and executes them when `ecs_defer_end` is called. Deferred operations are useful when an application wants to make modifications to an entity while iterating, as doing this without deferring an operation could modify the underlying data structure. An example:
+
+```c
+ecs_defer_begin(world);
+    ecs_entity_t e = ecs_new(world, 0);
+    ecs_add(world, e, Position);
+    ecs_set(world, e, Velocity, {1, 1});
+ecs_defer_end(world);
+```
+
+The effects of these operations will not be visible until the `ecs_defer_end` operation. 
+
+There are a few things to keep in mind when deferring:
+- creating a new entity will always return a new id which increases the last used id counter of the world
+- `ecs_get_mut` returns a pointer initialized with the current component value, and does not take into account deferred set or get_mut operations
+- if an operation is called on an entity which was deleted while deferred, the operation will ignored by `ecs_defer_end`
+- if a child entity is created for a deleted parent while deferred, the child entity will be deleted by `ecs_defer_end`
+
+## Staging
+When an application is processing the world (using `ecs_progress`) the world enters a state in which all operations are automatically deferred. This ensures that systems can call regular operations while iterating entities without modifying the underlying storage. The queued operations are merged by default at the end of the frame. When using multiple threads, each thread has its own queue. Queues of different threads are processed sequentially.
+
+By default this means that an application will not see the effects of an operation until the end of a frame. When this is undesirable, an application can add `[in]` and `[out]` anotations to a system signature to force a merging the queues mid-frame. When using multiple threads this will represent a synchronization point. Take this (somewhat contrived) example with two systems, without annotations:
+
+```c
+// Sets velocity using ecs_set
+ECS_SYSTEM(world, SetVelocity, EcsOnUpdate, Position, :Velocity);
+
+// Adds Velocity to Posiiton
+ECS_SYSTEM(world, Move, EcsOnUpdate, Position, [in] Velocity);
+```
+
+With the following implementation for `SetVelocity`:
+
+```c
+void SetVelocity(ecs_iter_t *it) {
+    ecs_entity_t ecs_typeid(Velocity) = ecs_column_entity(it, 2);
+
+    for (int i = 0; i < it->count; i ++) {
+        ecs_set(world, it->entities[i], Velocity, {1, 2});
+    }
+}
+```
+
+As `SetVelocity` is using `ecs_set` to set the `Velocity`, the effect of this operation will not be visible until the end of the frame, which means that the `Move` operation will use the `Velocity` value of the previous frame. An application can enforce that the queue is flushed before the `Move` system by annotating the system like this:
+
+```
+ECS_SYSTEM(world, SetVelocity, EcsOnUpdate, Position, [out] :Velocity);
+```
+
+Notice the `[out]` annotation that has been added to the `:Velocity` argument. This indicates to flecs that the system will be deferring operations that write the `Velocity` component, and as a result of that the queue will be flushed before `Velocity` is read. Since the `Move` system is reading the `Velocity` component, the queue will be flushed before the `Move` system is executed.
+
+Note that merging is expensive, especially in multithreaded applications, and should be minimized whenever possible.
+
+In some cases it can be difficult to predict which components a system will write. This typically happens when a system deletes an entity (all components of the entity will be "written") or when a new entity is created from a prefab and components are overridden automatically. When these operations cannot be deferred, a system can force a sync point without having to specify all possible components that can be written by using a wildcard:
+
+```c
+ECS_SYSTEM(world, DeleteEntity, EcsOnUpdate, Position, [out] :*);
+```
+
+This is interpreted as the system may write any component, and forces a sync point.
+
 ## Pipelines
+A pipeline defines the different phases that are executed for each frame. By default an application uses the builtin pipeline which has the following phases:
+
+- EcsOnLoad
+- EcsPostLoad
+- EcsPreUpdate
+- EcsOnUpdate
+- EcsOnValidate
+- EcsPostUpdate
+- EcsPreStore
+- EcsOnStore
+
+These phases can be provided as an argument to the `ECS_SYSTEM` macro:
+
+```c
+// System ran in the EcsOnUpdate phase
+ECS_SYSTEM(world, Move, EcsOnUpdate, Position, Velocity);
+
+// System ran in the EcsOnValidate phase
+ECS_SYSTEM(world, DetectCollisions, EcsOnValidate, Position);
+```
+
+An application can create a custom pipeline, like is shown here:
+
+```c
+// Create a tag for each phase in the custom pipeline.
+// The tags must be created in the phase execution order.
+ECS_TAG(world, BeforeFrame);
+ECS_TAG(world, OnFrame);
+ECS_TAG(world, AfterFrame);
+
+// Create the pipeline
+ECS_PIPELINE(world, MyPipeline, BeforeFrame, OnFrame, AfterFrame);
+
+// Make sure the world uses the correct pipeline
+ecs_set_pipeline(world, MyPipeline);
+```
+
+Now the application can create systems for the custom pipeline:
+
+```c
+// System ran in the OnFrame phase
+ECS_SYSTEM(world, Move, OnFrame, Position, Velocity);
+
+// System ran in the AfterFrame phase
+ECS_SYSTEM(world, DetectCollisions, AfterFrame, Position);
+
+// This will now run systems in the custom pipeline
+ecs_progress(world, 0);
+```
 
 ## Time management
 
@@ -2113,9 +2530,18 @@ if (Jane.has_trait(IsSibling, Jeff)) {
 
 ## Statistics
 
-## Staging
-
 ## Threading
+Applications can multithread systems by configuring the number of threads for a world. The approach to multithreading is simple, but does not require locks and works well in applications that have "pure" ECS systems, that is systems that only modify the components subscribed for in their signature.
+
+When a world has multiple threads, each thread will run all systems. Each system will ensure that it only processes a subset of the entities that is allocated to the thread. It does this by dividing up each table into slices of equal size, and assigning those slices to the threads. Since entities do not move around inbetween synchronization points, this approach ensures that each entity will always be allocated to the same thread. When systems only access components that are queried for, race conditions cannot occur without relying on locking.
+
+Threads are created when the `ecs_set_threads` function is invoked. An application may change the number of threads by repeatedly invoking this function, as long as the world is not progressing. Threads are not recreated for each frame to reduce the overhead of multithreading. Instead threads will be signalled by the main thread when a frame starts, and the main thread will wait on the threads before ending the frame.
+
+No structural changes (adding/removing components, or deleting an entity) are allowed while a thread is evaluating the systems. If a system does a structural change, it is deferred until the next synchronization point. During synchronization, all deferred operations will be flushed by the main thread.
+
+By default there is only a single synchronization point at the end of the frame, and a thread will run all of its systems to completion for each frame. This parallelizes extremely well, even in the case where there are lots of systems with small workloads, as all the logic for a frame can be executed without any waiting or taking any locks. If a system has deferred structural changes that are required by a subsequent system however, a mid-frame synchronization point may be necessary. In this case an application can annotate system signatures to enforce synchronization points, as is described in (Staging)[#staging]. The advantage of this approach is that synchronization points are not explicitly created, but automatically derived, which prevents having to specify explicit dependencies between systems.
+
+This approach does have some obvious limitations. All systems are parallelized, which can cause problems when a system's logic needs to be executed for example on the main thread (as is often the case for rendering logic). Additionally, if a system reads from component references, as is the case with systems that retrieve components from prefabs or parent entities, this approach can introduce race conditions where a component value is read while it is being updated. These are known issues, and improvements to the threading framework are scheduled for future versions.
 
 ## Tracing
 

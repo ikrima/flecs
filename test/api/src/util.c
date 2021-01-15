@@ -15,7 +15,7 @@ void probe_system_w_ctx(
 
     int i;
     for (i = 0; i < ctx->column_count; i ++) {
-        ctx->c[ctx->invoked][i] = it->components[i];
+        ctx->c[ctx->invoked][i] = it->table->components[i];
         ctx->s[ctx->invoked][i] = ecs_column_source(it, i + 1);
 
         /* Make sure ecs_column functions work */
@@ -65,4 +65,11 @@ void probe_has_entity(Probe *probe, ecs_entity_t e) {
     }
 
     test_assert(i != probe->count);
+}
+
+void install_test_abort() {
+    ecs_os_set_api_defaults();
+    ecs_os_api_t os_api = ecs_os_api;
+    os_api.abort_ = test_abort;
+    ecs_os_set_api(&os_api);
 }

@@ -7,20 +7,20 @@ ecs_type_t ecs_type(EcsName);
 ecs_type_t ecs_type(EcsPrefab);
 
 /* Component lifecycle actions for EcsName */
-ECS_CTOR(EcsName, ptr, {
+static ECS_CTOR(EcsName, ptr, {
     ptr->value = NULL;
     ptr->alloc_value = NULL;
     ptr->symbol = NULL;
 })
 
-ECS_DTOR(EcsName, ptr, {
+static ECS_DTOR(EcsName, ptr, {
     ecs_os_free(ptr->alloc_value);
     ptr->value = NULL;
     ptr->alloc_value = NULL;
     ptr->symbol = NULL;
 })
 
-ECS_COPY(EcsName, dst, src, {
+static ECS_COPY(EcsName, dst, src, {
     if (dst->alloc_value) {
         ecs_os_free(dst->alloc_value);
         dst->alloc_value = NULL;
@@ -36,7 +36,7 @@ ECS_COPY(EcsName, dst, src, {
     dst->symbol = src->symbol;
 })
 
-ECS_MOVE(EcsName, dst, src, {
+static ECS_MOVE(EcsName, dst, src, {
     dst->value = src->value;
     dst->alloc_value = src->alloc_value;
     dst->symbol = src->symbol;
@@ -46,13 +46,13 @@ ECS_MOVE(EcsName, dst, src, {
     src->symbol = NULL;
 })
 
-
 /* -- Bootstrapping -- */
 
 #define bootstrap_component(world, table, name)\
-    _bootstrap_component(world, table, ecs_entity(name), #name, sizeof(name),\
+    _bootstrap_component(world, table, ecs_typeid(name), #name, sizeof(name),\
         ECS_ALIGNOF(name))
 
+static
 void _bootstrap_component(
     ecs_world_t *world,
     ecs_table_t *table,
@@ -63,14 +63,14 @@ void _bootstrap_component(
 {
     ecs_assert(table != NULL, ECS_INTERNAL_ERROR, NULL);
 
-    ecs_data_t *data = ecs_table_get_or_create_data(world, &world->stage, table);
+    ecs_data_t *data = ecs_table_get_or_create_data(table);
     ecs_assert(data != NULL, ECS_INTERNAL_ERROR, NULL);
 
     ecs_column_t *columns = data->columns;
     ecs_assert(columns != NULL, ECS_INTERNAL_ERROR, NULL);
 
     /* Create record in entity index */
-    ecs_record_t *record = ecs_eis_get_or_create(&world->stage, entity);
+    ecs_record_t *record = ecs_eis_get_or_create(world, entity);
     record->table = table;
 
     /* Insert row into table to store EcsComponent itself */
@@ -93,12 +93,10 @@ ecs_type_t ecs_bootstrap_type(
     ecs_world_t *world,
     ecs_entity_t entity)
 {
-    ecs_table_t *table = ecs_table_find_or_create(world, &world->stage, 
-        &(ecs_entities_t){
-            .array = (ecs_entity_t[]){entity},
-            .count = 1
-        }
-    );
+    ecs_table_t *table = ecs_table_find_or_create(world, &(ecs_entities_t){
+        .array = (ecs_entity_t[]){entity},
+        .count = 1
+    });
 
     ecs_assert(table != NULL, ECS_INTERNAL_ERROR, NULL);
     ecs_assert(table->type != NULL, ECS_INTERNAL_ERROR, NULL);
@@ -111,9 +109,9 @@ static
 void bootstrap_types(
     ecs_world_t *world)
 {
-    ecs_type(EcsComponent) = ecs_bootstrap_type(world, ecs_entity(EcsComponent));
-    ecs_type(EcsType) = ecs_bootstrap_type(world, ecs_entity(EcsType));
-    ecs_type(EcsName) = ecs_bootstrap_type(world, ecs_entity(EcsName));
+    ecs_type(EcsComponent) = ecs_bootstrap_type(world, ecs_typeid(EcsComponent));
+    ecs_type(EcsType) = ecs_bootstrap_type(world, ecs_typeid(EcsType));
+    ecs_type(EcsName) = ecs_bootstrap_type(world, ecs_typeid(EcsName));
 }
 
 /** Initialize component table. This table is manually constructed to bootstrap
@@ -126,16 +124,14 @@ static
 ecs_table_t* bootstrap_component_table(
     ecs_world_t *world)
 {
-    ecs_entity_t entities[] = {ecs_entity(EcsComponent), ecs_entity(EcsName), ECS_CHILDOF | EcsFlecsCore};
+    ecs_entity_t entities[] = {ecs_typeid(EcsComponent), ecs_typeid(EcsName), ECS_CHILDOF | EcsFlecsCore};
     ecs_entities_t array = {
         .array = entities,
         .count = 3
     };
 
-    ecs_table_t *result = ecs_table_find_or_create(
-        world, &world->stage, &array);
-
-    ecs_data_t *data = ecs_table_get_or_create_data(world, &world->stage, result);
+    ecs_table_t *result = ecs_table_find_or_create(world, &array);
+    ecs_data_t *data = ecs_table_get_or_create_data(result);
 
     /* Preallocate enough memory for initial components */
     data->entities = ecs_vector_new(ecs_entity_t, EcsFirstUserComponentId);

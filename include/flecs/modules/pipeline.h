@@ -1,7 +1,7 @@
 #ifdef FLECS_PIPELINE
 #define FLECS_SYSTEM
 
-#include "flecs/modules/system.h"
+#include "system.h"
 
 #ifndef FLECS_PIPELINE_H
 #define FLECS_PIPELINE_H
@@ -25,7 +25,7 @@ extern "C" {
  * @param world The world.
  * @param pipeline The pipeline to set.
  */
-FLECS_EXPORT
+FLECS_API
 void ecs_set_pipeline(
     ecs_world_t *world,
     ecs_entity_t pipeline);       
@@ -36,7 +36,7 @@ void ecs_set_pipeline(
  * @param world The world.
  * @param pipeline The pipeline to set.
  */
-FLECS_EXPORT
+FLECS_API
 ecs_entity_t ecs_get_pipeline(
     ecs_world_t *world);  
 
@@ -58,10 +58,10 @@ ecs_entity_t ecs_get_pipeline(
  * @param delta_time The time passed since the last frame.
  * @return false if ecs_quit has been called, true otherwise.
  */
-FLECS_EXPORT
+FLECS_API
 bool ecs_progress(
     ecs_world_t *world,
-    float delta_time);   
+    FLECS_FLOAT delta_time);   
 
 /** Set target frames per second (FPS) for application.
  * Setting the target FPS ensures that ecs_progress is not invoked faster than
@@ -78,10 +78,10 @@ bool ecs_progress(
  * @param world The world.
  * @param fps The target FPS.
  */
-FLECS_EXPORT
+FLECS_API
 void ecs_set_target_fps(
     ecs_world_t *world,
-    float fps);
+    FLECS_FLOAT fps);
 
 /** Set time scale.
  * Increase or decrease simulation speed by the provided multiplier.
@@ -89,17 +89,17 @@ void ecs_set_target_fps(
  * @param world The world.
  * @param scale The scale to apply (default = 1).
  */
-FLECS_EXPORT 
+FLECS_API 
 void ecs_set_time_scale(
     ecs_world_t *world,
-    float scale);
+    FLECS_FLOAT scale);
 
 /** Reset world clock.
  * Reset the clock that keeps track of the total time passed in the simulation.
  *
  * @param world The world.
  */
-FLECS_EXPORT
+FLECS_API
 void ecs_reset_clock(
     ecs_world_t *world);
 
@@ -109,7 +109,7 @@ void ecs_reset_clock(
  *
  * @param world The world to quit.
  */
-FLECS_EXPORT
+FLECS_API
 void ecs_quit(
     ecs_world_t *world);
 
@@ -123,7 +123,7 @@ void ecs_quit(
  *
  * @param world The world.
  */
-FLECS_EXPORT
+FLECS_API
 void ecs_deactivate_systems(
     ecs_world_t *world);
 
@@ -137,18 +137,18 @@ void ecs_deactivate_systems(
  * will cause systems to evenly distribute matched entities across threads. The
  * operation may be called multiple times to reconfigure the number of threads
  * used, but never while running a system / pipeline. */
-FLECS_EXPORT
+FLECS_API
 void ecs_set_threads(
     ecs_world_t *world,
     int32_t threads);
 
 /** Get current number of threads. */
-FLECS_EXPORT
+FLECS_API
 int32_t ecs_get_threads(
     ecs_world_t *world);
 
 /** Get current thread index */
-FLECS_EXPORT
+FLECS_API
 int32_t ecs_get_thread_index(
     ecs_world_t *world);
 
@@ -162,7 +162,7 @@ typedef struct FlecsPipeline {
     int32_t dummy; 
 } FlecsPipeline;
 
-FLECS_EXPORT
+FLECS_API
 void FlecsPipelineImport(
     ecs_world_t *world);
 

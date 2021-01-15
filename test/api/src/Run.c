@@ -1,5 +1,9 @@
 #include <api.h>
 
+void Run_setup() {
+    ecs_tracing_enable(-3);
+}
+
 static
 void Iter(ecs_iter_t *it) {
     ECS_COLUMN(it, Position, p, 1);
@@ -81,9 +85,9 @@ void Run_run() {
 
     int i;
     for (i = 0; i < ctx.invoked; i ++) {
-        test_int(ctx.c[i][0], ecs_entity(Position));
+        test_int(ctx.c[i][0], ecs_typeid(Position));
         test_int(ctx.s[i][0], 0);
-        test_int(ctx.c[i][1], ecs_entity(Velocity));
+        test_int(ctx.c[i][1], ecs_typeid(Velocity));
         test_int(ctx.s[i][1], 0);
     }
 
@@ -125,7 +129,7 @@ void Run_run_w_param() {
     test_ptr(ctx.param, &param);
 
     test_int(ctx.e[0], e_1);
-    test_int(ctx.c[0][0], ecs_entity(Position));
+    test_int(ctx.c[0][0], ecs_typeid(Position));
     test_int(ctx.s[0][0], 0);
 
     const Position *p = ecs_get(world, e_1, Position);
@@ -175,9 +179,9 @@ void Run_run_w_offset() {
 
     int i;
     for (i = 0; i < ctx.invoked; i ++) {
-        test_int(ctx.c[i][0], ecs_entity(Position));
+        test_int(ctx.c[i][0], ecs_typeid(Position));
         test_int(ctx.s[i][0], 0);
-        test_int(ctx.c[i][1], ecs_entity(Velocity));
+        test_int(ctx.c[i][1], ecs_typeid(Velocity));
         test_int(ctx.s[i][1], 0);
     }
 
@@ -232,9 +236,9 @@ void Run_run_w_offset_skip_1_archetype() {
 
     int i;
     for (i = 0; i < ctx.invoked; i ++) {
-        test_int(ctx.c[i][0], ecs_entity(Position));
+        test_int(ctx.c[i][0], ecs_typeid(Position));
         test_int(ctx.s[i][0], 0);
-        test_int(ctx.c[i][1], ecs_entity(Velocity));
+        test_int(ctx.c[i][1], ecs_typeid(Velocity));
         test_int(ctx.s[i][1], 0);
     }
 
@@ -288,9 +292,9 @@ void Run_run_w_offset_skip_1_archetype_plus_one() {
 
     int i;
     for (i = 0; i < ctx.invoked; i ++) {
-        test_int(ctx.c[i][0], ecs_entity(Position));
+        test_int(ctx.c[i][0], ecs_typeid(Position));
         test_int(ctx.s[i][0], 0);
-        test_int(ctx.c[i][1], ecs_entity(Velocity));
+        test_int(ctx.c[i][1], ecs_typeid(Velocity));
         test_int(ctx.s[i][1], 0);
     }
 
@@ -341,9 +345,9 @@ void Run_run_w_offset_skip_2_archetypes() {
 
     test_int(ctx.e[0], e_6);
 
-    test_int(ctx.c[0][0], ecs_entity(Position));
+    test_int(ctx.c[0][0], ecs_typeid(Position));
     test_int(ctx.s[0][0], 0);
-    test_int(ctx.c[0][1], ecs_entity(Velocity));
+    test_int(ctx.c[0][1], ecs_typeid(Velocity));
     test_int(ctx.s[0][1], 0);
 
     const Position *p = ecs_get(world, e_6, Position);
@@ -397,9 +401,9 @@ void Run_run_w_limit_skip_1_archetype() {
 
     int i;
     for (i = 0; i < ctx.invoked; i ++) {
-        test_int(ctx.c[i][0], ecs_entity(Position));
+        test_int(ctx.c[i][0], ecs_typeid(Position));
         test_int(ctx.s[i][0], 0);
-        test_int(ctx.c[i][1], ecs_entity(Velocity));
+        test_int(ctx.c[i][1], ecs_typeid(Velocity));
         test_int(ctx.s[i][1], 0);
     }
 
@@ -455,9 +459,9 @@ void Run_run_w_limit_skip_1_archetype_minus_one() {
 
     int i;
     for (i = 0; i < ctx.invoked; i ++) {
-        test_int(ctx.c[i][0], ecs_entity(Position));
+        test_int(ctx.c[i][0], ecs_typeid(Position));
         test_int(ctx.s[i][0], 0);
-        test_int(ctx.c[i][1], ecs_entity(Velocity));
+        test_int(ctx.c[i][1], ecs_typeid(Velocity));
         test_int(ctx.s[i][1], 0);
     }
 
@@ -512,9 +516,9 @@ void Run_run_w_limit_skip_2_archetypes() {
 
     int i;
     for (i = 0; i < ctx.invoked; i ++) {
-        test_int(ctx.c[i][0], ecs_entity(Position));
+        test_int(ctx.c[i][0], ecs_typeid(Position));
         test_int(ctx.s[i][0], 0);
-        test_int(ctx.c[i][1], ecs_entity(Velocity));
+        test_int(ctx.c[i][1], ecs_typeid(Velocity));
         test_int(ctx.s[i][1], 0);
     }
 
@@ -571,9 +575,9 @@ void Run_run_w_offset_1_limit_max() {
 
     int i;
     for (i = 0; i < ctx.invoked; i ++) {
-        test_int(ctx.c[i][0], ecs_entity(Position));
+        test_int(ctx.c[i][0], ecs_typeid(Position));
         test_int(ctx.s[i][0], 0);
-        test_int(ctx.c[i][1], ecs_entity(Velocity));
+        test_int(ctx.c[i][1], ecs_typeid(Velocity));
         test_int(ctx.s[i][1], 0);
     }
 
@@ -629,9 +633,9 @@ void Run_run_w_offset_1_limit_minus_1() {
 
     int i;
     for (i = 0; i < ctx.invoked; i ++) {
-        test_int(ctx.c[i][0], ecs_entity(Position));
+        test_int(ctx.c[i][0], ecs_typeid(Position));
         test_int(ctx.s[i][0], 0);
-        test_int(ctx.c[i][1], ecs_entity(Velocity));
+        test_int(ctx.c[i][1], ecs_typeid(Velocity));
         test_int(ctx.s[i][1], 0);
     }
 
@@ -686,9 +690,9 @@ void Run_run_w_offset_2_type_limit_max() {
 
     int i;
     for (i = 0; i < ctx.invoked; i ++) {
-        test_int(ctx.c[i][0], ecs_entity(Position));
+        test_int(ctx.c[i][0], ecs_typeid(Position));
         test_int(ctx.s[i][0], 0);
-        test_int(ctx.c[i][1], ecs_entity(Velocity));
+        test_int(ctx.c[i][1], ecs_typeid(Velocity));
         test_int(ctx.s[i][1], 0);
     }
 
@@ -742,9 +746,9 @@ void Run_run_w_offset_2_type_limit_minus_1() {
 
     int i;
     for (i = 0; i < ctx.invoked; i ++) {
-        test_int(ctx.c[i][0], ecs_entity(Position));
+        test_int(ctx.c[i][0], ecs_typeid(Position));
         test_int(ctx.s[i][0], 0);
-        test_int(ctx.c[i][1], ecs_entity(Velocity));
+        test_int(ctx.c[i][1], ecs_typeid(Velocity));
         test_int(ctx.s[i][1], 0);
     }
 
@@ -808,9 +812,9 @@ void Run_run_w_limit_1_all_offsets() {
 
     int i;
     for (i = 0; i < ctx.invoked; i ++) {
-        test_int(ctx.c[i][0], ecs_entity(Position));
+        test_int(ctx.c[i][0], ecs_typeid(Position));
         test_int(ctx.s[i][0], 0);
-        test_int(ctx.c[i][1], ecs_entity(Velocity));
+        test_int(ctx.c[i][1], ecs_typeid(Velocity));
         test_int(ctx.s[i][1], 0);
     }
 
@@ -896,9 +900,9 @@ void Run_run_w_limit_out_of_bounds() {
 
     int i;
     for (i = 0; i < ctx.invoked; i ++) {
-        test_int(ctx.c[i][0], ecs_entity(Position));
+        test_int(ctx.c[i][0], ecs_typeid(Position));
         test_int(ctx.s[i][0], 0);
-        test_int(ctx.c[i][1], ecs_entity(Velocity));
+        test_int(ctx.c[i][1], ecs_typeid(Velocity));
         test_int(ctx.s[i][1], 0);
     }
 
@@ -954,9 +958,9 @@ void Run_run_w_component_filter() {
 
     int i;
     for (i = 0; i < ctx.invoked; i ++) {
-        test_int(ctx.c[i][0], ecs_entity(Position));
+        test_int(ctx.c[i][0], ecs_typeid(Position));
         test_int(ctx.s[i][0], 0);
-        test_int(ctx.c[i][1], ecs_entity(Velocity));
+        test_int(ctx.c[i][1], ecs_typeid(Velocity));
         test_int(ctx.s[i][1], 0);
     }
 
@@ -1013,9 +1017,9 @@ void Run_run_w_type_filter_of_2() {
 
     int i;
     for (i = 0; i < ctx.invoked; i ++) {
-        test_int(ctx.c[i][0], ecs_entity(Position));
+        test_int(ctx.c[i][0], ecs_typeid(Position));
         test_int(ctx.s[i][0], 0);
-        test_int(ctx.c[i][1], ecs_entity(Velocity));
+        test_int(ctx.c[i][1], ecs_typeid(Velocity));
         test_int(ctx.s[i][1], 0);
     }
 
@@ -1087,7 +1091,7 @@ void Run_run_w_container_filter() {
 
     int i;
     for (i = 0; i < ctx.invoked; i ++) {
-        test_int(ctx.c[i][0], ecs_entity(Position));
+        test_int(ctx.c[i][0], ecs_typeid(Position));
         test_int(ctx.s[i][0], 0);
     }
 
@@ -1267,8 +1271,8 @@ void AddVelocity(ecs_iter_t *it) {
         
         ecs_set(world, e, Position, {x + 1, y + 2});
         const Position *p_stage = ecs_get(world, e, Position);
-        test_int(p_stage->x, x + 1);
-        test_int(p_stage->y, y + 2);
+        test_int(p_stage->x, x);
+        test_int(p_stage->y, y);
 
         /* Main stage isn't updated until after merge */
         test_int(p[i].x, x);
@@ -1276,8 +1280,7 @@ void AddVelocity(ecs_iter_t *it) {
 
         ecs_set(world, e, Velocity, {1, 2});
         const Velocity *v = ecs_get(world, e, Velocity);
-        test_int(v->x, 1);
-        test_int(v->y, 2);
+        test_assert(v == NULL);
     }
 }
 

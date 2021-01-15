@@ -39,13 +39,13 @@ void Traits_type_w_one_trait() {
         .value = 10
     });  
     test_assert(e1 != 0);
-    test_assert( ecs_has_trait(world, e1, ecs_entity(Position), ecs_entity(Trait)));
+    test_assert( ecs_has_trait(world, e1, ecs_typeid(Position), ecs_typeid(Trait)));
 
     ecs_entity_t e2 = ecs_set_trait(world, 0, Velocity, Trait, {
         .value = 20
     });
     test_assert(e2 != 0);
-    test_assert( ecs_has_trait(world, e2, ecs_entity(Velocity), ecs_entity(Trait)));
+    test_assert( ecs_has_trait(world, e2, ecs_typeid(Velocity), ecs_typeid(Trait)));
 
     Probe ctx = {0};
     ecs_set_context(world, &ctx);
@@ -70,16 +70,16 @@ void Traits_type_w_one_trait() {
     test_int(ctx.e[1], e2);
 
     ecs_entity_t c = ctx.c[0][0];
-    ecs_entity_t hi = ecs_entity_t_hi(c & ECS_ENTITY_MASK);
+    ecs_entity_t hi = ecs_entity_t_hi(c & ECS_COMPONENT_MASK);
     ecs_entity_t lo = ecs_entity_t_lo(c);
-    test_int(hi, ecs_entity(Trait));
-    test_int(lo, ecs_entity(Position));
+    test_int(hi, ecs_typeid(Trait));
+    test_int(lo, ecs_typeid(Position));
 
-    c = ctx.c[1][0] & ECS_ENTITY_MASK;
-    hi = ecs_entity_t_hi(c & ECS_ENTITY_MASK);
+    c = ctx.c[1][0] & ECS_COMPONENT_MASK;
+    hi = ecs_entity_t_hi(c & ECS_COMPONENT_MASK);
     lo = ecs_entity_t_lo(c);
-    test_int(hi, ecs_entity(Trait));
-    test_int(lo, ecs_entity(Velocity));
+    test_int(hi, ecs_typeid(Trait));
+    test_int(lo, ecs_typeid(Velocity));
 
     test_int(ctx.s[0][0], 0);
     test_int(ctx.s[1][0], 0);
@@ -101,23 +101,23 @@ void Traits_type_w_two_traits() {
     ecs_set_trait(world, e1, Position, Trait, {
         .value = 10
     });  
-    test_assert( ecs_has_trait(world, e1, ecs_entity(Position), ecs_entity(Trait)));
+    test_assert( ecs_has_trait(world, e1, ecs_typeid(Position), ecs_typeid(Trait)));
 
     ecs_set_trait(world, e1, Velocity, Trait, {
         .value = 20
     });      
-    test_assert( ecs_has_trait(world, e1, ecs_entity(Velocity), ecs_entity(Trait)));
+    test_assert( ecs_has_trait(world, e1, ecs_typeid(Velocity), ecs_typeid(Trait)));
 
     ecs_entity_t e2 = ecs_new(world, 0);
     ecs_set_trait(world, e2, Position, Trait, {
         .value = 30
     });
-    test_assert( ecs_has_trait(world, e2, ecs_entity(Position), ecs_entity(Trait)));
+    test_assert( ecs_has_trait(world, e2, ecs_typeid(Position), ecs_typeid(Trait)));
 
     ecs_set_trait(world, e2, Velocity, Trait, {
         .value = 40
     });
-    test_assert( ecs_has_trait(world, e2, ecs_entity(Position), ecs_entity(Trait)));
+    test_assert( ecs_has_trait(world, e2, ecs_typeid(Position), ecs_typeid(Trait)));
 
     Probe ctx = {0};
     ecs_set_context(world, &ctx);
@@ -130,7 +130,7 @@ void Traits_type_w_two_traits() {
 
     tr = ecs_get_trait(world, e1, Velocity, Trait);
     test_assert(tr != NULL);
-    test_int(tr->value, 21);    
+    test_int(tr->value, 21);
 
     tr = ecs_get_trait(world, e2, Position, Trait);
     test_assert(tr != NULL);
@@ -152,16 +152,16 @@ void Traits_type_w_two_traits() {
     test_int(ctx.e[3], e2);
 
     ecs_entity_t c = ctx.c[0][0];
-    ecs_entity_t hi = ecs_entity_t_hi(c & ECS_ENTITY_MASK);
+    ecs_entity_t hi = ecs_entity_t_hi(c & ECS_COMPONENT_MASK);
     ecs_entity_t lo = ecs_entity_t_lo(c);
-    test_int(hi, ecs_entity(Trait));
-    test_int(lo, ecs_entity(Velocity));
+    test_int(hi, ecs_typeid(Trait));
+    test_int(lo, ecs_typeid(Velocity));
 
-    c = ctx.c[1][0] & ECS_ENTITY_MASK;
-    hi = ecs_entity_t_hi(c & ECS_ENTITY_MASK);
+    c = ctx.c[1][0] & ECS_COMPONENT_MASK;
+    hi = ecs_entity_t_hi(c & ECS_COMPONENT_MASK);
     lo = ecs_entity_t_lo(c);
-    test_int(hi, ecs_entity(Trait));
-    test_int(lo, ecs_entity(Position));
+    test_int(hi, ecs_typeid(Trait));
+    test_int(lo, ecs_typeid(Position));
 
     test_int(ctx.s[0][0], 0);
     test_int(ctx.s[1][0], 0);
@@ -183,8 +183,8 @@ void Traits_add_trait() {
     ecs_entity_t e1 = ecs_new(world, 0);
     test_assert(e1 != 0);
 
-    ecs_add_trait(world, e1, ecs_entity(Position), ecs_entity(Trait));
-    test_assert( ecs_has_trait(world, e1, ecs_entity(Position), ecs_entity(Trait)));
+    ecs_add_trait(world, e1, ecs_typeid(Position), ecs_typeid(Trait));
+    test_assert( ecs_has_trait(world, e1, ecs_typeid(Position), ecs_typeid(Trait)));
 
     ecs_fini(world);
 }
@@ -202,11 +202,11 @@ void Traits_remove_trait() {
         .value = 10
     });  
     test_assert(e1 != 0);
-    test_assert( ecs_has_trait(world, e1, ecs_entity(Position), ecs_entity(Trait)));
+    test_assert( ecs_has_trait(world, e1, ecs_typeid(Position), ecs_typeid(Trait)));
 
-    ecs_remove_trait(world, e1, ecs_entity(Position), ecs_entity(Trait));
+    ecs_remove_trait(world, e1, ecs_typeid(Position), ecs_typeid(Trait));
 
-    test_assert( !ecs_has_trait(world, e1, ecs_entity(Position), ecs_entity(Trait)));
+    test_assert( !ecs_has_trait(world, e1, ecs_typeid(Position), ecs_typeid(Trait)));
 
     ecs_fini(world);
 }
@@ -247,13 +247,13 @@ void Traits_add_tag_trait_for_tag() {
 
     ecs_entity_t c = ctx.c[0][0];
 
-    ecs_entity_t hi = ecs_entity_t_hi(c & ECS_ENTITY_MASK);
+    ecs_entity_t hi = ecs_entity_t_hi(c & ECS_COMPONENT_MASK);
     ecs_entity_t lo = ecs_entity_t_lo(c);
     test_int(hi, TraitTag);
     test_int(lo, Tag1);
 
-    c = ctx.c[1][0] & ECS_ENTITY_MASK;
-    hi = ecs_entity_t_hi(c & ECS_ENTITY_MASK);
+    c = ctx.c[1][0] & ECS_COMPONENT_MASK;
+    hi = ecs_entity_t_hi(c & ECS_COMPONENT_MASK);
     lo = ecs_entity_t_lo(c);
     test_int(hi, TraitTag);
     test_int(lo, Tag2);
@@ -293,25 +293,25 @@ void Traits_add_tag_trait_for_component() {
         .x = 1,
         .y = 2
     });
-    test_assert( ecs_has_entity(world, e1, ecs_trait(ecs_entity(Position), TraitTag)));
+    test_assert( ecs_has_entity(world, e1, ecs_trait(ecs_typeid(Position), TraitTag)));
 
     ecs_entity_t e2 = ecs_set_trait_tag(world, 0, TraitTag, Velocity, {
         .x = 3,
         .y = 4
     });
-    test_assert( ecs_has_entity(world, e2, ecs_trait(ecs_entity(Velocity), TraitTag)));
+    test_assert( ecs_has_entity(world, e2, ecs_trait(ecs_typeid(Velocity), TraitTag)));
 
     Probe ctx = {0};
     ecs_set_context(world, &ctx);
 
     ecs_progress(world, 0);
 
-    const Position* tr_p = ecs_get_w_entity(world, e1, ecs_trait(ecs_entity(Position), TraitTag));
+    const Position* tr_p = ecs_get_w_entity(world, e1, ecs_trait(ecs_typeid(Position), TraitTag));
     test_assert(tr_p != NULL);
     test_int(tr_p->x, 11);
     test_int(tr_p->y, 22);
 
-    const Velocity* tr_v = ecs_get_w_entity(world, e2, ecs_trait(ecs_entity(Velocity), TraitTag));
+    const Velocity* tr_v = ecs_get_w_entity(world, e2, ecs_trait(ecs_typeid(Velocity), TraitTag));
     test_assert(tr_v != NULL);
     test_int(tr_v->x, 13);
     test_int(tr_v->y, 24);
@@ -326,16 +326,16 @@ void Traits_add_tag_trait_for_component() {
     test_int(ctx.e[1], e2);
 
     ecs_entity_t c = ctx.c[0][0];
-    ecs_entity_t hi = ecs_entity_t_hi(c & ECS_ENTITY_MASK);
+    ecs_entity_t hi = ecs_entity_t_hi(c & ECS_COMPONENT_MASK);
     ecs_entity_t lo = ecs_entity_t_lo(c);
     test_int(hi, TraitTag);
-    test_int(lo, ecs_entity(Position));
+    test_int(lo, ecs_typeid(Position));
 
-    c = ctx.c[1][0] & ECS_ENTITY_MASK;
-    hi = ecs_entity_t_hi(c & ECS_ENTITY_MASK);
+    c = ctx.c[1][0] & ECS_COMPONENT_MASK;
+    hi = ecs_entity_t_hi(c & ECS_COMPONENT_MASK);
     lo = ecs_entity_t_lo(c);
     test_int(hi, TraitTag);
-    test_int(lo, ecs_entity(Velocity));
+    test_int(lo, ecs_typeid(Velocity));
 
     test_int(ctx.s[0][0], 0);
     test_int(ctx.s[1][0], 0);
@@ -374,14 +374,14 @@ void Traits_query_2_traits() {
         .value = 2
     });    
 
-    test_assert( ecs_has_trait(world, e1, ecs_entity(Position), ecs_entity(TraitA)));
-    test_assert( ecs_has_trait(world, e1, ecs_entity(Position), ecs_entity(TraitB)));
+    test_assert( ecs_has_trait(world, e1, ecs_typeid(Position), ecs_typeid(TraitA)));
+    test_assert( ecs_has_trait(world, e1, ecs_typeid(Position), ecs_typeid(TraitB)));
 
     /* Create entity with only TraitA. Should not be matched with system */
     ecs_entity_t e2 = ecs_set_trait(world, 0, Position, TraitA, {
         .value = 3
     });
-    test_assert( ecs_has_trait(world, e2, ecs_entity(Position), ecs_entity(TraitA)));
+    test_assert( ecs_has_trait(world, e2, ecs_typeid(Position), ecs_typeid(TraitA)));
 
     /* Run system */
     Probe ctx = {0};
@@ -406,16 +406,16 @@ void Traits_query_2_traits() {
     test_int(ctx.e[0], e1);
 
     ecs_entity_t c = ctx.c[0][0];
-    ecs_entity_t hi = ecs_entity_t_hi(c & ECS_ENTITY_MASK);
+    ecs_entity_t hi = ecs_entity_t_hi(c & ECS_COMPONENT_MASK);
     ecs_entity_t lo = ecs_entity_t_lo(c);
-    test_int(hi, ecs_entity(TraitA));
-    test_int(lo, ecs_entity(Position));
+    test_int(hi, ecs_typeid(TraitA));
+    test_int(lo, ecs_typeid(Position));
 
     c = ctx.c[0][1];
-    hi = ecs_entity_t_hi(c & ECS_ENTITY_MASK);
+    hi = ecs_entity_t_hi(c & ECS_COMPONENT_MASK);
     lo = ecs_entity_t_lo(c);
-    test_int(hi, ecs_entity(TraitB));
-    test_int(lo, ecs_entity(Position));    
+    test_int(hi, ecs_typeid(TraitB));
+    test_int(lo, ecs_typeid(Position));    
 
     ecs_fini(world);
 }
@@ -447,10 +447,10 @@ void Traits_query_2_traits_2_instances_per_type() {
         .value = 4
     });        
 
-    test_assert( ecs_has_trait(world, e1, ecs_entity(Position), ecs_entity(TraitA)));
-    test_assert( ecs_has_trait(world, e1, ecs_entity(Position), ecs_entity(TraitB)));
-    test_assert( ecs_has_trait(world, e1, ecs_entity(Velocity), ecs_entity(TraitA)));
-    test_assert( ecs_has_trait(world, e1, ecs_entity(Velocity), ecs_entity(TraitB)));
+    test_assert( ecs_has_trait(world, e1, ecs_typeid(Position), ecs_typeid(TraitA)));
+    test_assert( ecs_has_trait(world, e1, ecs_typeid(Position), ecs_typeid(TraitB)));
+    test_assert( ecs_has_trait(world, e1, ecs_typeid(Velocity), ecs_typeid(TraitA)));
+    test_assert( ecs_has_trait(world, e1, ecs_typeid(Velocity), ecs_typeid(TraitB)));
 
     /* Run system */
     Probe ctx = {0};
@@ -479,28 +479,28 @@ void Traits_query_2_traits_2_instances_per_type() {
     test_int(ctx.e[1], e1);
 
     ecs_entity_t c = ctx.c[0][0];
-    ecs_entity_t hi = ecs_entity_t_hi(c & ECS_ENTITY_MASK);
+    ecs_entity_t hi = ecs_entity_t_hi(c & ECS_COMPONENT_MASK);
     ecs_entity_t lo = ecs_entity_t_lo(c);
-    test_int(hi, ecs_entity(TraitA));
-    test_int(lo, ecs_entity(Position));
+    test_int(hi, ecs_typeid(TraitA));
+    test_int(lo, ecs_typeid(Position));
 
     c = ctx.c[0][1];
-    hi = ecs_entity_t_hi(c & ECS_ENTITY_MASK);
+    hi = ecs_entity_t_hi(c & ECS_COMPONENT_MASK);
     lo = ecs_entity_t_lo(c);
-    test_int(hi, ecs_entity(TraitB));
-    test_int(lo, ecs_entity(Position));    
+    test_int(hi, ecs_typeid(TraitB));
+    test_int(lo, ecs_typeid(Position));    
 
     c = ctx.c[1][0];
-    hi = ecs_entity_t_hi(c & ECS_ENTITY_MASK);
+    hi = ecs_entity_t_hi(c & ECS_COMPONENT_MASK);
     lo = ecs_entity_t_lo(c);
-    test_int(hi, ecs_entity(TraitA));
-    test_int(lo, ecs_entity(Velocity));
+    test_int(hi, ecs_typeid(TraitA));
+    test_int(lo, ecs_typeid(Velocity));
 
     c = ctx.c[1][1];
-    hi = ecs_entity_t_hi(c & ECS_ENTITY_MASK);
+    hi = ecs_entity_t_hi(c & ECS_COMPONENT_MASK);
     lo = ecs_entity_t_lo(c);
-    test_int(hi, ecs_entity(TraitB));
-    test_int(lo, ecs_entity(Velocity));  
+    test_int(hi, ecs_typeid(TraitB));
+    test_int(lo, ecs_typeid(Velocity));  
 
     ecs_fini(world);
 }
@@ -515,7 +515,7 @@ void Traits_override_trait() {
     ecs_set_trait(world, base, Position, Trait, {.value = 10});
 
     ecs_entity_t instance = ecs_new_w_entity(world, ECS_INSTANCEOF | base);
-    test_assert(ecs_has_trait(world, instance, ecs_entity(Position), ecs_entity(Trait)));
+    test_assert(ecs_has_trait(world, instance, ecs_typeid(Position), ecs_typeid(Trait)));
 
     const Trait *t = ecs_get_trait(world, instance, Position, Trait);
     test_assert(t != NULL);
@@ -525,7 +525,7 @@ void Traits_override_trait() {
     test_assert(t_2 != NULL);
     test_assert(t == t_2);
 
-    ecs_add_trait(world, instance, ecs_entity(Position), ecs_entity(Trait));
+    ecs_add_trait(world, instance, ecs_typeid(Position), ecs_typeid(Trait));
     t = ecs_get_trait(world, instance, Position, Trait);
     test_assert(t != NULL);
     test_int(t->value, 10);
@@ -544,7 +544,7 @@ void Traits_override_tag_trait() {
     ecs_set_trait_tag(world, base, Trait, Position, {.x = 10, .y = 20});
 
     ecs_entity_t instance = ecs_new_w_entity(world, ECS_INSTANCEOF | base);
-    test_assert(ecs_has_trait(world, instance, ecs_entity(Position), Trait));
+    test_assert(ecs_has_trait(world, instance, ecs_typeid(Position), Trait));
 
     const Position *t = ecs_get_trait_tag(world, instance, Trait, Position);
     test_assert(t != NULL);
@@ -555,7 +555,7 @@ void Traits_override_tag_trait() {
     test_assert(t_2 != NULL);
     test_assert(t == t_2);
 
-    ecs_add_trait(world, instance, ecs_entity(Position), Trait);
+    ecs_add_trait(world, instance, ecs_typeid(Position), Trait);
     t = ecs_get_trait_tag(world, instance, Trait, Position);
     test_assert(t != NULL);
     test_int(t->x, 10);
@@ -618,18 +618,18 @@ void Traits_trait_wildcard_system() {
     test_int(ctx.e[1], e2);
 
     ecs_entity_t c = ctx.c[0][0];
-    ecs_entity_t hi = ecs_entity_t_hi(c & ECS_ENTITY_MASK);
+    ecs_entity_t hi = ecs_entity_t_hi(c & ECS_COMPONENT_MASK);
     ecs_entity_t lo = ecs_entity_t_lo(c);
-    test_int(hi, ecs_entity(Trait));
-    test_int(lo, ecs_entity(Position));
-    test_int(ctx.c[0][1], ecs_entity(Position));
+    test_int(hi, ecs_typeid(Trait));
+    test_int(lo, ecs_typeid(Position));
+    test_int(ctx.c[0][1], ecs_typeid(Position));
 
-    c = ctx.c[1][0] & ECS_ENTITY_MASK;
-    hi = ecs_entity_t_hi(c & ECS_ENTITY_MASK);
+    c = ctx.c[1][0] & ECS_COMPONENT_MASK;
+    hi = ecs_entity_t_hi(c & ECS_COMPONENT_MASK);
     lo = ecs_entity_t_lo(c);
-    test_int(hi, ecs_entity(Trait));
-    test_int(lo, ecs_entity(Velocity));
-    test_int(ctx.c[1][1], ecs_entity(Velocity));
+    test_int(hi, ecs_typeid(Trait));
+    test_int(lo, ecs_typeid(Velocity));
+    test_int(ctx.c[1][1], ecs_typeid(Velocity));
 
     test_int(ctx.s[0][0], 0);
     test_int(ctx.s[1][0], 0);
@@ -686,8 +686,8 @@ void Traits_trait_only_wildcard_system() {
     test_int(ctx.e[0], e1);
     test_int(ctx.e[1], e2);
 
-    test_int(ctx.c[0][0], ecs_entity(Position));
-    test_int(ctx.c[1][0], ecs_entity(Velocity));
+    test_int(ctx.c[0][0], ecs_typeid(Position));
+    test_int(ctx.c[1][0], ecs_typeid(Velocity));
 
     test_int(ctx.s[0][0], 0);
     test_int(ctx.s[1][0], 0);
@@ -758,7 +758,7 @@ void Traits_on_add_trait() {
     ecs_set_context(world, &ctx);
 
     ecs_entity_t e = ecs_new(world, 0);
-    ecs_add_trait(world, e, ecs_entity(Position), ecs_entity(Trait));
+    ecs_add_trait(world, e, ecs_typeid(Position), ecs_typeid(Trait));
 
     test_int(ctx.count, 1);
     test_int(ctx.invoked, 1);
@@ -768,13 +768,13 @@ void Traits_on_add_trait() {
     test_int(ctx.e[0], e);
 
     ecs_entity_t c = ctx.c[0][0];
-    ecs_entity_t hi = ecs_entity_t_hi(c & ECS_ENTITY_MASK);
+    ecs_entity_t hi = ecs_entity_t_hi(c & ECS_COMPONENT_MASK);
     ecs_entity_t lo = ecs_entity_t_lo(c);
-    test_int(hi, ecs_entity(Trait));
-    test_int(lo, ecs_entity(Position));  
+    test_int(hi, ecs_typeid(Trait));
+    test_int(lo, ecs_typeid(Position));  
 
     ctx = (Probe){ 0 };
-    ecs_add_trait(world, e, ecs_entity(Velocity), ecs_entity(Trait));
+    ecs_add_trait(world, e, ecs_typeid(Velocity), ecs_typeid(Trait));
 
     test_int(ctx.count, 1);
     test_int(ctx.invoked, 1);
@@ -784,10 +784,10 @@ void Traits_on_add_trait() {
     test_int(ctx.e[0], e);
 
     c = ctx.c[0][0];
-    hi = ecs_entity_t_hi(c & ECS_ENTITY_MASK);
+    hi = ecs_entity_t_hi(c & ECS_COMPONENT_MASK);
     lo = ecs_entity_t_lo(c);
-    test_int(hi, ecs_entity(Trait));
-    test_int(lo, ecs_entity(Velocity));
+    test_int(hi, ecs_typeid(Trait));
+    test_int(lo, ecs_typeid(Velocity));
 
     ecs_fini(world);
 }
@@ -804,7 +804,7 @@ void Traits_on_add_trait_tag() {
     ecs_set_context(world, &ctx);
 
     ecs_entity_t e = ecs_new(world, 0);
-    ecs_add_trait(world, e, ecs_entity(Position), Trait);
+    ecs_add_trait(world, e, ecs_typeid(Position), Trait);
 
     test_int(ctx.count, 1);
     test_int(ctx.invoked, 1);
@@ -814,10 +814,10 @@ void Traits_on_add_trait_tag() {
     test_int(ctx.e[0], e);
 
     ecs_entity_t c = ctx.c[0][0];
-    ecs_entity_t hi = ecs_entity_t_hi(c & ECS_ENTITY_MASK);
+    ecs_entity_t hi = ecs_entity_t_hi(c & ECS_COMPONENT_MASK);
     ecs_entity_t lo = ecs_entity_t_lo(c);
     test_int(hi, Trait);
-    test_int(lo, ecs_entity(Position));  
+    test_int(lo, ecs_typeid(Position));  
 
     ecs_fini(world);
 }
@@ -835,11 +835,11 @@ void Traits_on_remove_trait() {
     ecs_set_context(world, &ctx);
 
     ecs_entity_t e = ecs_new(world, 0);
-    ecs_add_trait(world, e, ecs_entity(Position), ecs_entity(Trait));
-    ecs_add_trait(world, e, ecs_entity(Velocity), ecs_entity(Trait));
+    ecs_add_trait(world, e, ecs_typeid(Position), ecs_typeid(Trait));
+    ecs_add_trait(world, e, ecs_typeid(Velocity), ecs_typeid(Trait));
     test_int(ctx.count, 0);
 
-    ecs_remove_trait(world, e, ecs_entity(Position), ecs_entity(Trait));
+    ecs_remove_trait(world, e, ecs_typeid(Position), ecs_typeid(Trait));
     test_int(ctx.count, 1);
     test_int(ctx.invoked, 1);
     test_int(ctx.system, TraitTrigger);
@@ -848,13 +848,13 @@ void Traits_on_remove_trait() {
     test_int(ctx.e[0], e);
 
     ecs_entity_t c = ctx.c[0][0];
-    ecs_entity_t hi = ecs_entity_t_hi(c & ECS_ENTITY_MASK);
+    ecs_entity_t hi = ecs_entity_t_hi(c & ECS_COMPONENT_MASK);
     ecs_entity_t lo = ecs_entity_t_lo(c);
-    test_int(hi, ecs_entity(Trait));
-    test_int(lo, ecs_entity(Position));  
+    test_int(hi, ecs_typeid(Trait));
+    test_int(lo, ecs_typeid(Position));  
 
     ctx = (Probe){ 0 };
-    ecs_remove_trait(world, e, ecs_entity(Velocity), ecs_entity(Trait));
+    ecs_remove_trait(world, e, ecs_typeid(Velocity), ecs_typeid(Trait));
     test_int(ctx.count, 1);
     test_int(ctx.invoked, 1);
     test_int(ctx.system, TraitTrigger);
@@ -863,10 +863,10 @@ void Traits_on_remove_trait() {
     test_int(ctx.e[0], e);
 
     c = ctx.c[0][0];
-    hi = ecs_entity_t_hi(c & ECS_ENTITY_MASK);
+    hi = ecs_entity_t_hi(c & ECS_COMPONENT_MASK);
     lo = ecs_entity_t_lo(c);
-    test_int(hi, ecs_entity(Trait));
-    test_int(lo, ecs_entity(Velocity));
+    test_int(hi, ecs_typeid(Trait));
+    test_int(lo, ecs_typeid(Velocity));
 
     ecs_fini(world);
 }
@@ -883,10 +883,10 @@ void Traits_on_remove_trait_tag() {
     ecs_set_context(world, &ctx);
 
     ecs_entity_t e = ecs_new(world, 0);
-    ecs_add_trait(world, e, ecs_entity(Position), Trait);
+    ecs_add_trait(world, e, ecs_typeid(Position), Trait);
     test_int(ctx.count, 0);
 
-    ecs_remove_trait(world, e, ecs_entity(Position), Trait);    
+    ecs_remove_trait(world, e, ecs_typeid(Position), Trait);    
     test_int(ctx.count, 1);
     test_int(ctx.invoked, 1);
     test_int(ctx.system, TraitTrigger);
@@ -895,10 +895,10 @@ void Traits_on_remove_trait_tag() {
     test_int(ctx.e[0], e);
 
     ecs_entity_t c = ctx.c[0][0];
-    ecs_entity_t hi = ecs_entity_t_hi(c & ECS_ENTITY_MASK);
+    ecs_entity_t hi = ecs_entity_t_hi(c & ECS_COMPONENT_MASK);
     ecs_entity_t lo = ecs_entity_t_lo(c);
     test_int(hi, Trait);
-    test_int(lo, ecs_entity(Position));  
+    test_int(lo, ecs_typeid(Position));  
 
     ecs_fini(world);
 }
@@ -916,8 +916,8 @@ void Traits_on_remove_trait_on_delete() {
     ecs_set_context(world, &ctx);
 
     ecs_entity_t e = ecs_new(world, 0);
-    ecs_add_trait(world, e, ecs_entity(Position), ecs_entity(Trait));
-    ecs_add_trait(world, e, ecs_entity(Velocity), ecs_entity(Trait));
+    ecs_add_trait(world, e, ecs_typeid(Position), ecs_typeid(Trait));
+    ecs_add_trait(world, e, ecs_typeid(Velocity), ecs_typeid(Trait));
     test_int(ctx.count, 0);
 
     ecs_delete(world, e);
@@ -929,18 +929,18 @@ void Traits_on_remove_trait_on_delete() {
     test_int(ctx.e[0], e);
 
     ecs_entity_t c = ctx.c[0][0];
-    ecs_entity_t hi = ecs_entity_t_hi(c & ECS_ENTITY_MASK);
+    ecs_entity_t hi = ecs_entity_t_hi(c & ECS_COMPONENT_MASK);
     ecs_entity_t lo = ecs_entity_t_lo(c);
-    test_int(hi, ecs_entity(Trait));
-    test_int(lo, ecs_entity(Position));  
+    test_int(hi, ecs_typeid(Trait));
+    test_int(lo, ecs_typeid(Position));  
 
     test_int(ctx.e[1], e);
 
     c = ctx.c[1][0];
-    hi = ecs_entity_t_hi(c & ECS_ENTITY_MASK);
+    hi = ecs_entity_t_hi(c & ECS_COMPONENT_MASK);
     lo = ecs_entity_t_lo(c);
-    test_int(hi, ecs_entity(Trait));
-    test_int(lo, ecs_entity(Velocity));
+    test_int(hi, ecs_typeid(Trait));
+    test_int(lo, ecs_typeid(Velocity));
 
     ecs_fini(world);
 }
@@ -969,8 +969,8 @@ void Traits_on_remove_trait_tag_on_delete() {
     ecs_set_context(world, &ctx);
 
     ecs_entity_t e = ecs_new(world, 0);
-    ecs_add_trait(world, e, ecs_entity(Position), Trait);
-    ecs_add_trait(world, e, ecs_entity(Velocity), Trait);
+    ecs_add_trait(world, e, ecs_typeid(Position), Trait);
+    ecs_add_trait(world, e, ecs_typeid(Velocity), Trait);
     test_int(ctx.count, 0);
 
     ecs_delete(world, e);
@@ -982,18 +982,199 @@ void Traits_on_remove_trait_tag_on_delete() {
     test_int(ctx.e[0], e);
 
     ecs_entity_t c = ctx.c[0][0];
-    ecs_entity_t hi = ecs_entity_t_hi(c & ECS_ENTITY_MASK);
+    ecs_entity_t hi = ecs_entity_t_hi(c & ECS_COMPONENT_MASK);
     ecs_entity_t lo = ecs_entity_t_lo(c);
     test_int(hi, Trait);
-    test_int(lo, ecs_entity(Position));  
+    test_int(lo, ecs_typeid(Position));  
 
     test_int(ctx.e[1], e);
 
     c = ctx.c[1][0];
-    hi = ecs_entity_t_hi(c & ECS_ENTITY_MASK);
+    hi = ecs_entity_t_hi(c & ECS_COMPONENT_MASK);
     lo = ecs_entity_t_lo(c);
     test_int(hi, Trait);
-    test_int(lo, ecs_entity(Velocity));
+    test_int(lo, ecs_typeid(Velocity));
+
+    ecs_fini(world);
+}
+
+void Traits_trait_from_shared() {
+    ecs_world_t *world = ecs_init();
+
+    ECS_COMPONENT(world, Position);
+    ECS_COMPONENT(world, Trait);
+
+    ecs_entity_t base = ecs_new(world, 0);
+    ecs_add_trait(world, base, ecs_typeid(Position), ecs_typeid(Trait));
+
+    ecs_entity_t e = ecs_new(world, 0);
+    ecs_add_entity(world, e, ECS_INSTANCEOF | base);
+
+    ecs_query_t *q = ecs_query_new(world, "SHARED:TRAIT|Trait>Position"); // ew
+    
+    int32_t count = 0;
+    ecs_iter_t it = ecs_query_iter(q);
+    while (ecs_query_next(&it)) {
+        Trait *t = ecs_column(&it, Trait, 1);
+        test_assert(t != NULL);
+
+        int i;
+        for (i = 0; i < it.count; i ++) {
+            test_assert(it.entities[i] == e);
+        }
+        count += it.count;
+    }
+
+    test_assert(count == 1);
+
+    ecs_fini(world);
+}
+
+void Traits_simple_trait_syntax() {
+    ecs_world_t *world = ecs_init();
+
+    ECS_COMPONENT(world, Position);
+    ECS_COMPONENT(world, Trait);
+
+    ecs_entity_t e = ecs_new(world, 0);
+    ecs_add_trait(world, e, ecs_typeid(Position), ecs_typeid(Trait));
+
+    ecs_query_t *q = ecs_query_new(world, "Trait FOR Position"); // not ew
+    
+    int32_t count = 0;
+    ecs_iter_t it = ecs_query_iter(q);
+    while (ecs_query_next(&it)) {
+        int i;
+        for (i = 0; i < it.count; i ++) {
+            test_assert(it.entities[i] == e);
+        }
+        count += it.count;
+    }
+
+    test_assert(count == 1);
+
+    ecs_fini(world);
+}
+
+void Traits_trait_w_component_query() {
+    ecs_world_t *world = ecs_init();
+
+    ECS_COMPONENT(world, Position);
+    ECS_COMPONENT(world, Trait);
+
+    ecs_entity_t e = ecs_new(world, 0);
+    ecs_add_trait(world, e, ecs_typeid(Position), ecs_typeid(Trait));
+
+    ecs_query_t *q = ecs_query_new(world, "TRAIT | Trait > Position");
+    
+    int32_t count = 0;
+    ecs_iter_t it = ecs_query_iter(q);
+    while (ecs_query_next(&it)) {
+        Trait *t = ecs_column(&it, Trait, 1);
+        test_assert(t != NULL);
+
+        int i;
+        for (i = 0; i < it.count; i ++) {
+            test_assert(it.entities[i] == e);
+        }
+        count += it.count;
+    }
+
+    test_assert(count == 1);
+
+    ecs_fini(world);
+}
+
+void Traits_query_trait_or_component() {
+    ecs_world_t *world = ecs_init();
+
+    ECS_COMPONENT(world, Position);
+    ECS_TAG(world, Trait);
+
+    ecs_entity_t e1 = ecs_new(world, 0);
+    ecs_add_trait(world, e1, ecs_typeid(Position), Trait);
+    ecs_entity_t e2 = ecs_new(world, Position);
+
+    ecs_query_t *q = ecs_query_new(world, "TRAIT | Trait > Position || Position");
+    
+    int32_t count = 0;
+    ecs_iter_t it = ecs_query_iter(q);
+    while (ecs_query_next(&it)) {
+        Position *t = ecs_column(&it, Position, 1);
+        test_assert(t != NULL);
+
+        int i;
+        for (i = 0; i < it.count; i ++) {
+            test_assert(it.entities[i] == e1 || it.entities[i] == e2);
+        }
+        count += it.count;
+    }
+
+    test_assert(count == 2);
+
+    ecs_fini(world);
+}
+
+void Traits_query_trait_or_trait() {
+    ecs_world_t *world = ecs_init();
+
+    ECS_COMPONENT(world, Position);
+    ECS_TAG(world, TraitA);
+    ECS_TAG(world, TraitB);
+
+    ecs_entity_t e1 = ecs_new(world, 0);
+    ecs_add_trait(world, e1, ecs_typeid(Position), TraitA);
+    ecs_entity_t e2 = ecs_new(world, Position);
+    ecs_add_trait(world, e2, ecs_typeid(Position), TraitB);
+
+    ecs_query_t *q = ecs_query_new(world, "TRAIT | TraitA > Position || TRAIT | TraitB > Position");
+    
+    int32_t count = 0;
+    ecs_iter_t it = ecs_query_iter(q);
+    while (ecs_query_next(&it)) {
+        Position *t = ecs_column(&it, Position, 1);
+        test_assert(t != NULL);
+
+        int i;
+        for (i = 0; i < it.count; i ++) {
+            test_assert(it.entities[i] == e1 || it.entities[i] == e2);
+        }
+        count += it.count;
+    }
+
+    test_assert(count == 2);
+
+    ecs_fini(world);
+}
+
+void Traits_query_not_trait() {
+    ecs_world_t *world = ecs_init();
+
+    ECS_COMPONENT(world, Position);
+    ECS_TAG(world, Trait);
+
+    ecs_entity_t e1 = ecs_new(world, Position);
+    ecs_entity_t e2 = ecs_new(world, Position);
+    ecs_add_trait(world, e2, ecs_typeid(Position), Trait);
+
+    ecs_query_t *q = ecs_query_new(world, "!TRAIT | Trait > Position, Position");
+    
+    int32_t count = 0;
+    ecs_iter_t it = ecs_query_iter(q);
+    while (ecs_query_next(&it)) {
+        Position *t = ecs_column(&it, Position, 1);
+        test_assert(t == NULL);
+        Position *p = ecs_column(&it, Position, 2);
+        test_assert(p != NULL);
+
+        int i;
+        for (i = 0; i < it.count; i ++) {
+            test_assert(it.entities[i] == e1);
+        }
+        count += it.count;
+    }
+
+    test_assert(count == 1);
 
     ecs_fini(world);
 }

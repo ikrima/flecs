@@ -22,12 +22,12 @@ int main(int argc, char *argv[]) {
     ECS_TYPE(world, Movable, Position, Velocity);
 
     ecs_entity_t e1 = 
-    ecs_set(world, 0, EcsName, {"e1"});
+    ecs_set(world, 0, EcsName, {.value = "e1"});
     ecs_set(world, e1, Position, {0, 0});
     ecs_set(world, e1, Velocity, {1, 1});
 
     ecs_entity_t e2 = 
-    ecs_set(world, 0, EcsName, {"e2"});
+    ecs_set(world, 0, EcsName, {.value = "e2"});
     ecs_set(world, e2, Position, {10, 20});
     ecs_set(world, e2, Velocity, {1, 1});
 
@@ -53,8 +53,8 @@ int main(int argc, char *argv[]) {
 
         /* Retrieve the column indices for both the Position and Velocity
          * columns by finding their position in the table type */
-        int32_t p_index = ecs_type_index_of(table_type, ecs_entity(Position));
-        int32_t v_index = ecs_type_index_of(table_type, ecs_entity(Velocity));
+        int32_t p_index = ecs_type_index_of(table_type, ecs_typeid(Position));
+        int32_t v_index = ecs_type_index_of(table_type, ecs_typeid(Velocity));
 
         /* Get pointers to the Position and Velocity columns with the obtained
          * column indices */

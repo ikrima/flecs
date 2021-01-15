@@ -321,7 +321,7 @@ void Set_set_null() {
     ecs_fini(world);
 }
 
-void Set_get_mutable_new() {
+void Set_get_mut_new() {
     ecs_world_t *world = ecs_init();
 
     ECS_COMPONENT(world, Position);
@@ -339,7 +339,7 @@ void Set_get_mutable_new() {
     ecs_fini(world);
 }
 
-void Set_get_mutable_existing() {
+void Set_get_mut_existing() {
     ecs_world_t *world = ecs_init();
 
     ECS_COMPONENT(world, Position);
@@ -357,6 +357,113 @@ void Set_get_mutable_existing() {
     test_assert(p == p_prev);
     
     ecs_fini(world);
+}
+
+void Set_get_mut_tag_new() {
+    install_test_abort();
+
+    ecs_world_t *world = ecs_init();
+
+    ECS_TAG(world, MyTag);
+
+    ecs_entity_t e = ecs_new(world, 0);
+    test_assert(e != 0);
+
+    test_expect_abort();
+
+    bool is_added = false;
+    ecs_get_mut_w_entity(world, e, MyTag, &is_added);
+}
+
+void Set_get_mut_tag_existing() {
+    install_test_abort();
+
+    ecs_world_t *world = ecs_init();
+
+    ECS_TAG(world, MyTag);
+
+    ecs_entity_t e = ecs_new(world, MyTag);
+    test_assert(e != 0);
+    test_assert( ecs_has(world, e, MyTag));
+
+    test_expect_abort();
+
+    bool is_added = false;
+    ecs_get_mut_w_entity(world, e, MyTag, &is_added);
+}
+
+void Set_get_mut_tag_new_w_comp() {
+    install_test_abort();
+
+    ecs_world_t *world = ecs_init();
+
+    ECS_COMPONENT(world, Position);
+    ECS_TAG(world, MyTag);
+
+    ecs_entity_t e = ecs_new(world, Position);
+    test_assert(e != 0);
+
+    test_expect_abort();
+
+    bool is_added = false;
+    ecs_get_mut_w_entity(world, e, MyTag, &is_added);
+}
+
+void Set_get_mut_tag_existing_w_comp() {
+    install_test_abort();
+
+    ecs_world_t *world = ecs_init();
+
+    ECS_COMPONENT(world, Position);
+    ECS_TAG(world, MyTag);
+
+    ecs_entity_t e = ecs_new(world, MyTag);
+    test_assert(e != 0);
+    test_assert( ecs_has(world, e, MyTag));
+    ecs_add(world, e, Position);
+
+    test_expect_abort();
+
+    bool is_added = false;
+    ecs_get_mut_w_entity(world, e, MyTag, &is_added);
+}
+
+void Set_get_mut_tag_new_w_trait() {
+    install_test_abort();
+
+    ecs_world_t *world = ecs_init();
+
+    ECS_COMPONENT(world, Position);
+    ECS_TAG(world, Trait);
+    ECS_TAG(world, MyTag);
+
+    ecs_entity_t e = ecs_new_w_entity(world, ecs_trait(Trait, ecs_typeid(Position)));
+    test_assert(e != 0);
+
+    test_expect_abort();
+
+    bool is_added = false;
+    ecs_get_mut_w_entity(world, e, MyTag, &is_added);
+}
+
+void Set_get_mut_tag_existing_w_trait() {
+    install_test_abort();
+    
+    ecs_world_t *world = ecs_init();
+
+    ECS_COMPONENT(world, Position);
+    ECS_TAG(world, Trait);
+    ECS_TAG(world, MyTag);
+
+    ecs_entity_t e = ecs_new(world, MyTag);
+    test_assert(e != 0);
+    test_assert( ecs_has(world, e, MyTag));
+    ecs_add_entity(world, e, ecs_trait(Trait, ecs_typeid(Position)));
+
+    test_expect_abort();
+
+    bool is_added = false;
+    ecs_get_mut_w_entity(world, e, MyTag, &is_added);
 }
 
 static bool is_invoked = false;
@@ -385,5 +492,24 @@ void Set_modified_w_on_set() {
     ecs_modified(world, e, Position);
     test_assert(is_invoked == true);
     
+    ecs_fini(world);
+}
+
+void Set_modified_no_component() {
+    install_test_abort();
+
+    ecs_world_t *world = ecs_init();
+
+    ECS_COMPONENT(world, Position);
+    ECS_SYSTEM(world, OnSetPosition, EcsOnSet, Position);
+
+    ecs_entity_t e = ecs_new(world, 0);
+    test_assert(e != 0);
+
+    test_expect_abort();
+
+    /* This should trigger an assert */
+    ecs_modified(world, e, Position);
+
     ecs_fini(world);
 }
