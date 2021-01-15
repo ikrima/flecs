@@ -3574,7 +3574,9 @@ private:
 // Global templated variables that hold component identifier and other info
 template <typename T> entity_t component_info<T>::s_id( 0 );
 template <typename T> type_t component_info<T>::s_type( nullptr );
+ES2WRN_DISABLE(CLANG,"-Wglobal-constructors")
 template <typename T> std::string component_info<T>::s_name("");
+ES2WRN_RESTORE(CLANG)
 template <typename T> bool component_info<T>::s_allow_tag( true );
 
 
