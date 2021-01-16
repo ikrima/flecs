@@ -2746,18 +2746,24 @@ void ecs_merge(
  * defer_begin and defer_end operations are executed at the end of the frame.
  *
  * This operation is thread safe.
+ * 
+ * @param world The world.
+ * @return true if the world was already in deferred mode, false if not.
  */
 FLECS_API
-void ecs_defer_begin(
+bool ecs_defer_begin(
     ecs_world_t *world);
 
 /** End block of operations to defer. 
  * See defer_begin.
  *
  * This operation is thread safe.
+ *
+ * @param world The world.
+ * @return true if world changed from deferred mode to non-deferred mode.
  */
 FLECS_API
-void ecs_defer_end(
+bool ecs_defer_end(
     ecs_world_t *world);
 
 /** Enable / disable automerging.
@@ -2804,9 +2810,7 @@ void ecs_set_automerge(
 #ifdef FLECS_SNAPSHOT
 #include "flecs/addons/snapshot.h"
 #endif
-#ifdef FLECS_DIRECT_ACCESS
 #include "flecs/addons/direct_access.h"
-#endif
 #ifdef FLECS_STATS
 #include "flecs/addons/stats.h"
 #endif
