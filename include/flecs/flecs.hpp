@@ -2820,8 +2820,8 @@ public:
 
 protected:
 
-    world_t *m_world;
-    entity_t m_id; 
+    world_t *m_world = nullptr;
+    entity_t m_id = 0; 
 };
 
 /** Prefab class */
