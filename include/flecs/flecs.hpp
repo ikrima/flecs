@@ -3276,7 +3276,7 @@ void register_lifecycle_actions(
     bool move)
 {
     if (!ecs_component_has_actions(world, component)) {
-        // Beg #TPLibMod-Flecs:  Don't allow automatic registering of components
+        // Beg #TPLibMod-flecs:  Don't allow automatic registering of components
         ecs_assert(false, ECS_COMPONENT_NOT_REGISTERED, _::name_helper<T>::name());
         // End TPLibMod
         EcsComponentLifecycle cl{};
