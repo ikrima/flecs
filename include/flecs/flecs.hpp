@@ -1,6 +1,11 @@
-#pragma once
+/**
+ * @file flecs.hpp
+ * @brief Flecs C++ API.
+ *
+ * This is a C++11 wrapper around the Flecs C API.
+ */
 
-/* Unstable API */
+#pragma once
 
 #include <string>
 #include <sstream>
@@ -2189,7 +2194,7 @@ public:
      */
     flecs::type to_type() const;
 
-
+    // Beg #TPLibMod-flecs: Explicit addUninit that checks against existing component
     template <typename T>
     T* addUninit() const {
       ecs_set_ptr_w_entity(m_world, m_id, _::component_info<T>::id(m_world), sizeof(T), nullptr);
@@ -2198,6 +2203,7 @@ public:
       ecs_assert(is_added == false, ECS_INVALID_PARAMETER, NULL);
       return new_comp;
     }
+    // End TPLibMod
 
     /** Get component value.
      * 

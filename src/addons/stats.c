@@ -3,8 +3,13 @@
 
 #ifdef FLECS_STATS
 
+#ifdef FLECS_SYSTEM
 #include "../modules/system/system.h"
+#endif
+
+#ifdef FLECS_PIPELINE
 #include "../modules/pipeline/pipeline.h"
+#endif
 
 static
 int32_t t_next(
@@ -99,7 +104,7 @@ void ecs_gauge_reduce(
         }
         if ((src->max[t] > dst->max[t_dst])) {
             dst->max[t_dst] = src->max[t];
-        }        
+        }
     }
 }
 
@@ -123,7 +128,12 @@ void ecs_get_world_stats(
     record_counter(&s->pipeline_build_count_total, t, world->stats.pipeline_build_count_total);
     record_counter(&s->systems_ran_frame, t, world->stats.systems_ran_frame);
 
-    record_gauge(&s->fps, t, 1.0f / (delta_world_time / (float)delta_frame_count));
+    if (delta_world_time != 0.0 && delta_frame_count != 0.0) {
+        record_gauge(
+            &s->fps, t, 1.0f / (delta_world_time / (float)delta_frame_count));
+    } else {
+        record_gauge(&s->fps, t, 0);
+    }
 
     record_gauge(&s->entity_count, t, ecs_sparse_count(world->store.entity_index));
     record_gauge(&s->component_count, t, ecs_count_entity(world, ecs_typeid(EcsComponent)));
@@ -206,6 +216,7 @@ void ecs_get_query_stats(
     record_gauge(&s->matched_entity_count, t, entity_count);
 }
 
+#ifdef FLECS_SYSTEM
 bool ecs_get_system_stats(
     ecs_world_t *world,
     ecs_entity_t system,
@@ -226,6 +237,10 @@ bool ecs_get_system_stats(
 
     return true;
 }
+#endif
+
+
+#ifdef FLECS_PIPELINE
 
 static ecs_system_stats_t* get_system_stats(
     ecs_map_t *systems,
@@ -298,6 +313,7 @@ bool ecs_get_pipeline_stats(
 
     return true;
 }
+#endif
 
 void ecs_dump_world_stats(
     ecs_world_t *world,
