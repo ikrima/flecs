@@ -268,10 +268,10 @@ void ecs_os_set_api_defaults(void);
 
 /* Memory management */
 #ifndef ecs_os_malloc
-#define ecs_os_malloc(size) ecs_os_api.malloc_(size);
+#define ecs_os_malloc(size) ecs_os_api.malloc_(size)
 #endif
 #ifndef ecs_os_free
-#define ecs_os_free(ptr) ecs_os_api.free_(ptr);
+#define ecs_os_free(ptr) ecs_os_api.free_(ptr)
 #endif
 #ifndef ecs_os_realloc
 #define ecs_os_realloc(ptr, size) ecs_os_api.realloc_(ptr, size)
