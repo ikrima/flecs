@@ -2222,6 +2222,9 @@ public:
     flecs::type to_type() const;
 
     // Beg #TPLibMod-flecs: Explicit addUninit that checks against existing component
+    
+    bool isValid() const { return m_id != 0; }
+
     template <typename T>
     T* addUninit() const {
       ecs_set_ptr_w_entity(m_world, m_id, _::component_info<T>::id(m_world), sizeof(T), nullptr);
