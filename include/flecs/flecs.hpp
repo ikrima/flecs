@@ -3997,7 +3997,7 @@ public:
     /* Invoke system */
     template <typename... Targs,
         typename std::enable_if<sizeof...(Targs) == sizeof...(Components), void>::type* = nullptr>
-    static void call_system(ecs_iter_t *iter, const Func& func, size_t index, Columns& columns, Targs... comps) {
+    static ES2INL(FRC) void call_system(ecs_iter_t *iter, const Func& func, size_t index, Columns& columns, Targs... comps) {
         (void)index;
         (void)columns;
         flecs::iter iter_wrapper(iter);
@@ -4007,7 +4007,7 @@ public:
     /** Add components one by one to parameter pack */
     template <typename... Targs,
         typename std::enable_if<sizeof...(Targs) != sizeof...(Components), void>::type* = nullptr>
-    static void call_system(ecs_iter_t *iter, const Func& func, size_t index, Columns& columns, Targs... comps) {
+    static ES2INL(FRC) void call_system(ecs_iter_t *iter, const Func& func, size_t index, Columns& columns, Targs... comps) {
         call_system(iter, func, index + 1, columns, comps..., columns[index]);
     }
 
