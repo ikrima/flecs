@@ -72,9 +72,9 @@ typedef int32_t ecs_size_t;
 #endif
 
 #if defined(__GNUC__)
-#define ECS_UNUSED(x) __attribute__((unused))
+#define ECS_UNUSED __attribute__((unused))
 #else
-#define ECS_UNUSED(x) ((void)(x))
+#define ECS_UNUSED
 #endif
 
 #define ECS_ALIGN(size, alignment) (ecs_size_t)((((((size_t)size) - 1) / ((size_t)alignment)) + 1) * ((size_t)alignment))
