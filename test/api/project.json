@@ -673,7 +673,8 @@
                 "rw_out_explicit_any",
                 "rw_out_explicit_shared",
                 "rw_out_explicit_from_empty",
-                "rw_out_explicit_from_entity"
+                "rw_out_explicit_from_entity",
+                "activate_system_for_table_w_n_traits"
             ]
         }, {
             "id": "Sorting",
@@ -877,7 +878,8 @@
                 "unset_on_fini_2",
                 "unset_on_fini_3",
                 "overlapping_unset_systems",
-                "unset_move_to_nonempty_table"
+                "unset_move_to_nonempty_table",
+                "write_in_unset"
             ]
         }, {
             "id": "SystemPeriodic",

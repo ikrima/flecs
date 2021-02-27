@@ -1738,15 +1738,17 @@ void activate_table(
     ecs_query_t *query,
     ecs_table_t *table,
     bool active)
-{
-    (void)world;
-    
+{    
     ecs_vector_t *src_array, *dst_array;
     int32_t activated = 0;
+    int32_t prev_dst_count = 0;
+    (void)world;
+    (void)prev_dst_count; /* Only used when built with systems module */
 
     if (active) {
         src_array = query->empty_tables;
         dst_array = query->tables;
+        prev_dst_count = ecs_vector_count(dst_array);
     } else {
         src_array = query->tables;
         dst_array = query->empty_tables;
@@ -1790,7 +1792,7 @@ void activate_table(
             if (query->system) {
                 int32_t dst_count = ecs_vector_count(dst_array);
                 if (active) {
-                    if (dst_count == 1) {
+                    if (!prev_dst_count && dst_count) {
                         ecs_system_activate(world, query->system, true, NULL);
                     }
                 } else if (ecs_vector_count(src_array) == 0) {

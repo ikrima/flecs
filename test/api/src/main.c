@@ -622,6 +622,7 @@ void SystemMisc_rw_out_explicit_any(void);
 void SystemMisc_rw_out_explicit_shared(void);
 void SystemMisc_rw_out_explicit_from_empty(void);
 void SystemMisc_rw_out_explicit_from_entity(void);
+void SystemMisc_activate_system_for_table_w_n_traits(void);
 
 // Testsuite 'Sorting'
 void Sorting_sort_by_component(void);
@@ -808,6 +809,7 @@ void SystemUnSet_unset_on_fini_2(void);
 void SystemUnSet_unset_on_fini_3(void);
 void SystemUnSet_overlapping_unset_systems(void);
 void SystemUnSet_unset_move_to_nonempty_table(void);
+void SystemUnSet_write_in_unset(void);
 
 // Testsuite 'SystemPeriodic'
 void SystemPeriodic_1_type_1_component(void);
@@ -3799,6 +3801,10 @@ bake_test_case SystemMisc_testcases[] = {
     {
         "rw_out_explicit_from_entity",
         SystemMisc_rw_out_explicit_from_entity
+    },
+    {
+        "activate_system_for_table_w_n_traits",
+        SystemMisc_activate_system_for_table_w_n_traits
     }
 };
 
@@ -4494,6 +4500,10 @@ bake_test_case SystemUnSet_testcases[] = {
     {
         "unset_move_to_nonempty_table",
         SystemUnSet_unset_move_to_nonempty_table
+    },
+    {
+        "write_in_unset",
+        SystemUnSet_write_in_unset
     }
 };
 
@@ -7249,7 +7259,7 @@ static bake_test_suite suites[] = {
         "SystemMisc",
         SystemMisc_setup,
         NULL,
-        82,
+        83,
         SystemMisc_testcases
     },
     {
@@ -7312,7 +7322,7 @@ static bake_test_suite suites[] = {
         "SystemUnSet",
         NULL,
         NULL,
-        11,
+        12,
         SystemUnSet_testcases
     },
     {
