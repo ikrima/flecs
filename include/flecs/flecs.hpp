@@ -4153,7 +4153,7 @@ public:
     /* Invoke system */
     template <typename... Targs,
         typename std::enable_if<sizeof...(Targs) == sizeof...(Components), void>::type* = nullptr>
-    static ES2INL(F) void call_system(ecs_iter_t *iter, const Func& func, size_t index, Columns& columns, Targs... comps) {
+    static ES2INL(FI) void call_system(ecs_iter_t *iter, const Func& func, size_t index, Columns& columns, Targs... comps) {
         (void)index;
         (void)columns;
         flecs::iter iter_wrapper(iter);
@@ -4163,7 +4163,7 @@ public:
     /** Add components one by one to parameter pack */
     template <typename... Targs,
         typename std::enable_if<sizeof...(Targs) != sizeof...(Components), void>::type* = nullptr>
-    static ES2INL(F) void call_system(ecs_iter_t *iter, const Func& func, size_t index, Columns& columns, Targs... comps) {
+    static ES2INL(FI) void call_system(ecs_iter_t *iter, const Func& func, size_t index, Columns& columns, Targs... comps) {
         call_system(iter, func, index + 1, columns, comps..., columns[index]);
     }
 
@@ -4398,7 +4398,7 @@ public:
     }
     template <typename Func>
     void iter(const flecs::filter& filter, Func&& func) const {
-        ecs_iter_t it = ecs_query_iter(m_query);        
+        ecs_iter_t it = ecs_query_iter(m_query);
         const filter_t* filter_ptr = filter.c_ptr();
 
         while (ecs_query_next_w_filter(&it, filter_ptr)) {
