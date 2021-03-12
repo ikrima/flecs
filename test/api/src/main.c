@@ -423,6 +423,8 @@ void Set_get_mut_tag_new_w_trait(void);
 void Set_get_mut_tag_existing_w_trait(void);
 void Set_modified_w_on_set(void);
 void Set_modified_no_component(void);
+void Set_get_mut_w_add_in_on_add(void);
+void Set_get_mut_w_remove_in_on_add(void);
 
 // Testsuite 'Lookup'
 void Lookup_setup(void);
@@ -623,6 +625,7 @@ void SystemMisc_rw_out_explicit_shared(void);
 void SystemMisc_rw_out_explicit_from_empty(void);
 void SystemMisc_rw_out_explicit_from_entity(void);
 void SystemMisc_activate_system_for_table_w_n_traits(void);
+void SystemMisc_get_query(void);
 
 // Testsuite 'Sorting'
 void Sorting_sort_by_component(void);
@@ -3051,6 +3054,14 @@ bake_test_case Set_testcases[] = {
     {
         "modified_no_component",
         Set_modified_no_component
+    },
+    {
+        "get_mut_w_add_in_on_add",
+        Set_get_mut_w_add_in_on_add
+    },
+    {
+        "get_mut_w_remove_in_on_add",
+        Set_get_mut_w_remove_in_on_add
     }
 };
 
@@ -3805,6 +3816,10 @@ bake_test_case SystemMisc_testcases[] = {
     {
         "activate_system_for_table_w_n_traits",
         SystemMisc_activate_system_for_table_w_n_traits
+    },
+    {
+        "get_query",
+        SystemMisc_get_query
     }
 };
 
@@ -7217,7 +7232,7 @@ static bake_test_suite suites[] = {
         "Set",
         NULL,
         NULL,
-        23,
+        25,
         Set_testcases
     },
     {
@@ -7259,7 +7274,7 @@ static bake_test_suite suites[] = {
         "SystemMisc",
         SystemMisc_setup,
         NULL,
-        83,
+        84,
         SystemMisc_testcases
     },
     {

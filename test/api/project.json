@@ -462,7 +462,9 @@
                 "get_mut_tag_new_w_trait",
                 "get_mut_tag_existing_w_trait",
                 "modified_w_on_set",
-                "modified_no_component"
+                "modified_no_component",
+                "get_mut_w_add_in_on_add",
+                "get_mut_w_remove_in_on_add"
             ]
         }, {
             "id": "Lookup",
@@ -674,7 +676,8 @@
                 "rw_out_explicit_shared",
                 "rw_out_explicit_from_empty",
                 "rw_out_explicit_from_entity",
-                "activate_system_for_table_w_n_traits"
+                "activate_system_for_table_w_n_traits",
+                "get_query"
             ]
         }, {
             "id": "Sorting",
