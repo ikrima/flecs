@@ -672,7 +672,7 @@ void ecs_measure_frame_time(
     ecs_assert(world->magic == ECS_WORLD_MAGIC, ECS_INVALID_FROM_WORKER, NULL);
     ecs_assert(ecs_os_has_time(), ECS_MISSING_OS_API, NULL);
 
-    if (world->stats.target_fps == 0.0 || enable) {
+    if (world->stats.target_fps == (FLECS_FLOAT)0.0 || enable) {
         world->measure_frame_time = enable;
     }
 }
@@ -891,9 +891,9 @@ double insert_sleep(
         return delta_time;
     }
 
-    double target_delta_time = (1.0 / world->stats.target_fps);
+    double target_delta_time = (1.0 / (double)world->stats.target_fps);
     double world_sleep_err = 
-        world->stats.sleep_err / (double)world->stats.frame_count_total;
+        (double)world->stats.sleep_err / (double)world->stats.frame_count_total;
 
     /* Calculate the time we need to sleep by taking the measured delta from the
      * previous frame, and subtracting it from target_delta_time. */
@@ -977,7 +977,7 @@ FLECS_FLOAT start_measure_frame(
             } else {
                 ecs_time_measure(&t);
                 if (world->stats.target_fps != 0) {
-                    delta_time = 1.0 / world->stats.target_fps;
+                    delta_time = 1.0 / (double)world->stats.target_fps;
                 } else {
                     delta_time = 1.0 / 60.0; /* Best guess */
                 }
