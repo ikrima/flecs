@@ -5,10 +5,10 @@
 //// Utility class to invoke a system each
 ////////////////////////////////////////////////////////////////////////////////
 
-namespace flecs 
+namespace flecs
 {
 
-namespace _ 
+namespace _
 {
 
 template <typename Func, typename ... Components>
@@ -30,7 +30,7 @@ public:
         // Use any_column so we can transparently use shared components
         for (auto row : iter_wrapper) {
             func(iter_wrapper.entity(row), (_::any_column<typename std::remove_reference<Components>::type>(
-                 (typename std::remove_reference< typename std::remove_pointer<Components>::type >::type*)comps.ptr, 
+                 (typename std::remove_reference< typename std::remove_pointer<Components>::type >::type*)comps.ptr,
                     static_cast<size_t>(iter->count), comps.is_shared))[row]...);
         }
     }
@@ -75,7 +75,7 @@ public:
         (void)columns;
 
         flecs::iter iter_wrapper(iter);
-        
+
         func(iter_wrapper, (column<typename std::remove_reference< typename std::remove_pointer<Components>::type >::type>(
             (typename std::remove_reference< typename std::remove_pointer<Components>::type >::type*)comps.ptr, iter->count, comps.is_shared))...);
     }
@@ -114,7 +114,7 @@ public:
     /* Invoke system */
     template <typename... Targs,
         typename std::enable_if<sizeof...(Targs) == sizeof...(Components), void>::type* = nullptr>
-    static void call_system(ecs_iter_t *iter, const Func& func, size_t index, Columns& columns, Targs... comps) {
+    static ES2INL(FI) void call_system(ecs_iter_t *iter, const Func& func, size_t index, Columns& columns, Targs... comps) {
         (void)index;
         (void)columns;
         flecs::iter iter_wrapper(iter);
@@ -124,7 +124,7 @@ public:
     /** Add components one by one to parameter pack */
     template <typename... Targs,
         typename std::enable_if<sizeof...(Targs) != sizeof...(Components), void>::type* = nullptr>
-    static void call_system(ecs_iter_t *iter, const Func& func, size_t index, Columns& columns, Targs... comps) {
+    static ES2INL(FI) void call_system(ecs_iter_t *iter, const Func& func, size_t index, Columns& columns, Targs... comps) {
         call_system(iter, func, index + 1, columns, comps..., columns[index]);
     }
 

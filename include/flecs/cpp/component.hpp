@@ -2,12 +2,12 @@
 //// Register component, provide global access to component handles / metadata
 ////////////////////////////////////////////////////////////////////////////////
 
-namespace flecs 
+namespace flecs
 {
 
-namespace _ 
+namespace _
 {
-    
+
     // Trick to obtain typename from type, as described here
     // https://blog.molecular-matters.com/2015/12/11/getting-the-type-of-a-template-argument-as-string-without-rtti/
     //
@@ -18,7 +18,7 @@ namespace _
         /* Remove parts from typename that aren't needed for component name */
         static void trim_name(char *typeName) {
             ecs_size_t len = ecs_os_strlen(typeName);
-            
+
             /* Remove 'const' */
             ecs_size_t const_len = ecs_os_strlen("const ");
             if ((len > const_len) && !ecs_os_strncmp(typeName, "const ", const_len)) {
@@ -41,11 +41,11 @@ namespace _
                 ecs_os_memmove(typeName, typeName + class_len, len - class_len);
                 typeName[len - class_len] = '\0';
                 len -= class_len;
-            }            
+            }
 
             while (typeName[len - 1] == ' ' ||
                    typeName[len - 1] == '&' ||
-                   typeName[len - 1] == '*') 
+                   typeName[len - 1] == '*')
             {
                 len --;
                 typeName[len] = '\0';
@@ -60,8 +60,8 @@ namespace _
         }
     };
 
-// Compiler-specific conversion from __PRETTY_FUNCTION__ to component name. 
-// This code uses a trick that instantiates a function for the component type. 
+// Compiler-specific conversion from __PRETTY_FUNCTION__ to component name.
+// This code uses a trick that instantiates a function for the component type.
 // Then __PRETTY_FUNCTION__ is used to obtain the name of the function. Because
 // the result of __PRETTY_FUNCTION__ is not standardized, there are different
 // implementations for clang, gcc and msvc. Code that uses a different compiler
@@ -69,7 +69,7 @@ namespace _
 #if defined(__clang__)
   static const unsigned int FRONT_SIZE = sizeof("static const char* flecs::_::name_helper<") - 1u;
   static const unsigned int BACK_SIZE = sizeof(">::name() [T = ]") - 1u;
- 
+
   template <typename T>
   struct name_helper
   {
@@ -80,11 +80,11 @@ namespace _
       name_util::trim_name(typeName);
       return typeName;
     }
-  };    
+  };
 #elif defined(__GNUC__)
   static const unsigned int FRONT_SIZE = sizeof("static const char* flecs::_::name_helper<T>::name() [with T = ") - 1u;
   static const unsigned int BACK_SIZE = sizeof("]") - 1u;
- 
+
   template <typename T>
   struct name_helper
   {
@@ -99,7 +99,7 @@ namespace _
 #elif defined(_WIN32)
   static const unsigned int FRONT_SIZE = sizeof("flecs::_::name_helper<") - 1u;
   static const unsigned int BACK_SIZE = sizeof(">::name") - 1u;
- 
+
   template <typename T>
   struct name_helper
   {
@@ -168,11 +168,11 @@ void component_ctor(
 
     ecs_assert(size == sizeof(T), ECS_INTERNAL_ERROR, NULL);
     T *t_ptr = static_cast<T*>(ptr);
-    
+
     for (int i = 0; i < count; i ++) {
         FLECS_PLACEMENT_NEW(&t_ptr[i], T);
     }
-} 
+}
 
 template <typename T>
 void component_dtor(
@@ -192,7 +192,7 @@ void component_dtor(
 
     ecs_assert(size == sizeof(T), ECS_INTERNAL_ERROR, NULL);
     T *t_ptr = static_cast<T*>(ptr);
-    
+
     for (int i = 0; i < count; i ++) {
         t_ptr[i].~T();
     }
@@ -201,7 +201,7 @@ void component_dtor(
 template <typename T>
 void component_copy(
     ecs_world_t *world,
-    ecs_entity_t component,    
+    ecs_entity_t component,
     const ecs_entity_t *dst_entity,
     const ecs_entity_t *src_entity,
     void *dst_ptr,
@@ -220,7 +220,7 @@ void component_copy(
     ecs_assert(size == sizeof(T), ECS_INTERNAL_ERROR, NULL);
     T *t_dst_ptr = static_cast<T*>(dst_ptr);
     const T *t_src_ptr = static_cast<const T*>(src_ptr);
-    
+
     for (int i = 0; i < count; i ++) {
         t_dst_ptr[i] = t_src_ptr[i];
     }
@@ -229,7 +229,7 @@ void component_copy(
 template <typename T>
 void component_move(
     ecs_world_t *world,
-    ecs_entity_t component,    
+    ecs_entity_t component,
     const ecs_entity_t *dst_entity,
     const ecs_entity_t *src_entity,
     void *dst_ptr,
@@ -248,7 +248,7 @@ void component_move(
     ecs_assert(size == sizeof(T), ECS_INTERNAL_ERROR, NULL);
     T *t_dst_ptr = static_cast<T*>(dst_ptr);
     T *t_src_ptr = static_cast<T*>(src_ptr);
-    
+
     for (int i = 0; i < count; i ++) {
         t_dst_ptr[i] = std::move(t_src_ptr[i]);
     }
@@ -265,6 +265,9 @@ void register_lifecycle_actions(
     bool move)
 {
     if (!ecs_component_has_actions(world, component)) {
+        // Beg #TPLibMod-flecs:  Don't allow automatic registering of components
+        ecs_assert(false, ECS_COMPONENT_NOT_REGISTERED, _::name_helper<T>::name());
+        // End TPLibMod
         EcsComponentLifecycle cl{};
         if (ctor) {
             cl.ctor = _::component_ctor<
@@ -300,9 +303,9 @@ void register_lifecycle_actions(
 // Because of how global (templated) variables are instantiated, it is possible
 // that different instances for the same component exist across different
 // translation units. This is handled transparently by flecs. When a component
-// id is requested from the component_info class, but the id is uninitialized, a 
-// lookup by name will be performed for the component on the world, which will 
-// return the id with which the component was already registered. This means 
+// id is requested from the component_info class, but the id is uninitialized, a
+// lookup by name will be performed for the component on the world, which will
+// return the id with which the component was already registered. This means
 // component identifiers are eventually consistent across translation units.
 //
 // When a component id is requested for a world that had not yet registered the
@@ -312,7 +315,7 @@ void register_lifecycle_actions(
 // There are a few limitations of this approach.
 //
 // 1) When two worlds register components in different orders, it is possible
-//    that different components receive the same identifier. When a world 
+//    that different components receive the same identifier. When a world
 //    attempts to re-register a component with a different identifier, an error
 //    will be thrown. To prevent this from happening, worlds should register
 //    components in the same order.
@@ -324,11 +327,11 @@ void register_lifecycle_actions(
 // Known issues:
 //
 // It seems like component registration does not always work correctly in Unreal
-// engine when recreating a world. A plausible cause for this is the hot 
+// engine when recreating a world. A plausible cause for this is the hot
 // reloading of dynamic libraries by the engine. A workaround for this issue is
 // to call flecs::_::component_info<T>::reset() before recreating the world.
 // This will reset the global component state and avoids conflicts. The exact
-// cause of the issue is investigated here: 
+// cause of the issue is investigated here:
 //   https://github.com/SanderMertens/flecs/issues/293
 
 template <typename T>
@@ -343,7 +346,7 @@ public:
             ecs_assert(s_name.c_str() != nullptr, ECS_INTERNAL_ERROR, NULL);
 
             // A component cannot be registered using a different identifier.
-            ecs_assert(s_id == entity, ECS_INCONSISTENT_COMPONENT_ID, 
+            ecs_assert(s_id == entity, ECS_INCONSISTENT_COMPONENT_ID,
                 _::name_helper<T>::name());
 
             ecs_assert(allow_tag == s_allow_tag, ECS_INTERNAL_ERROR, NULL);
@@ -365,13 +368,13 @@ public:
     }
 
     // Obtain a component identifier without registering lifecycle callbacks.
-    static entity_t id_no_lifecycle(world_t *world = nullptr, 
-        const char *name = nullptr, bool allow_tag = true) 
+    static entity_t id_no_lifecycle(world_t *world = nullptr,
+        const char *name = nullptr, bool allow_tag = true)
     {
         // If no id has been registered yet, do it now.
         if (!s_id) {
             const char *n = _::name_helper<T>::name();
-            
+
             if (!name) {
                 // If no name was provided, retrieve the name implicitly from
                 // the name_helper class.
@@ -380,9 +383,9 @@ public:
 
             s_allow_tag = allow_tag;
 
-            // If no world was provided, we can't implicitly register the 
-            // component. While there are a few cases where calling this 
-            // function without a world is OK, in general functions should 
+            // If no world was provided, we can't implicitly register the
+            // component. While there are a few cases where calling this
+            // function without a world is OK, in general functions should
             // always provide a world to enable implicit registration.
             ecs_assert(world != nullptr, ECS_COMPONENT_NOT_REGISTERED, name);
 
@@ -391,20 +394,20 @@ public:
             // name is used. This allows registering components with the same
             // name in different namespaces.
             //
-            // If the component was already registered for this world, this will 
-            // resolve the existing component identifier. This enables 
-            // transparent component registeration across multiple translation 
+            // If the component was already registered for this world, this will
+            // resolve the existing component identifier. This enables
+            // transparent component registeration across multiple translation
             // units, as long as the same world is used.
             //
             // The last parameter ('true') ensures that when the component was
-            // not yet registered, a new component identifier is created. 
+            // not yet registered, a new component identifier is created.
             // Component identifiers and entity identifiers are equivalent,
-            // though a pool of identifiers at the start of the id range is 
+            // though a pool of identifiers at the start of the id range is
             // reserved for components. This is a performance optimization, as
             // low ids in some parts of the code allow for direct indexing.
             flecs::world w(world);
             flecs::entity result = entity(w, name, true);
-            
+
             // Init the component_info instance with the identiifer.
             init(world, result.id(), allow_tag);
 
@@ -412,14 +415,14 @@ public:
             // that the name is not passed into this function, as the entity was
             // already created with the correct name.
             ecs_entity_t entity = ecs_new_component(
-                world, result.id(), nullptr, 
-                size(), 
+                world, result.id(), nullptr,
+                size(),
                 alignment());
 
             ecs_assert(entity != 0, ECS_INTERNAL_ERROR, NULL);
 
             // Set the symbol in the Name component to the actual C++ name.
-            // Comparing symbols allows for verifying whether a different 
+            // Comparing symbols allows for verifying whether a different
             // component is being registered under the same name. We can't use
             // the name used for registration, because it is possible that a
             // user (erroneously) attempts to register the same datatype with
@@ -429,20 +432,20 @@ public:
             char *symbol = symbol_helper<T>::symbol();
 
             if (name_comp->symbol) {
-                ecs_assert( !strcmp(name_comp->symbol, symbol), 
+                ecs_assert( !strcmp(name_comp->symbol, symbol),
                     ECS_COMPONENT_NAME_IN_USE, name);
                 ecs_os_free(symbol);
             } else {
                 name_comp->symbol = symbol;
             }
-            
+
             // The identifier returned by the function should be the same as the
             // identifier that was passed in.
             ecs_assert(entity == result.id(), ECS_INTERNAL_ERROR, NULL);
 
         } else if (world && !ecs_exists(world, s_id)) {
             const char *n = _::name_helper<T>::name();
-            
+
             if (!name) {
                 // If no name was provided, retrieve the name implicitly from
                 // the name_helper class.
@@ -451,9 +454,9 @@ public:
 
             ecs_entity_t entity = ecs_new_component(
                 world, s_id, name,
-                size(), 
+                size(),
                 alignment());
-                
+
             (void)entity;
 
             ecs_assert(entity == s_id, ECS_INTERNAL_ERROR, NULL);
@@ -469,12 +472,12 @@ public:
 
     // Obtain a component identifier, register lifecycle callbacks if this is
     // the first time the component is used.
-    static entity_t id(world_t *world = nullptr, const char *name = nullptr, 
-        bool allow_tag = true) 
+    static entity_t id(world_t *world = nullptr, const char *name = nullptr,
+        bool allow_tag = true)
     {
         // If no id has been registered yet, do it now.
         if (!s_id || (world && !ecs_exists(world, s_id))) {
-            // This will register a component id, but will not register 
+            // This will register a component id, but will not register
             // lifecycle callbacks.
             id_no_lifecycle(world, name, allow_tag);
 
@@ -522,9 +525,9 @@ public:
         // By now we should have a valid identifier
         ecs_assert(s_id != 0, ECS_INTERNAL_ERROR, NULL);
 
-        // Return 
+        // Return
         return s_name.c_str();
-    }    
+    }
 
     // Return the type of a component.
     // The type is a vector of component ids. This will return a type with just
@@ -536,7 +539,7 @@ public:
         }
 
         // By now we should have a valid identifier
-        ecs_assert(s_id != 0, ECS_INTERNAL_ERROR, NULL);        
+        ecs_assert(s_id != 0, ECS_INTERNAL_ERROR, NULL);
 
         // Create a type from the component id.
         if (!s_type) {
@@ -551,7 +554,7 @@ public:
     // Return the size of a component.
     static size_t size() {
         ecs_assert(s_id != 0, ECS_INTERNAL_ERROR, NULL);
-        
+
         // C++ types that have no members still have a size. Use std::is_empty
         // to check if the type is empty. If so, use 0 for the component size.
         //
@@ -600,7 +603,9 @@ private:
 // Global templated variables that hold component identifier and other info
 template <typename T> entity_t component_info<T>::s_id( 0 );
 template <typename T> type_t component_info<T>::s_type( nullptr );
+ES2WRN_DISABLE(CLANG,"-Wglobal-constructors")
 template <typename T> std::string component_info<T>::s_name("");
+ES2WRN_RESTORE(CLANG)
 template <typename T> bool component_info<T>::s_allow_tag( true );
 
 } // namespace _
@@ -629,7 +634,7 @@ flecs::entity pod_component(const flecs::world& world, const char *name = nullpt
             if (id >= EcsFirstUserComponentId) {
                 char *path = ecs_get_path_w_sep(
                     world_ptr, 0, id, 0, "::", nullptr);
-                ecs_assert(!strcmp(path, name), 
+                ecs_assert(!strcmp(path, name),
                     ECS_INCONSISTENT_COMPONENT_NAME, name);
                 ecs_os_free(path);
             }
@@ -639,27 +644,27 @@ flecs::entity pod_component(const flecs::world& world, const char *name = nullpt
          * correct id will be resolved from the name. */
         ecs_add_path_w_sep(world_ptr, id, 0, name, "::", "::");
 
-        /* If a component was already registered with this id but with a 
+        /* If a component was already registered with this id but with a
          * different size, the ecs_new_component function will fail. */
 
         /* We need to explicitly call ecs_new_component here again. Even though
          * the component was already registered, it may have been registered
          * with a different world. This ensures that the component is registered
-         * with the same id for the current world. 
+         * with the same id for the current world.
          * If the component was registered already, nothing will change. */
         ecs_entity_t entity = ecs_new_component(
-            world.c_ptr(), id, nullptr, 
-            _::component_info<T>::size(), 
+            world.c_ptr(), id, nullptr,
+            _::component_info<T>::size(),
             _::component_info<T>::alignment());
-        
+
         (void)entity;
-        
+
         ecs_assert(entity == id, ECS_INTERNAL_ERROR, NULL);
 
         /* This functionality could have been put in id_no_lifecycle, but since
          * this code happens when a component is registered, and the entire API
          * calls id_no_lifecycle, this would add a lot of overhead to each call.
-         * This is why when using multiple worlds, components should be 
+         * This is why when using multiple worlds, components should be
          * registered explicitly. */
     } else {
         /* If the component is not yet registered, ensure no other component
@@ -675,7 +680,7 @@ flecs::entity pod_component(const flecs::world& world, const char *name = nullpt
 
             const char *symbol = _::name_helper<T>::name();
 
-            ecs_assert(!strcmp(name_comp->symbol, symbol), 
+            ecs_assert(!strcmp(name_comp->symbol, symbol),
                 ECS_COMPONENT_NAME_IN_USE, name);
 
             (void)name_comp;
@@ -690,7 +695,7 @@ flecs::entity pod_component(const flecs::world& world, const char *name = nullpt
     _::component_info<const T>::init(world_ptr, id, allow_tag);
     _::component_info<T*>::init(world_ptr, id, allow_tag);
     _::component_info<T&>::init(world_ptr, id, allow_tag);
-    
+
     return world.entity(id);
 }
 
