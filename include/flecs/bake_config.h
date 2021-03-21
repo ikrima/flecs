@@ -35,7 +35,6 @@
   #define FLECS_API
 #endif
 
-#include "es2/es2capiwrappers.h"
+#include "es2core/subsys/es2capiwrappers.h"
 
 #endif
-
