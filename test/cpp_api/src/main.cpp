@@ -115,6 +115,7 @@ void Type_2_component(void);
 void Type_1_component_signature(void);
 void Type_2_component_signature(void);
 void Type_type_no_name(void);
+void Type_null_args(void);
 
 // Testsuite 'System'
 void System_action(void);
@@ -142,6 +143,16 @@ void System_order_by_id(void);
 void System_order_by_type_after_create(void);
 void System_order_by_id_after_create(void);
 void System_get_query(void);
+void System_add_from_each(void);
+void System_delete_from_each(void);
+void System_add_from_each_world_handle(void);
+void System_new_from_each(void);
+void System_add_from_iter(void);
+void System_delete_from_iter(void);
+void System_add_from_iter_world_handle(void);
+void System_new_from_iter(void);
+void System_each_w_mut_children_it(void);
+void System_readonly_children_iter(void);
 
 // Testsuite 'Trigger'
 void Trigger_on_add(void);
@@ -218,6 +229,14 @@ void ImplicitComponents_reinit(void);
 void ImplicitComponents_reinit_scoped(void);
 void ImplicitComponents_reinit_w_lifecycle(void);
 void ImplicitComponents_first_use_in_system(void);
+void ImplicitComponents_first_use_tag_in_system(void);
+void ImplicitComponents_use_const(void);
+void ImplicitComponents_use_const_w_stage(void);
+void ImplicitComponents_use_const_w_threads(void);
+void ImplicitComponents_implicit_base(void);
+void ImplicitComponents_implicit_const(void);
+void ImplicitComponents_implicit_ref(void);
+void ImplicitComponents_implicit_ptr(void);
 
 // Testsuite 'Snapshot'
 void Snapshot_simple_snapshot(void);
@@ -675,6 +694,10 @@ bake_test_case Type_testcases[] = {
     {
         "type_no_name",
         Type_type_no_name
+    },
+    {
+        "null_args",
+        Type_null_args
     }
 };
 
@@ -778,6 +801,46 @@ bake_test_case System_testcases[] = {
     {
         "get_query",
         System_get_query
+    },
+    {
+        "add_from_each",
+        System_add_from_each
+    },
+    {
+        "delete_from_each",
+        System_delete_from_each
+    },
+    {
+        "add_from_each_world_handle",
+        System_add_from_each_world_handle
+    },
+    {
+        "new_from_each",
+        System_new_from_each
+    },
+    {
+        "add_from_iter",
+        System_add_from_iter
+    },
+    {
+        "delete_from_iter",
+        System_delete_from_iter
+    },
+    {
+        "add_from_iter_world_handle",
+        System_add_from_iter_world_handle
+    },
+    {
+        "new_from_iter",
+        System_new_from_iter
+    },
+    {
+        "each_w_mut_children_it",
+        System_each_w_mut_children_it
+    },
+    {
+        "readonly_children_iter",
+        System_readonly_children_iter
     }
 };
 
@@ -1052,6 +1115,38 @@ bake_test_case ImplicitComponents_testcases[] = {
     {
         "first_use_in_system",
         ImplicitComponents_first_use_in_system
+    },
+    {
+        "first_use_tag_in_system",
+        ImplicitComponents_first_use_tag_in_system
+    },
+    {
+        "use_const",
+        ImplicitComponents_use_const
+    },
+    {
+        "use_const_w_stage",
+        ImplicitComponents_use_const_w_stage
+    },
+    {
+        "use_const_w_threads",
+        ImplicitComponents_use_const_w_threads
+    },
+    {
+        "implicit_base",
+        ImplicitComponents_implicit_base
+    },
+    {
+        "implicit_const",
+        ImplicitComponents_implicit_const
+    },
+    {
+        "implicit_ref",
+        ImplicitComponents_implicit_ref
+    },
+    {
+        "implicit_ptr",
+        ImplicitComponents_implicit_ptr
     }
 };
 
@@ -1276,14 +1371,14 @@ static bake_test_suite suites[] = {
         "Type",
         NULL,
         NULL,
-        8,
+        9,
         Type_testcases
     },
     {
         "System",
         NULL,
         NULL,
-        25,
+        35,
         System_testcases
     },
     {
@@ -1325,7 +1420,7 @@ static bake_test_suite suites[] = {
         "ImplicitComponents",
         NULL,
         NULL,
-        17,
+        25,
         ImplicitComponents_testcases
     },
     {

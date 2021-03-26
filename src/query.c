@@ -752,7 +752,7 @@ add_trait:
              * a disabled column for the queried for component. If so, cache it
              * in a vector as the iterator will need to skip the entity when the
              * component is disabled. */
-            if (index && (table->flags & EcsTableHasDisabled)) {
+            if (index && (table && table->flags & EcsTableHasDisabled)) {
                 ecs_entity_t bs_id = 
                     (component & ECS_COMPONENT_MASK) | ECS_DISABLED;
                 int32_t bs_index = ecs_type_index_of(table->type, bs_id);
@@ -1278,11 +1278,11 @@ void build_sorted_table_range(
 
             if (compare(e1, ptr1, e2, ptr2) > 0) {
                 min = j;
+                e1 = e_from_helper(&helper[min]);
             }
         }
 
         sort_helper_t *cur_helper = &helper[min];
-
         if (!cur || cur->table != cur_helper->table) {
             cur = ecs_vector_add(&query->table_slices, ecs_table_slice_t);
             ecs_assert(cur != NULL, ECS_INTERNAL_ERROR, NULL);
@@ -1918,7 +1918,8 @@ void resolve_cascade_container(
                 query->tables, ecs_matched_table_t, table_data_index);            
         } else {
             table_data = ecs_vector_get(
-                query->empty_tables, ecs_matched_table_t, table_data_index);
+                query->empty_tables, ecs_matched_table_t, 
+                    -1 * table_data_index - 1);
         }
         
         ecs_assert(table_data->iter_data.references != 0, ECS_INTERNAL_ERROR, NULL);

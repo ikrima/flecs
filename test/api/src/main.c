@@ -540,6 +540,16 @@ void Pipeline_no_merge_after_staged_in_out(void);
 void Pipeline_merge_after_staged_out_before_owned(void);
 void Pipeline_switch_pipeline(void);
 void Pipeline_run_pipeline(void);
+void Pipeline_get_pipeline_from_stage(void);
+void Pipeline_3_systems_3_types(void);
+void Pipeline_random_read_after_random_write_out_in(void);
+void Pipeline_random_read_after_random_write_inout_in(void);
+void Pipeline_random_read_after_random_write_out_inout(void);
+void Pipeline_random_read_after_random_write_inout_inout(void);
+void Pipeline_random_read_after_random_write_w_not_write(void);
+void Pipeline_random_read_after_random_write_w_not_read(void);
+void Pipeline_random_read_after_random_write_w_wildcard(void);
+void Pipeline_random_in_after_random_inout_after_random_out(void);
 
 // Testsuite 'SystemMisc'
 void SystemMisc_setup(void);
@@ -646,6 +656,12 @@ void Sorting_sort_1000_entities(void);
 void Sorting_sort_1000_entities_w_duplicates(void);
 void Sorting_sort_1000_entities_again(void);
 void Sorting_sort_1000_entities_2_types(void);
+void Sorting_sort_1500_entities_3_types(void);
+void Sorting_sort_2000_entities_4_types(void);
+void Sorting_sort_2_entities_2_types(void);
+void Sorting_sort_3_entities_3_types(void);
+void Sorting_sort_3_entities_3_types_2(void);
+void Sorting_sort_4_entities_4_types(void);
 void Sorting_sort_1000_entities_2_types_again(void);
 void Sorting_sort_1000_entities_add_type_after_sort(void);
 void Sorting_sort_shared_component(void);
@@ -911,11 +927,12 @@ void SystemOnDemand_on_demand_task_w_not_from_entity(void);
 void SystemOnDemand_enable_after_user_disable(void);
 
 // Testsuite 'SystemCascade'
-void SystemCascade_setup(void);
 void SystemCascade_cascade_depth_1(void);
 void SystemCascade_cascade_depth_2(void);
 void SystemCascade_add_after_match(void);
 void SystemCascade_adopt_after_match(void);
+void SystemCascade_rematch_w_empty_table(void);
+void SystemCascade_query_w_only_cascade(void);
 
 // Testsuite 'SystemManual'
 void SystemManual_setup(void);
@@ -1006,6 +1023,7 @@ void Prefab_override_2_prefabs(void);
 void Prefab_rematch_after_add_instanceof_to_parent(void);
 void Prefab_child_of_instance(void);
 void Prefab_rematch_after_prefab_delete(void);
+void Prefab_add_tag_w_low_id_to_instance(void);
 
 // Testsuite 'System_w_FromContainer'
 void System_w_FromContainer_setup(void);
@@ -3489,6 +3507,46 @@ bake_test_case Pipeline_testcases[] = {
     {
         "run_pipeline",
         Pipeline_run_pipeline
+    },
+    {
+        "get_pipeline_from_stage",
+        Pipeline_get_pipeline_from_stage
+    },
+    {
+        "3_systems_3_types",
+        Pipeline_3_systems_3_types
+    },
+    {
+        "random_read_after_random_write_out_in",
+        Pipeline_random_read_after_random_write_out_in
+    },
+    {
+        "random_read_after_random_write_inout_in",
+        Pipeline_random_read_after_random_write_inout_in
+    },
+    {
+        "random_read_after_random_write_out_inout",
+        Pipeline_random_read_after_random_write_out_inout
+    },
+    {
+        "random_read_after_random_write_inout_inout",
+        Pipeline_random_read_after_random_write_inout_inout
+    },
+    {
+        "random_read_after_random_write_w_not_write",
+        Pipeline_random_read_after_random_write_w_not_write
+    },
+    {
+        "random_read_after_random_write_w_not_read",
+        Pipeline_random_read_after_random_write_w_not_read
+    },
+    {
+        "random_read_after_random_write_w_wildcard",
+        Pipeline_random_read_after_random_write_w_wildcard
+    },
+    {
+        "random_in_after_random_inout_after_random_out",
+        Pipeline_random_in_after_random_inout_after_random_out
     }
 };
 
@@ -3899,6 +3957,30 @@ bake_test_case Sorting_testcases[] = {
     {
         "sort_1000_entities_2_types",
         Sorting_sort_1000_entities_2_types
+    },
+    {
+        "sort_1500_entities_3_types",
+        Sorting_sort_1500_entities_3_types
+    },
+    {
+        "sort_2000_entities_4_types",
+        Sorting_sort_2000_entities_4_types
+    },
+    {
+        "sort_2_entities_2_types",
+        Sorting_sort_2_entities_2_types
+    },
+    {
+        "sort_3_entities_3_types",
+        Sorting_sort_3_entities_3_types
+    },
+    {
+        "sort_3_entities_3_types_2",
+        Sorting_sort_3_entities_3_types_2
+    },
+    {
+        "sort_4_entities_4_types",
+        Sorting_sort_4_entities_4_types
     },
     {
         "sort_1000_entities_2_types_again",
@@ -4911,6 +4993,14 @@ bake_test_case SystemCascade_testcases[] = {
     {
         "adopt_after_match",
         SystemCascade_adopt_after_match
+    },
+    {
+        "rematch_w_empty_table",
+        SystemCascade_rematch_w_empty_table
+    },
+    {
+        "query_w_only_cascade",
+        SystemCascade_query_w_only_cascade
     }
 };
 
@@ -5248,6 +5338,10 @@ bake_test_case Prefab_testcases[] = {
     {
         "rematch_after_prefab_delete",
         Prefab_rematch_after_prefab_delete
+    },
+    {
+        "add_tag_w_low_id_to_instance",
+        Prefab_add_tag_w_low_id_to_instance
     }
 };
 
@@ -7287,7 +7381,7 @@ static bake_test_suite suites[] = {
         "Pipeline",
         Pipeline_setup,
         NULL,
-        16,
+        26,
         Pipeline_testcases
     },
     {
@@ -7301,7 +7395,7 @@ static bake_test_suite suites[] = {
         "Sorting",
         NULL,
         NULL,
-        20,
+        26,
         Sorting_testcases
     },
     {
@@ -7383,9 +7477,9 @@ static bake_test_suite suites[] = {
     },
     {
         "SystemCascade",
-        SystemCascade_setup,
         NULL,
-        4,
+        NULL,
+        6,
         SystemCascade_testcases
     },
     {
@@ -7406,7 +7500,7 @@ static bake_test_suite suites[] = {
         "Prefab",
         Prefab_setup,
         NULL,
-        75,
+        76,
         Prefab_testcases
     },
     {
