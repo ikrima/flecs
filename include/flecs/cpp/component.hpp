@@ -266,7 +266,7 @@ void register_lifecycle_actions(
 {
     if (!ecs_component_has_actions(world, component)) {
         // Beg #TPLibMod-flecs:  Don't allow automatic registering of components
-        ecs_assert(false, ECS_COMPONENT_NOT_REGISTERED, _::name_helper<T>::name());
+        ecs_assert((std::is_same_v<T,_::SystemCppContext>), ECS_COMPONENT_NOT_REGISTERED, _::name_helper<T>::name());
         // End TPLibMod
         EcsComponentLifecycle cl{};
         if (ctor) {
@@ -596,7 +596,9 @@ private:
 // Global templated variables that hold component identifier and other info
 template <typename T> entity_t cpp_type<T>::s_id( 0 );
 template <typename T> type_t cpp_type<T>::s_type( nullptr );
+ES2WRN_DISABLE(CLANG,"-Wglobal-constructors")
 template <typename T> flecs::string cpp_type<T>::s_name;
+ES2WRN_RESTORE(CLANG)
 template <typename T> bool cpp_type<T>::s_allow_tag( true );
 
 } // namespace _
