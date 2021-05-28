@@ -295,9 +295,9 @@ void register_lifecycle_actions(
 // Because of how global (templated) variables are instantiated, it is possible
 // that different instances for the same component exist across different
 // translation units. This is handled transparently by flecs. When a component
-// id is requested from the cpp_type class, but the id is uninitialized, a 
-// lookup by name will be performed for the component on the world, which will 
-// return the id with which the component was already registered. This means 
+// id is requested from the cpp_type class, but the id is uninitialized, a
+// lookup by name will be performed for the component on the world, which will
+// return the id with which the component was already registered. This means
 // component identifiers are eventually consistent across translation units.
 //
 // When a component id is requested for a world that had not yet registered the
@@ -319,11 +319,11 @@ void register_lifecycle_actions(
 // Known issues:
 //
 // It seems like component registration does not always work correctly in Unreal
-// engine when recreating a world. A plausible cause for this is the hot 
+// engine when recreating a world. A plausible cause for this is the hot
 // reloading of dynamic libraries by the engine. A workaround for this issue is
 // to call flecs::_::cpp_type<T>::reset() before recreating the world.
 // This will reset the global component state and avoids conflicts. The exact
-// cause of the issue is investigated here: 
+// cause of the issue is investigated here:
 //   https://github.com/SanderMertens/flecs/issues/293
 
 template <typename T>
@@ -396,7 +396,7 @@ public:
             // low ids in some parts of the code allow for direct indexing.
             flecs::world w(world);
             flecs::entity result = entity(w, name, true);
-            
+
             // Initialize types with identifier
             cpp_type<typename base_type<T>::type>::init(world, result.id(), allow_tag);
             cpp_type<const typename base_type<T>::type>::init(world, result.id(), allow_tag);
@@ -596,7 +596,7 @@ private:
 // Global templated variables that hold component identifier and other info
 template <typename T> entity_t cpp_type<T>::s_id( 0 );
 template <typename T> type_t cpp_type<T>::s_type( nullptr );
-ES2WRN_DISABLE(CLANG,"-Wglobal-constructors")
+ES2WRN_DISABLE(CLANG,global-constructors)
 template <typename T> flecs::string cpp_type<T>::s_name;
 ES2WRN_RESTORE(CLANG)
 template <typename T> bool cpp_type<T>::s_allow_tag( true );
@@ -646,12 +646,12 @@ flecs::entity pod_component(const flecs::world& world, const char *name = nullpt
          * with the same id for the current world.
          * If the component was registered already, nothing will change. */
         ecs_entity_t entity = ecs_new_component(
-            world.c_ptr(), id, nullptr, 
-            _::cpp_type<T>::size(), 
+            world.c_ptr(), id, nullptr,
+            _::cpp_type<T>::size(),
             _::cpp_type<T>::alignment());
-        
+
         (void)entity;
-        
+
         ecs_assert(entity == id, ECS_INTERNAL_ERROR, NULL);
 
         /* This functionality could have been put in id_no_lifecycle, but since
@@ -684,7 +684,7 @@ flecs::entity pod_component(const flecs::world& world, const char *name = nullpt
         /* Register id as usual */
         id = _::cpp_type<T>::id_no_lifecycle(world_ptr, name, allow_tag);
     }
-    
+
     return world.entity(id);
 }
 
