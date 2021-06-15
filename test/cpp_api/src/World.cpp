@@ -34,8 +34,13 @@ void TestInteropModuleImport(ecs_world_t *world) {
     ecs_new_module(world, 0, "TestInteropModule", 
         sizeof(TestInteropModule), alignof(TestInteropModule));
 
-    ecs_new_component(world, 0, "Position", 
-        sizeof(Position), alignof(Position));
+    ecs_component_desc_t desc = {};
+    desc.entity.name = "Position";
+    desc.entity.symbol = "Position";
+    desc.size = sizeof(Position);
+    desc.alignment = alignof(Position);
+
+    ecs_component_init(world, &desc);
 }
 
 namespace test {
@@ -307,4 +312,60 @@ void World_implicit_register_w_new_world() {
         test_int(p->x, 10);
         test_int(p->y, 20);
     }    
+}
+
+void World_count() {
+    flecs::world w;
+
+    test_int(w.count<Position>(), 0);
+
+    w.entity().add<Position>();
+    w.entity().add<Position>();
+    w.entity().add<Position>();
+    w.entity().add<Position>().add<Mass>();
+    w.entity().add<Position>().add<Mass>();
+    w.entity().add<Position>().add<Velocity>();
+
+    test_int(w.count<Position>(), 6);
+}
+
+void World_staged_count() {
+    flecs::world w;
+
+    flecs::world stage = w.get_stage(0);
+
+    w.staging_begin();
+
+    test_int(stage.count<Position>(), 0);
+
+    w.staging_end();
+
+    w.staging_begin();
+
+    stage.entity().add<Position>();
+    stage.entity().add<Position>();
+    stage.entity().add<Position>();
+    stage.entity().add<Position>().add<Mass>();
+    stage.entity().add<Position>().add<Mass>();
+    stage.entity().add<Position>().add<Velocity>();
+
+    test_int(stage.count<Position>(), 0);
+
+    w.staging_end();
+
+    test_int(stage.count<Position>(), 6);
+}
+
+void World_async_stage_add() {
+    flecs::world w;
+
+    w.component<Position>();
+
+    auto e = w.entity();
+
+    flecs::world async = w.async_stage();
+    e.mut(async).add<Position>();
+    test_assert(!e.has<Position>());
+    async.merge();
+    test_assert(e.has<Position>());
 }

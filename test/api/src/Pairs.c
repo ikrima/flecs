@@ -752,7 +752,7 @@ void Pairs_on_add_pair() {
     ECS_COMPONENT(world, Velocity);
     ECS_COMPONENT(world, Rel);
 
-    ECS_TRIGGER(world, TraitTrigger, EcsOnAdd, Rel);
+    ECS_TRIGGER(world, TraitTrigger, EcsOnAdd, (Rel, *));
 
     Probe ctx = { 0 };
     ecs_set_context(world, &ctx);
@@ -798,7 +798,7 @@ void Pairs_on_add_pair_tag() {
     ECS_COMPONENT(world, Position);
     ECS_TAG(world, Rel);
 
-    ECS_TRIGGER(world, TraitTrigger, EcsOnAdd, Position);
+    ECS_TRIGGER(world, TraitTrigger, EcsOnAdd, (Rel, Position));
 
     Probe ctx = { 0 };
     ecs_set_context(world, &ctx);
@@ -829,7 +829,7 @@ void Pairs_on_remove_pair() {
     ECS_COMPONENT(world, Velocity);
     ECS_COMPONENT(world, Rel);
 
-    ECS_TRIGGER(world, TraitTrigger, EcsOnRemove, Rel);
+    ECS_TRIGGER(world, TraitTrigger, EcsOnRemove, (Rel, *));
 
     Probe ctx = { 0 };
     ecs_set_context(world, &ctx);
@@ -877,7 +877,7 @@ void Pairs_on_remove_pair_tag() {
     ECS_COMPONENT(world, Position);
     ECS_TAG(world, Rel);
 
-    ECS_TRIGGER(world, TraitTrigger, EcsOnRemove, Position);
+    ECS_TRIGGER(world, TraitTrigger, EcsOnRemove, (Rel, Position));
 
     Probe ctx = { 0 };
     ecs_set_context(world, &ctx);
@@ -910,7 +910,7 @@ void Pairs_on_remove_pair_on_delete() {
     ECS_COMPONENT(world, Velocity);
     ECS_COMPONENT(world, Rel);
 
-    ECS_TRIGGER(world, TraitTrigger, EcsOnRemove, Rel);
+    ECS_TRIGGER(world, TraitTrigger, EcsOnRemove, (Rel, *));
 
     Probe ctx = { 0 };
     ecs_set_context(world, &ctx);
@@ -962,8 +962,8 @@ void Pairs_on_remove_pair_tag_on_delete() {
     ECS_COMPONENT(world, Velocity);
     ECS_TAG(world, Rel);
 
-    ECS_TRIGGER(world, TraitTriggerPosition, EcsOnRemove, Position);
-    ECS_TRIGGER(world, TraitTriggerVelocity, EcsOnRemove, Velocity);
+    ECS_TRIGGER(world, TraitTriggerPosition, EcsOnRemove, (Rel, Position));
+    ECS_TRIGGER(world, TraitTriggerVelocity, EcsOnRemove, (Rel, Velocity));
 
     Probe ctx = { 0 };
     ecs_set_context(world, &ctx);
@@ -1263,6 +1263,23 @@ void Pairs_id_str_w_recycled_obj() {
     ecs_id_str(world, pair, buff, sizeof(buff));
 
     test_str(buff, "(r,o)");
+
+    ecs_fini(world);
+}
+
+void Pairs_set_object_w_zero_sized_rel_comp() {
+    ecs_world_t *world = ecs_init();
+
+    ecs_entity_t r = ecs_set(world, 0, EcsComponent, {0});
+
+    ECS_COMPONENT(world, Position);
+
+    ecs_entity_t e = ecs_set_pair_object(world, 0, r, Position, {10, 20});
+    
+    const Position *p = ecs_get_pair_object(world, e, r, Position);
+    test_assert(p != NULL);
+    test_int(p->x, 10);
+    test_int(p->y, 20);
 
     ecs_fini(world);
 }
