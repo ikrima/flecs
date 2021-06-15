@@ -6,16 +6,23 @@
 [![Try online](https://img.shields.io/badge/try-online-brightgreen)](https://godbolt.org/z/bs11T3)
 [![Documentation](https://img.shields.io/badge/docs-docsforge-blue)](http://flecs.docsforge.com/)
 
-Flecs is a fast and lightweight Entity Component System with a focus on high performance game development ([join the Discord!](https://discord.gg/MRSAZqb)). Highlights of the framework are:
+Flecs is a fast and lightweight Entity Component System with a focus on high performance game development and usability ([join the Discord!](https://discord.gg/MRSAZqb)). The highlights of the framework are:
 
-- Fast to compile & integrate in any project with zero-dependency core that is written entirely in C99
-- Highly portable with C++11 API that does not depend on any STL types
-- Provides (SoA) access to raw component arrays for optimal cache efficiency and vectorization
-- Archetype-storage with unique graph-based design enables high performance entity mutations 
-- Flexible API primitives allow for efficient implementation of prefabs, runtime tags and entity graphs
-- Supports advanced queries that are entirely evaluated offline to eliminate searching from the main loop
-- Lockless threading design allows for efficient execution of systems on multiple threads
-- A dashboard module for tracking application metrics (see below for repository link):
+- C99 core, modern C++11 API, no dependencies on STL types
+- Batched iteration with direct access to component arrays
+- SoA/Archetype storage for efficient CPU caching & vectorization
+- Automatic component registration across binaries
+- Hierarchies
+- Prefabs
+- Entity relationships
+- Fast graph queries
+- Thread safe, lockless API
+- Systems that are ran manually, every frame or at a time/rate interval
+- Queries that can be iterated from free functions
+- Modules for organizing components & systems
+- Builtin statistics & introspection
+- Modular core with compile-time disabling of optional features
+- A dashboard module for visualizing statistics:
 
 <img width="942" alt="Screen Shot 2020-12-02 at 1 28 04 AM" src="https://user-images.githubusercontent.com/9919222/100856510-5eebe000-3440-11eb-908e-f4844c335f37.png">
 
@@ -52,7 +59,7 @@ Here is some awesome content provided by the community (thanks everyone! :heart:
 - [Flecs + SDL + Web ASM example](https://github.com/HeatXD/flecs_web_demo) ([live demo](https://heatxd.github.io/flecs_web_demo/))
 - [Flecs + gunslinger example](https://github.com/MrFrenik/gs_examples/blob/main/18_flecs/source/main.c)
 
-## Example
+## Examples
 This is a simple flecs example in the C99 API:
 
 ```c
@@ -62,10 +69,10 @@ typedef struct {
 } Position, Velocity;
 
 void Move(ecs_iter_t *it) {
-  Position *p = ecs_column(it, Position, 1);
-  Velocity *v = ecs_column(it, Velocity, 2);
+  Position *p = ecs_term(it, Position, 1);
+  Velocity *v = ecs_term(it, Velocity, 2);
   
-  for (int i = 0; i < it.count; i ++) {
+  for (int i = 0; i < it->count; i ++) {
     p[i].x += v[i].x * it->delta_time;
     p[i].y += v[i].y * it->delta_time;
     printf("Entity %s moved!\n", ecs_get_name(it->world, it->entities[i]));
@@ -74,13 +81,57 @@ void Move(ecs_iter_t *it) {
 
 int main(int argc, char *argv[]) {
   ecs_world_t *ecs = ecs_init();
-    
+
+  // Register the Position component
+  ecs_entity_t pos = ecs_component_init(ecs, &(ecs_component_desc_t){
+    .entity.name = "Position",
+    .size = sizeof(Position), .alignment = ECS_ALIGNOF(Position)
+  });
+
+  // Register the Velocity component
+  ecs_entity_t vel = ecs_component_init(ecs, &(ecs_component_desc_t){
+    .entity.name = "Velocity",
+    .size = sizeof(Velocity), .alignment = ECS_ALIGNOF(Velocity)
+  });
+
+  // Create the Move system
+  ecs_system_init(ecs, &(ecs_system_desc_t){
+    .entity = { .name = "Move", .add = {EcsOnUpdate} },
+    .query.filter.terms = {{pos}, {vel, .inout = EcsIn}},
+    .callback = Move,
+  });
+
+  // Create a named entity
+  ecs_entity_t e = ecs_entity_init(ecs, &(ecs_entity_desc_t){
+    .name = "MyEntity"
+  });
+
+  // Set components
+  ecs_set_id(ecs, e, pos, sizeof(Position), &(Position){0, 0});
+  ecs_set_id(ecs, e, vel, sizeof(Velocity), &(Velocity){1, 1});
+
+  // Run the main loop
+  while (ecs_progress(ecs, 0)) { }
+}
+```
+
+Because C99 lacks generics, the API provides a number of convenience macro's 
+that reduce boilerplate & improve type safety. This is the same example
+with macro's (system implementation ommitted since it doesn't change):
+
+```c
+int main(int argc, char *argv[]) {
+  ecs_world_t *ecs = ecs_init();
+
   ECS_COMPONENT(ecs, Position);
   ECS_COMPONENT(ecs, Velocity);
-    
+
   ECS_SYSTEM(ecs, Move, EcsOnUpdate, Position, [in] Velocity);
-    
-  ecs_entity_t e = ecs_set(ecs, 0, EcsName, {"MyEntity"});
+
+  ecs_entity_t e = ecs_entity_init(ecs, &(ecs_entity_desc_t){
+    .name = "MyEntity"
+  });
+
   ecs_set(ecs, e, Position, {0, 0});
   ecs_set(ecs, e, Velocity, {1, 1});
 
@@ -88,7 +139,7 @@ int main(int argc, char *argv[]) {
 }
 ```
 
-Here is the same example but in the C++11 API:
+This is the same example in the C++11 API:
 
 ```c++
 struct Position {

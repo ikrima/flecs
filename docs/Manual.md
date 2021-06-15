@@ -149,8 +149,8 @@ typedef struct Velocity {
 // System names ('Move') use PascalCase. API types use snake_case_t
 void Move(ecs_iter_t *it) {
     // Functions use snake_case
-    Position *p = ecs_column(it, Position, 1);
-    Velocity *v = ecs_column(it, Velocity, 2);
+    Position *p = ecs_term(it, Position, 1);
+    Velocity *v = ecs_term(it, Velocity, 2);
     
     for (int i = 0; i < it->count; i ++) {
         p[i].x += v[i].x;
@@ -328,7 +328,7 @@ Position *p = ecs_get(world, e, Position);
 Translates into:
 
 ```c
-Position *p = (Position*)ecs_get_w_entity(world, e, ecs_typeid(Position));
+Position *p = (Position*)ecs_get_id(world, e, ecs_typeid(Position));
 ```
 
 As you can see, the `ecs_get` macro casts the result of the function to the correct type, so a compiler will throw a warning when an application tries to assign the result of the operation to a variable of the wrong type.
@@ -590,8 +590,8 @@ ecs_entity_t tag_1 = ecs_new(world, 0);
 ecs_entity_t tag_2 = ecs_new(world, 0);
 
 ecs_entity_t e = ecs_new(world, 0);
-ecs_add_entity(world, e, tag_1);
-ecs_add_entity(world, e, tag_2);
+ecs_add_id(world, e, tag_1);
+ecs_add_id(world, e, tag_2);
 ```
 
 Printing the contents of the type of `e` now would produce something similar to:
@@ -637,7 +637,7 @@ Entities with type flags can be dynamically added or removed:
 
 ```c
 ecs_add_pair(world, child, EcsChildOf, parent);
-ecs_remove_entity(world, child, ECS_CHILDOF | parent);
+ecs_remove_id(world, child, ECS_CHILDOF | parent);
 ```
 
 Additionally, type flags can also be used inside of type and signature expressions, such as in the `ECS_TYPE` and `ECS_ENTITY` macro's:
@@ -679,8 +679,8 @@ The `Sandwich` entity contains an `OR` type constraint that is applied to the `T
 Type constraints can be added and removed like other type flags:
 
 ```c
-ecs_add_entity(world, child, ECS_OR | Toppings);
-ecs_remove_entity(world, child, ECS_OR | Toppings);
+ecs_add_id(world, child, ECS_OR | Toppings);
+ecs_remove_id(world, child, ECS_OR | Toppings);
 ```
 
 ## Components
@@ -840,7 +840,7 @@ int main() {
 }
 ```
 
-The `ecs_set`, `ecs_get` (not exhaustive) functions are wrapper macro's arround functions functions that accept a type. The following code shows how to use the underlying function for `ecs_get`, `ecs_get_w_entity`:
+The `ecs_set`, `ecs_get` (not exhaustive) functions are wrapper macro's arround functions functions that accept a type. The following code shows how to use the underlying function for `ecs_get`, `ecs_get_id`:
 
 ```c
 typedef struct Position {
@@ -848,7 +848,7 @@ typedef struct Position {
 } Position;
 
 const Position* get_position(ecs_world_t *t, ecs_entity_t e, ecs_entity_t p_handle) {
-    return ecs_get_w_entity(world, e, p_handle);
+    return ecs_get_id(world, e, p_handle);
 }
 
 int main() {
@@ -953,7 +953,7 @@ For functions that require an `ecs_entity_t` handle, the tag variable names are 
 
 ```c
 void add_tag(ecs_world_t *t, ecs_entity_t e, ecs_entity_t Tag) {
-    ecs_add_entity(world, e, Tag);
+    ecs_add_id(world, e, Tag);
 }
 
 int main() {
@@ -968,7 +968,7 @@ int main() {
 }
 ```
 
-Anyone who paid careful attention to this example will notice that the `ecs_add_entity` operation accepts two regular entities. 
+Anyone who paid careful attention to this example will notice that the `ecs_add_id` operation accepts two regular entities. 
 
 ### Switchable tags
 Switchable tags are sets of regular tags that can be added to an entity, except that only one of the set can be active at the same time. This is particularly useful when storing state machines. Consider the following example:
@@ -985,16 +985,16 @@ ecs_entity_t e = ecs_new(world, 0);
 
 /* Add the switch to the entity. This lets Flecs know that only one of the tags
  * in the Movement type may be active at the same time. */
-ecs_add_entity(world, e, ECS_SWITCH | Movement);
+ecs_add_id(world, e, ECS_SWITCH | Movement);
 
 /* Add the Standing case to the entity */
-ecs_add_entity(world, e, ECS_CASE | Standing);
+ecs_add_id(world, e, ECS_CASE | Standing);
 
 /* Add the Walking case to the entity. This removes Standing */
-ecs_add_entity(world, e, ECS_CASE | Walking);
+ecs_add_id(world, e, ECS_CASE | Walking);
 
 /* Add the Running case to the entity. This removes Walking */
-ecs_add_entity(world, e, ECS_CASE | Running);
+ecs_add_id(world, e, ECS_CASE | Running);
 ```
 
 Switchable tags aren't just convenient, they are also very fast, as changing a case does not move the entity between archetypes like regular tags do. This makes switchable components particularly useful for fast-changing data, like states in a state machine. Systems can query for switchable tags by using the `SWITCH` and `CASE` roles:
@@ -1021,8 +1021,8 @@ ecs_iter_t it = ecs_query_iter(query);
 // Iterate all the matching archetypes
 while (ecs_query_next(&it)) {
     // Get the component arrays
-    Position *p = ecs_column(&it, Position, 1);
-    Velocity *v = ecs_column(&it, Velocity, 2);
+    Position *p = ecs_term(&it, Position, 1);
+    Velocity *v = ecs_term(&it, Velocity, 2);
 
     // Iterate the entities in the archetype
     for (int i = 0; i < it.count, i ++) {
@@ -1032,7 +1032,7 @@ while (ecs_query_next(&it)) {
 }
 ```
 
-When an application is iterating the query, it can obtain pointers to the component arrays using the `ecs_column` function, which accepts the iterator, component name and the index of the component in the signature, which is offset by one. In the above example, `1` points to `Position`, which is the first component in the signature. and `2` points to `Velocity` which is the second.
+When an application is iterating the query, it can obtain pointers to the component arrays using the `ecs_term` function, which accepts the iterator, component name and the index of the component in the signature, which is offset by one. In the above example, `1` points to `Position`, which is the first component in the signature. and `2` points to `Velocity` which is the second.
 
 Each time the `ecs_query_next` function returns true, the iterator contains entities that all have the same set of components, or belong to the same archetype, or table. The `count` member of the iterator contains the number of entities in the current table. An application can access the entity identifiers being iterated over with the `entities` member of the iterator:
 
@@ -1057,6 +1057,8 @@ if (ecs_query_changed(q)) {
 ```
 
 ## Signatures
+**NOTE**: This section describes the legacy query DSL. For documentation on the new query DSL and APIs, see the [Queries manual](Queries.md).
+
 The query signature accepts a wide range of operators and options that allow an application to determine with fine granularity which entities to iterate over. The most common kind of signature is one that subscribes for entities with a set of components. An example of such a signature looks like a comma delimited list of component or tag identifiers:
 
 ```
@@ -1135,7 +1137,7 @@ OWNED:Position, OWNED:Velocity
 #### SHARED
 The `SHARED` modifier only matches shared components. A shared component is a component that the entity inherits from a base entity, through an `INSTANCEOF` relationship (see the examples in `OWNED`).
 
-When a query or system matches with a `SHARED` component, the `ecs_column` function does not provide an array. Instead it provides a pointer to the shared component which is shared with the entities in the table being iterated over:
+When a query or system matches with a `SHARED` component, the `ecs_term` function does not provide an array. Instead it provides a pointer to the shared component which is shared with the entities in the table being iterated over:
 
 ```c
 // Request Position, Velocity where Velocity must be shared
@@ -1145,8 +1147,8 @@ ecs_iter_t it = ecs_query_iter(query);
 
 while (ecs_query_next(&it)) {
     // Pointer is an array, Velocity is a pointer
-    Position *p = ecs_column(&it, Position, 1);
-    Velocity *v = ecs_column(&it, Velocity, 2);
+    Position *p = ecs_term(&it, Position, 1);
+    Velocity *v = ecs_term(&it, Velocity, 2);
 
     for (int i = 0; i < it.count, i ++) {
         // Access velocity as pointer, not as array
@@ -1166,8 +1168,8 @@ ecs_query_t *query = ecs_query_new(world, "Position, ANY:Velocity");
 ecs_iter_t it = ecs_query_iter(query);
 
 while (ecs_query_next(&it)) {
-    Position *p = ecs_column(&it, Position, 1);
-    Velocity *v = ecs_column(&it, Velocity, 2);
+    Position *p = ecs_term(&it, Position, 1);
+    Velocity *v = ecs_term(&it, Velocity, 2);
 
     // Test outside of loop for better performance
     if (ecs_is_owned(it, 2)) {
@@ -1205,8 +1207,8 @@ ecs_iter_t it = ecs_query_iter(query);
 
 while (ecs_query_next(&it)) {
     // 1st Position is array, 2nd one is pointer
-    Position *p = ecs_column(&it, Position, 1);
-    Position *p_parent = ecs_column(&it, Position, 2);
+    Position *p = ecs_term(&it, Position, 1);
+    Position *p_parent = ecs_term(&it, Position, 2);
 
     for (int i = 0; i < it.count, i ++) {
         p[i].x += p_parent->x;
@@ -1226,8 +1228,8 @@ ecs_query_t *query = ecs_query_new(world, "Position, CASCADE:Position");
 ecs_iter_t it = ecs_query_iter(query);
 
 while (ecs_query_next(&it)) {
-    Position *p = ecs_column(&it, Position, 1);
-    Position *p_parent = ecs_column(&it, Position, 2);
+    Position *p = ecs_term(&it, Position, 1);
+    Position *p_parent = ecs_term(&it, Position, 2);
 
     if (p_parent) {
         for (int i = 0; i < it.count, i ++) {
@@ -1263,8 +1265,8 @@ When iterating the system, the component can be retrieved just like other compon
 
 ```c
 void MySystem(ecs_iter_t *it) {
-   Position *p = ecs_column(it, Position, 1);
-   MySystemContext *ctx = ecs_column(it, MySystemContext, 2);
+   Position *p = ecs_term(it, Position, 1);
+   MySystemContext *ctx = ecs_term(it, MySystemContext, 2);
    
    for (int i = 0; i < it.count; i ++) {
      p[i].x += ctx->value; // Note that this is a pointer, not an array
@@ -1285,8 +1287,8 @@ ecs_query_t *q = ecs_query_new(world, "Position, MyEntity:Velocity");
 ecs_iter_t it = ecs_query_iter(query);
 
 while (ecs_query_next(&it)) {
-    Position *p = ecs_column(&it, Position, 1);
-    Velocity *v = ecs_column(&it, Velocity, 2);
+    Position *p = ecs_term(&it, Position, 1);
+    Velocity *v = ecs_term(&it, Velocity, 2);
 
     for (int i = 0; i < it.count; i ++) {
       p[i].x += v->x;
@@ -1318,8 +1320,8 @@ ecs_query_t *query = ecs_query_new(world, "Position, $Game");
 ecs_iter_t it = ecs_query_iter(query);
 
 while (ecs_query_next(&it)) {
-    Position *p = ecs_column(&it, Position, 1);
-    Game *g = ecs_column(&it, Game, 2);
+    Position *p = ecs_term(&it, Position, 1);
+    Game *g = ecs_term(&it, Game, 2);
 
     for (int i = 0; i < it.count; i ++) {
       p[i].x += g->max_speed;
@@ -1338,10 +1340,10 @@ ecs_query_t *query = ecs_query_new(world, "Position, :Velocity");
 ecs_iter_t it = ecs_query_iter(query);
 
 while (ecs_query_next(&it)) {
-    Position *p = ecs_column(&it, Position, 1);
+    Position *p = ecs_term(&it, Position, 1);
 
     // Get component identifier from column
-    ecs_entity_t vel_id = ecs_column_entity(&it, 2);
+    ecs_entity_t vel_id = ecs_term_id(&it, 2);
 }
 ```
 
@@ -1388,7 +1390,7 @@ Not expressions allow a signature to exclude entities that have a component. An 
 Position, !Velocity
 ```
 
-This signature matches all entities that have `Position`, but not have `Velocity`. An expression with a `NOT` column does not pass any data into a system, which means that the `ecs_column` function is guaranteed to return `NULL` for a column.
+This signature matches all entities that have `Position`, but not have `Velocity`. An expression with a `NOT` column does not pass any data into a system, which means that the `ecs_term` function is guaranteed to return `NULL` for a column.
 
 #### Optional
 The optional operator allows a signature to both match entities with and without a specific component. An exampole with an optional operator is:
@@ -1405,8 +1407,8 @@ ecs_query_t *query = ecs_query_new(world, "Position, CASCADE:Position");
 ecs_iter_t it = ecs_query_iter(query);
 
 while (ecs_query_next(&it)) {
-    Position *p = ecs_column(&it, Position, 1);
-    Velocity *v = ecs_column(&it, Velocity, 2);
+    Position *p = ecs_term(&it, Position, 1);
+    Velocity *v = ecs_term(&it, Velocity, 2);
 
     if (v) {
         for (int i = 0; i < it.count, i ++) {
@@ -1470,7 +1472,7 @@ Applications iterate a sorted query in the same way they would iterate a regular
 
 ```c
 while (ecs_query_next(&it)) {
-    Position *p = ecs_column(&it, Position, 1);
+    Position *p = ecs_term(&it, Position, 1);
 
     for (int i = 0; i < it.count; i ++) {
         printf("{%f, %f}\n", p[i].x, p[i].y); // Values printed will be in order
@@ -1582,8 +1584,8 @@ void Move(ecs_iter_t *it) { }
 The implementation of a system is a regular query iteration:
 
 ```c
-Position *p = ecs_column(it, Position, 1);
-Velocity *v = ecs_column(it, Velocity, 2);
+Position *p = ecs_term(it, Position, 1);
+Velocity *v = ecs_term(it, Velocity, 2);
 
 for (int i = 0; i < it->count, i ++) {
     p[i].x += v[i].x;
@@ -1595,8 +1597,8 @@ for (int i = 0; i < it->count, i ++) {
 A system provides a `delta_time` which contains the time passed since the last frame:
 
 ```c
-Position *p = ecs_column(it, Position, 1);
-Velocity *v = ecs_column(it, Velocity, 2);
+Position *p = ecs_term(it, Position, 1);
+Velocity *v = ecs_term(it, Velocity, 2);
 
 for (int i = 0; i < it->count, i ++) {
     p[i].x += v[i].x * it->delta_time;
@@ -1658,8 +1660,8 @@ An monitor is implemented the same way as a regular system:
 
 ```c
 void OnPV(ecs_iter_t *it) {
-    Position *p = ecs_column(it, Position, 1);
-    Velocity *v = ecs_column(it, Velocity, 2);
+    Position *p = ecs_term(it, Position, 1);
+    Velocity *v = ecs_term(it, Velocity, 2);
 
     for (int i = 0; i < it->count; i ++) {
         /* Monitor code. Note that components may not have
@@ -1697,8 +1699,8 @@ An OnSet system is implemented the same way as a regular system:
 
 ```c
 void OnSetPV(ecs_iter_t *it) {
-    Position *p = ecs_column(it, Position, 1);
-    Velocity *v = ecs_column(it, Velocity, 2);
+    Position *p = ecs_term(it, Position, 1);
+    Velocity *v = ecs_term(it, Velocity, 2);
 
     for (int i = 0; i < it->count; i ++) {
         /* Trigger code */
@@ -1737,7 +1739,7 @@ The implementation of the trigger looks similar to a system:
 
 ```c
 void AddPosition(ecs_iter_t *it) {
-    Position *p = ecs_column(it, Position, 1);
+    Position *p = ecs_term(it, Position, 1);
 
     for (int i = 0; i < it->count; i ++) {
         p[i].x = 10;
@@ -1890,7 +1892,7 @@ CHILDOF relationships can be added and removed dynamically, similar to how compo
 
 ```c
 ecs_add_pair(world, child, EcsChildOf, parent);
-ecs_remove_entity(world, child, ECS_CHILDOF | parent);
+ecs_remove_id(world, child, ECS_CHILDOF | parent);
 ```
 
 CHILDOF relationships can also be created through the `ECS_ENTITY` macro:
@@ -2053,8 +2055,8 @@ ecs_get(world, base, Position) == ecs_get(world, instance, Position); // 1
 INSTANCEOF relationships can be added and removed dynamically, similar to how components can be added and removed:
 
 ```c
-ecs_add_entity(world, instance, ECS_INSTANCEOF | base);
-ecs_remove_entity(world, instance, ECS_INSTANCEOF | base);
+ecs_add_id(world, instance, ECS_INSTANCEOF | base);
+ecs_remove_id(world, instance, ECS_INSTANCEOF | base);
 ```
 
 INSTANCEOF relationships can also be created through the `ECS_ENTITY` macro:
@@ -2139,7 +2141,7 @@ In some scenarios it is desirable that an entity is initialized with a specific 
 ecs_entity_t Base = ecs_set(world, 0, Position, {10, 20});
 
 // Mark as OWNED. This ensures that when base is instantiated, Position is overridden
-ecs_add_entity(world, world, Base, ECS_OWNED | ecs_typeid(Position));
+ecs_add_id(world, world, Base, ECS_OWNED | ecs_typeid(Position));
 
 // Create entity from BaseType. This adds the INSTANCEOF relationship in addition 
 // to overriding Position, effectively initializing the Position component for the instance.
@@ -2198,7 +2200,7 @@ ecs_set(world, child, EcsName, {"Child"});
 
 // Create actual child that is an instance of child base
 ecs_entity_t child = ecs_new_w_pair(world, EcsChildOf, parent);
-ecs_add_entity(world, child, ECS_INSTANCEOF | child_base);
+ecs_add_id(world, child, ECS_INSTANCEOF | child_base);
 
 // Create instance of parent, two childs are added to the instance
 ecs_entity_t instance = ecs_new_w_pair(world, EcsIsA, parent);
@@ -2218,8 +2220,8 @@ ecs_entity_t prefab = ecs_new_w_entity(world, EcsPrefab);
 The `EcsPrefab` tag can also be added or removed dynamically:
 
 ```c
-ecs_add_entity(world, prefab, EcsPrefab);
-ecs_remove_entity(world, prefab, EcsPrefab);
+ecs_add_id(world, prefab, EcsPrefab);
+ecs_remove_id(world, prefab, EcsPrefab);
 ```
 
 Prefabs can also be created with the `ECS_PREFAB` macro:
@@ -2297,11 +2299,11 @@ This will iterate all entities with the ExpiryTimer trait, for each instance of 
 ```c
 void ExpireComponents(ecs_iter_t *it) {
     /* Obtain the array containing the trait component */
-    ExpiryTimer *et = ecs_column(it, ExpiryTimer, 1);
+    ExpiryTimer *et = ecs_term(it, ExpiryTimer, 1);
 
     /* Get the handle to the trait. This will tell us on which component the
      * trait is applied */
-    ecs_entity_t trait = ecs_column_entity(it, 1);
+    ecs_entity_t trait = ecs_term_id(it, 1);
 
     /* Obtain the component to which the trait is applied */
     ecs_entity_t comp = ecs_entity_t_lo(trait);
@@ -2317,10 +2319,10 @@ void ExpireComponents(ecs_iter_t *it) {
             printf("Remove component '%s'\n", ecs_get_name(it->world, comp));
 
             /* Removes component (Position or Velocity) */
-            ecs_remove_entity(it->world, it->entities[i], comp);
+            ecs_remove_id(it->world, it->entities[i], comp);
 
             /* Removes trait */
-            ecs_remove_entity(it->world, it->entities[i], trait);
+            ecs_remove_id(it->world, it->entities[i], trait);
         }
     }
 }
@@ -2462,7 +2464,7 @@ With the following implementation for `SetVelocity`:
 
 ```c
 void SetVelocity(ecs_iter_t *it) {
-    ecs_entity_t ecs_typeid(Velocity) = ecs_column_entity(it, 2);
+    ecs_entity_t ecs_typeid(Velocity) = ecs_term_id(it, 2);
 
     for (int i = 0; i < it->count; i ++) {
         ecs_set(world, it->entities[i], Velocity, {1, 2});

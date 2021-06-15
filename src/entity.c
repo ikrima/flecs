@@ -210,7 +210,7 @@ void run_set_systems_for_entities(
     int32_t count,
     ecs_entity_t * entities,
     bool set_all)
-{   
+{
     if (set_all) {
         /* Run OnSet systems for all components of the entity. This usually
          * happens when an entity is created directly in its target table. */
@@ -1865,12 +1865,17 @@ ecs_entity_t ecs_entity_init(
     /* Set name */
     if (name && !name_assigned) {
         ecs_add_path_w_sep(world, result, scope, name, sep, NULL);   
-        if (desc->symbol) {
-            EcsName *name_ptr = ecs_get_mut(world, result, EcsName, NULL);
-            ecs_os_free(name_ptr->symbol);
+    }
+
+    if (desc->symbol) {
+        EcsName *name_ptr = ecs_get_mut(world, result, EcsName, NULL);
+        if (name_ptr->symbol) {
+            ecs_assert(!ecs_os_strcmp(desc->symbol, name_ptr->symbol),
+                ECS_INCONSISTENT_NAME, desc->symbol);
+        } else {
             name_ptr->symbol = ecs_os_strdup(desc->symbol);
         }
-    }
+    }    
 
     return result;
 }
@@ -2203,7 +2208,7 @@ void delete_objects(
             if (r && r->row < 0) {
                 /* Make row positive which prevents infinite recursion in case
                  * of cyclic delete actions */
-                r->row = (-r->row) - 1;
+                r->row = (-r->row);
 
                 /* Run delete actions for objects */
                 on_delete_action(world, entities[i]);
@@ -2357,7 +2362,7 @@ void ecs_delete(
         if (info.is_watched) {
             /* Make row positive which prevents infinite recursion in case
              * of cyclic delete actions */
-            r->row = (-r->row) - 1;
+            r->row = (-r->row);
 
             /* Ensure that the store contains no dangling references to the
              * deleted entity (as a component, or as part of a relation) */
@@ -2518,7 +2523,7 @@ ecs_entity_t ecs_clone(
     return dst;
 }
 
-const void* ecs_get_w_id(
+const void* ecs_get_id(
     const ecs_world_t *world,
     ecs_entity_t entity,
     ecs_id_t id)
@@ -2774,7 +2779,7 @@ ecs_entity_t assign_ptr_w_id(
     return entity;
 }
 
-ecs_entity_t ecs_set_ptr_w_id(
+ecs_entity_t ecs_set_id(
     ecs_world_t *world,
     ecs_entity_t entity,
     ecs_id_t id,
@@ -3332,7 +3337,6 @@ size_t ecs_id_str(
     size_t buffer_len)
 {
     ecs_assert(world != NULL, ECS_INVALID_PARAMETER, NULL);
-    ecs_assert(ecs_is_valid(world, id), ECS_INVALID_PARAMETER, NULL);
     ecs_assert(buffer != NULL, ECS_INVALID_PARAMETER, NULL);
     ecs_assert(buffer_len > 0, ECS_INVALID_PARAMETER, NULL);
 
@@ -3352,8 +3356,8 @@ size_t ecs_id_str(
         ecs_entity_t lo = ECS_PAIR_OBJECT(id);
         ecs_entity_t hi = ECS_PAIR_RELATION(id);
 
-        lo = ecs_get_alive(world, lo);
-        hi = ecs_get_alive(world, hi);
+        if (lo) lo = ecs_get_alive(world, lo);
+        if (hi) hi = ecs_get_alive(world, hi);
 
         if (hi) {
             char *hi_path = ecs_get_fullpath(world, hi);

@@ -333,10 +333,10 @@
                 "pred_implicit_subject_subset",
                 "pred_implicit_subject_superset_inclusive",
                 "pred_implicit_subject_subset_inclusive",
-                "pred_implicit_subject_superset_full",
-                "pred_implicit_subject_subset_full",
-                "pred_implicit_subject_superset_inclusive_full",
-                "pred_implicit_subject_subset_inclusive_full",            
+                "pred_implicit_subject_superset_cascade",
+                "pred_implicit_subject_subset_cascade",
+                "pred_implicit_subject_superset_inclusive_cascade",
+                "pred_implicit_subject_subset_inclusive_cascade",            
                 "pred_implicit_subject_superset_depth_1_digit",
                 "pred_implicit_subject_subset_depth_1_digit",
                 "pred_implicit_subject_superset_depth_2_digits",
@@ -344,9 +344,9 @@
                 "pred_implicit_superset_min_max_depth",
                 "pred_implicit_superset_childof_min_max_depth",                
                 "pred_implicit_subject_superset_childof",
-                "pred_implicit_subject_full_superset_childof",
-                "pred_implicit_subject_superset_full_childof",
-                "pred_implicit_subject_superset_full_childof_optional"
+                "pred_implicit_subject_cascade_superset_childof",
+                "pred_implicit_subject_superset_cascade_childof",
+                "pred_implicit_subject_superset_cascade_childof_optional"
             ]
         }, {
             "id": "GlobalComponentIds",
@@ -433,6 +433,8 @@
                 "delete_tree_staged",
                 "delete_tree_empty_table",
                 "delete_tree_recreate",
+                "delete_tree_w_onremove",
+                "delete_tree_w_dtor",
                 "get_child_count",
                 "get_child_count_2_tables",
                 "get_child_count_no_children",
@@ -638,7 +640,8 @@
                 "include_exact",
                 "exclude_exact",
                 "system_activate_test",
-                "skip_builtin_tables"
+                "skip_builtin_tables",
+                "delete_w_on_remove"
             ]
         }, {
             "id": "Set",
@@ -995,7 +998,19 @@
                 "get_typeid_w_recycled_obj",
                 "id_str_w_recycled_rel",
                 "id_str_w_recycled_obj",
-                "set_object_w_zero_sized_rel_comp"
+                "set_object_w_zero_sized_rel_comp",
+                "dsl_pair",
+                "dsl_pair_w_pred_wildcard",
+                "dsl_pair_w_obj_wildcard",
+                "dsl_pair_w_both_wildcard",
+                "dsl_pair_w_explicit_subj_this",
+                "dsl_pair_w_explicit_subj",
+                "api_pair",
+                "api_pair_w_pred_wildcard",
+                "api_pair_w_obj_wildcard",
+                "api_pair_w_both_wildcard",
+                "api_pair_w_explicit_subj_this",
+                "api_pair_w_explicit_subj"                         
             ]
         }, {
            "id": "Trigger",
@@ -1023,12 +1038,14 @@
                "remove_twice",
                "on_remove_w_clear",
                "on_remove_w_delete",
+               "on_remove_w_world_fini",
                "on_add_w_clone",
                "add_in_trigger",
                "remove_in_trigger",
                "clear_in_trigger",
                "delete_in_trigger",
-               "trigger_w_named_entity"
+               "trigger_w_named_entity",
+               "on_remove_tree"
            ]
         }, {
             "id": "TriggerOnAdd",
@@ -1474,14 +1491,14 @@
                 "type_has_parent",
                 "type_has_pair",
                 "type_has_pair_exact",
-                "type_has_pair_wildcard",
-                "type_has_pair_wildcard_multiple",
-                "type_has_pair_wildcard_no_pair",
+                "type_has_pair_0",
+                "type_has_pair_0_multiple",
+                "type_has_pair_0_no_pair",
                 "type_owns_pair",
                 "type_owns_pair_exact",
-                "type_owns_pair_wildcard",
-                "type_owns_pair_wildcard_multiple",
-                "type_owns_pair_wildcard_no_pair",
+                "type_owns_pair_0",
+                "type_owns_pair_0_multiple",
+                "type_owns_pair_0_no_pair",
                 "type_merge",
                 "type_merge_overlap",
                 "type_merge_overlap_one",
@@ -1867,7 +1884,8 @@
                 "name_prefix_underscore",
                 "lookup_by_symbol",
                 "import_type",
-                "nested_module"
+                "nested_module",
+                "module_tag_on_namespace"
             ]
         }, {
             "id": "DirectAccess",

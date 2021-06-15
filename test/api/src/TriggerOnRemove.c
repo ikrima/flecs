@@ -5,7 +5,7 @@ void Deinit(ecs_iter_t *it) {
 
     Velocity *v = NULL;
     if (it->column_count >= 2) {
-        v = ecs_column(it, Velocity, 2);
+        v = ecs_term(it, Velocity, 2);
     }
 
     probe_system(it);
@@ -32,11 +32,11 @@ void Remove_from_current(ecs_iter_t *it) {
         ecs_entity_t e = it->entities[i];
 
         if (ctx->component) {
-            ecs_remove_entity(it->world, e, ctx->component);
+            ecs_remove_id(it->world, e, ctx->component);
         }
 
         if (ctx->component_2) {
-            ecs_remove_entity(it->world, e, ctx->component_2);
+            ecs_remove_id(it->world, e, ctx->component_2);
         }
 
         ctx->entity_count ++;

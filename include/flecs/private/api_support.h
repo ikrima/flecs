@@ -57,22 +57,6 @@ ecs_entity_t ecs_new_module(
     size_t alignment);
 
 FLECS_API
-ecs_entity_t ecs_new_system(
-    ecs_world_t *world,
-    ecs_entity_t e,
-    const char *name,
-    ecs_entity_t phase,
-    const char *signature,
-    ecs_iter_action_t action);
-
-FLECS_API
-ecs_entity_t ecs_new_pipeline(
-    ecs_world_t *world,
-    ecs_entity_t e,
-    const char *name,
-    const char *expr);
-
-FLECS_API
 char* ecs_module_path_from_c(
     const char *c_name);
 
@@ -80,6 +64,11 @@ FLECS_API
 bool ecs_component_has_actions(
     const ecs_world_t *world,
     ecs_entity_t component);
+
+FLECS_API
+void ecs_add_module_tag(
+    ecs_world_t *world,
+    ecs_entity_t module);
 
 ////////////////////////////////////////////////////////////////////////////////
 //// Signature API

@@ -152,6 +152,10 @@ typedef void (*ecs_fini_action_t)(
     ecs_world_t *world,
     void *ctx);
 
+/** Function to cleanup context data */
+typedef void (*ecs_ctx_free_t)(
+    void *ctx);
+
 /** @} */
 
 
@@ -165,8 +169,9 @@ typedef void (*ecs_fini_action_t)(
 #define EcsSelf         (1)  /* Select self (inclusive) */
 #define EcsSuperSet     (2)  /* Select superset until predicate match */
 #define EcsSubSet       (4)  /* Select subset until predicate match */
-#define EcsAll          (8)  /* Walk full super/subset, regardless of match */
-#define EcsNothing      (16) /* Select nothing */
+#define EcsCascade      (8)  /* Use breadth-first ordering of relations */
+#define EcsAll          (16) /* Walk full super/subset, regardless of match */
+#define EcsNothing      (32) /* Select from nothing */
 
 /** Specify read/write access for term */
 typedef enum ecs_inout_kind_t {
@@ -194,22 +199,24 @@ typedef enum ecs_oper_kind_t {
     EcsNotFrom      /* Term must match none of the components from term id */
 } ecs_oper_kind_t;
 
+/** Substitution with set parameters.
+ * These parameters allow for substituting a term id with its super- or subsets
+ * for a specified relationship. This enables functionality such as selecting
+ * components from a base (IsA) or a parent (ChildOf) in a single term */
+typedef struct ecs_term_set_t {
+    ecs_entity_t relation;      /* Relationship to substitute (default = IsA) */
+    uint8_t mask;               /* Substitute as self, subset, superset */
+    int32_t min_depth;          /* Min depth of subset/superset substitution */
+    int32_t max_depth;          /* Max depth of subset/superset substitution */
+} ecs_term_set_t;
+
 /** Type that describes a single identifier in a term */
 typedef struct ecs_term_id_t {
     ecs_entity_t entity;        /* Entity (default = This) */
     char *name;                 /* Name (default = ".") */
-    ecs_var_kind_t var_kind;    /* Is id a variable (default yes if name is
+    ecs_var_kind_t var;         /* Is id a variable (default yes if name is 
                                  * all caps & entity is 0) */
-
-    /* Substitution parameters
-     * These parameters allow for substituting the id with its super- or subsets
-     * for a specified relationship. This enables functionality like selecting
-     * components from a base (IsA) or a parent (ChildOf) in a single term */
-
-    ecs_entity_t relation;      /* Relationship to substitute (default = IsA) */
-    uint8_t set;                /* Substitute as self, subset, superset */
-    int32_t min_depth;          /* Min depth of subset/superset substitution */
-    int32_t max_depth;          /* Max depth of subset/superset substitution */
+    ecs_term_set_t set;         /* Set substitution parameters */
 } ecs_term_id_t;
 
 /** Type that describes a single column in the system signature */
@@ -228,6 +235,10 @@ typedef struct ecs_term_t {
 
     int32_t index;              /* Computed term index in filter which takes
                                  * into account folded OR terms */
+
+    bool move;                  /* When true, this signals to ecs_term_copy that
+                                 * the resources held by this term may be moved
+                                 * into the destination term. */
 } ecs_term_t;
 
 /* Deprecated */
@@ -264,7 +275,12 @@ struct ecs_trigger_t {
     int32_t event_count;
 
     ecs_iter_action_t action;   /* Trigger callback */
+
     void *ctx;                  /* Trigger callback context */
+    void *binding_ctx;          /* Binding context (for language bindings) */
+
+    ecs_ctx_free_t ctx_free;    /* Callback to free ctx */
+    ecs_ctx_free_t binding_ctx_free; /* Callback to free binding_ctx */
 
     ecs_entity_t entity;        /* Entity associated with trigger */
 
@@ -283,7 +299,7 @@ struct ecs_trigger_t {
  * @{
  */
 
-/** Type used for constructing entities */
+/** Used with ecs_entity_init */
 typedef struct ecs_entity_desc_t {
     ecs_entity_t entity; /* Optional existing entity handle. */
 
@@ -322,7 +338,7 @@ typedef struct ecs_entity_desc_t {
 } ecs_entity_desc_t;
 
 
-/** Type used for constructing components. */
+/** Used with ecs_component_init. */
 typedef struct ecs_component_desc_t {
     ecs_entity_desc_t entity;           /* Parameters for component entity */
     size_t size;                        /* Component size */
@@ -330,7 +346,7 @@ typedef struct ecs_component_desc_t {
 } ecs_component_desc_t;
 
 
-/** Type used for constructing type entities (entities with EcsType). */
+/** Used with ecs_type_init. */
 typedef struct ecs_type_desc_t {
     ecs_entity_desc_t entity;           /* Parameters for type entity */
     ecs_id_t ids[ECS_MAX_ADD_REMOVE];   /* Ids to include in type */
@@ -338,7 +354,7 @@ typedef struct ecs_type_desc_t {
 } ecs_type_desc_t;
 
 
-/** Type used for constructing filters. */
+/** Used with ecs_filter_init. */
 typedef struct ecs_filter_desc_t {
     /* Terms of the filter. If a filter has more terms than
      * ECS_FILTER_DESC_TERM_ARRAY_MAX use terms_buffer */
@@ -347,6 +363,10 @@ typedef struct ecs_filter_desc_t {
     /* For filters with lots of terms an outside array can be provided. */
     ecs_term_t *terms_buffer;
     int32_t terms_buffer_count;
+
+    /* Substitute IsA relationships by default. If true, any term with 'set' 
+     * assigned to DefaultSet will be modified to Self|SuperSet(IsA). */
+    bool substitute_default;
 
     /* Filter expression. Should not be set at the same time as terms array */
     const char *expr;
@@ -357,7 +377,7 @@ typedef struct ecs_filter_desc_t {
 } ecs_filter_desc_t;
 
 
-/** Type used for constructing queries. */
+/** Used with ecs_query_init. */
 typedef struct ecs_query_desc_t {
     /* Filter for the query */
     ecs_filter_desc_t filter;
@@ -391,9 +411,9 @@ typedef struct ecs_query_desc_t {
 } ecs_query_desc_t;
 
 
-/** Type used to create triggers (single component/term observers). */
+/** Used with ecs_trigger_init. */
 typedef struct ecs_trigger_desc_t {
-    /* Optional entity to associate with trigger */
+    /* Entity to associate with trigger */
     ecs_entity_desc_t entity;
 
     /* Term specifying the id to subscribe for */
@@ -414,6 +434,15 @@ typedef struct ecs_trigger_desc_t {
 
     /* User context to pass to callback */
     void *ctx;
+
+    /* Context to be used for language bindings */
+    void *binding_ctx;
+    
+    /* Callback to free ctx */
+    ecs_ctx_free_t ctx_free;
+
+    /* Callback to free binding_ctx */     
+    ecs_ctx_free_t binding_ctx_free;
 } ecs_trigger_desc_t;
 
 /** @} */
@@ -1229,19 +1258,65 @@ ecs_entity_t ecs_new_w_id(
 #define ecs_new(world, type) ecs_new_w_id(world, ecs_id(type))
 #endif
 
-/** Create a new entity. */
+/** Find or create an entity. 
+ * This operation creates a new entity, or modifies an existing one. When a name
+ * is set in the ecs_entity_desc_t::name field and ecs_entity_desc_t::entity is
+ * not set, the operation will first attempt to find an existing entity by that
+ * name. If no entity with that name can be found, it will be created.
+ *
+ * If both a name and entity handle are provided, the operation will check if
+ * the entity name matches with the provided name. If the names do not match,
+ * the function will fail and return 0.
+ *
+ * If an id to a non-existing entity is provided, that entity id become alive.
+ * 
+ * See the documentation of ecs_entity_desc_t for more details. 
+ *
+ * @param world The world.
+ * @param desc Entity init parameters.
+ * @return A handle to the new or existing entity, or 0 if failed.
+ */
 FLECS_API
 ecs_entity_t ecs_entity_init(
     ecs_world_t *world,
     const ecs_entity_desc_t *desc);
 
-/** Create a new component. */
+/** Find or create a component. 
+ * This operation creates a new component, or finds an existing one. The find or
+ * create behavior is the same as ecs_entity_init.
+ *
+ * When an existing component is found, the size and alignment are verified with
+ * the provided values. If the values do not match, the operation will fail.
+ *
+ * See the documentation of ecs_component_desc_t for more details. 
+ *
+ * @param world The world.
+ * @param desc Component init parameters.
+ * @return A handle to the new or existing component, or 0 if failed.
+ */
 FLECS_API
 ecs_entity_t ecs_component_init(
     ecs_world_t *world,
     const ecs_component_desc_t *desc);
 
-/** Create a new type entity. */
+/** Create a new type entity. 
+ * This operation creates a new type entity, or finds an existing one. The find 
+ * or create behavior is the same as ecs_entity_init.
+ *
+ * A type entity is an entity with the EcsType component. This component
+ * a pointer to an ecs_type_t, which allows for the creation of named types.
+ * Named types are used in a few places, such as for pipelines and filter terms
+ * with the EcsAndFrom or EcsOrFrom operators.
+ *
+ * When an existing type entity is found, its types are verified with the
+ * provided values. If the values do not match, the operation will fail.
+ *
+ * See the documentation of ecs_type_desc_t for more details.
+ *
+ * @param world The world.
+ * @param desc Type entity init parameters.
+ * @return A handle to the new or existing type, or 0 if failed.
+*/
 FLECS_API
 ecs_entity_t ecs_type_init(
     ecs_world_t *world,
@@ -1544,7 +1619,7 @@ ecs_id_t ecs_make_pair(
  * @param object The object part of the pair.
  */
 #define ecs_set_pair(world, subject, relation, object, ...)\
-    ecs_set_ptr_w_id(world, subject,\
+    ecs_set_id(world, subject,\
         ecs_pair(ecs_id(relation), object),\
         sizeof(relation), &(relation)__VA_ARGS__)
 
@@ -1569,7 +1644,7 @@ ecs_id_t ecs_make_pair(
  * @param object The object part of the pair. This must be a component.
  */
 #define ecs_set_pair_object(world, subject, relation, object, ...)\
-    ecs_set_ptr_w_id(world, subject,\
+    ecs_set_id(world, subject,\
         ecs_pair(relation, ecs_id(object)),\
         sizeof(object), &(object)__VA_ARGS__)
 
@@ -1606,7 +1681,7 @@ ecs_id_t ecs_make_pair(
  * @param object The object part of the pair.
  */
 #define ecs_get_pair(world, subject, relation, object)\
-    ((relation*)ecs_get_w_id(world, subject,\
+    ((relation*)ecs_get_id(world, subject,\
         ecs_pair(ecs_id(relation), object)))
 
 /** Get object of pair.
@@ -1629,7 +1704,7 @@ ecs_id_t ecs_make_pair(
  * @param object The object part of the pair.
  */
 #define ecs_get_pair_object(world, subject, relation, object)\
-    ((object*)ecs_get_w_id(world, subject,\
+    ((object*)ecs_get_id(world, subject,\
         ecs_pair(relation, ecs_id(object))))
 
 /** @} */
@@ -1698,13 +1773,13 @@ void ecs_delete_children(
  * @return The component pointer, NULL if the entity does not have the component.
  */
 FLECS_API
-const void* ecs_get_w_id(
+const void* ecs_get_id(
     const ecs_world_t *world,
     ecs_entity_t entity,
     ecs_id_t id);
 
 /** Get an immutable pointer to a component.
- * Same as ecs_get_w_id, but accepts the typename of a component.
+ * Same as ecs_get_id, but accepts the typename of a component.
  *
  * @param world The world.
  * @param entity The entity.
@@ -1712,12 +1787,12 @@ const void* ecs_get_w_id(
  * @return The component pointer, NULL if the entity does not have the component.
  */
 #define ecs_get(world, entity, component)\
-    ((const component*)ecs_get_w_id(world, entity, ecs_id(component)))
+    ((const component*)ecs_get_id(world, entity, ecs_id(component)))
 
 /* -- Get cached pointer -- */
 
 /** Get an immutable reference to a component.
- * This operation is similar to ecs_get_w_id but it stores temporary
+ * This operation is similar to ecs_get_id but it stores temporary
  * information in a `ecs_ref_t` value which allows subsequent lookups to be
  * faster.
  *
@@ -1770,7 +1845,7 @@ ecs_entity_t ecs_get_case(
  */
 
 /** Get a mutable pointer to a component.
- * This operation is similar to ecs_get_w_id but it returns a mutable
+ * This operation is similar to ecs_get_w_id but it returns a mutable 
  * pointer. If this operation is invoked from inside a system, the entity will
  * be staged and a pointer to the staged component will be returned.
  *
@@ -1842,7 +1917,7 @@ void ecs_modified_w_id(
  * @return The entity. A new entity if no entity was provided.
  */
 FLECS_API
-ecs_entity_t ecs_set_ptr_w_id(
+ecs_entity_t ecs_set_id(
     ecs_world_t *world,
     ecs_entity_t entity,
     ecs_id_t id,
@@ -1850,7 +1925,7 @@ ecs_entity_t ecs_set_ptr_w_id(
     const void *ptr);
 
 /** Set the value of a component.
- * Same as ecs_set_ptr_w_id, but accepts a component typename and
+ * Same as ecs_set_ptr_w_id, but accepts a component typename and 
  * automatically determines the type size.
  *
  * @param world The world.
@@ -1860,7 +1935,7 @@ ecs_entity_t ecs_set_ptr_w_id(
  * @return The entity. A new entity if no entity was provided.
  */
 #define ecs_set_ptr(world, entity, component, ptr)\
-    ecs_set_ptr_w_id(world, entity, ecs_id(component), sizeof(component), ptr)
+    ecs_set_id(world, entity, ecs_id(component), sizeof(component), ptr)
 
 /* Conditionally skip macro's as compound literals and variadic arguments are
  * not supported in C89 */
@@ -1876,7 +1951,7 @@ ecs_entity_t ecs_set_ptr_w_id(
  * @return The entity. A new entity if no entity was provided.
  */
 #define ecs_set(world, entity, component, ...)\
-    ecs_set_ptr_w_id(world, entity, ecs_id(component), sizeof(component), &(component)__VA_ARGS__)
+    ecs_set_id(world, entity, ecs_id(component), sizeof(component), &(component)__VA_ARGS__)
 
 #endif
 
@@ -2628,9 +2703,22 @@ int ecs_term_finalize(
  * @param src The term to copy from.
  */
 FLECS_API
-void ecs_term_copy(
-    ecs_term_t *dst,
+ecs_term_t ecs_term_copy(
     const ecs_term_t *src);
+
+/** Move resources of a term to another term.
+ * Same as copy, but moves resources from src, if src->move is set to true. If
+ * src->move is not set to true, this operation will do a copy.
+ *
+ * The conditional move reduces redundant allocations in scenarios where a list 
+ * of terms is partially created with allocated resources.
+ *
+ * @param dst The term to copy to.
+ * @param src The term to copy from.
+ */
+FLECS_API 
+ecs_term_t ecs_term_move(
+    ecs_term_t *src);    
 
 /** Free resources of term.
  * This operation frees all resources (such as identifiers) of a term. The term
@@ -2641,6 +2729,18 @@ void ecs_term_copy(
 FLECS_API
 void ecs_term_fini(
     ecs_term_t *term);
+
+/** Utility to match an id with a pattern.
+ * This operation returns true if the provided pattern matches the provided
+ * id. The pattern may contain a wildcard (or wildcards, when a pair).
+ *
+ * @param id The id.
+ * @param pattern The pattern to compare with.
+ */
+FLECS_API
+bool ecs_id_match(
+    ecs_id_t id,
+    ecs_id_t pattern);
 
 /** @} */
 
@@ -2802,6 +2902,7 @@ bool ecs_filter_next(
  * @param desc A structure describing the query properties.
  * @return The new query.
  */
+FLECS_API
 ecs_query_t* ecs_query_init(
     ecs_world_t *world,
     const ecs_query_desc_t *desc);
@@ -2813,6 +2914,7 @@ ecs_query_t* ecs_query_init(
  *
  * @param query The query.
  */
+FLECS_API
 void ecs_query_fini(
     ecs_query_t *query);
 
@@ -2941,11 +3043,37 @@ bool ecs_query_orphaned(
  * @defgroup trigger Triggers
  */
 
-/** Create trigger */
+/** Create trigger.
+ * Triggers notify the application when certain events happen such as adding or
+ * removing components.
+ * 
+ * An application can change the trigger callback or context pointer by calling
+ * ecs_trigger_init for an existing trigger entity, by setting the
+ * ecs_trigger_desc_t::entity.entity field in combination with callback and/or
+ * ctx.
+ *
+ * See the documentation for ecs_trigger_desc_t for more details.
+ *
+ * @param world The world.
+ * @param decs The trigger creation parameters.
+ */
 FLECS_API
 ecs_entity_t ecs_trigger_init(
     ecs_world_t *world,
     const ecs_trigger_desc_t *desc);
+
+/** Get trigger context.
+ * This operation returns the context pointer set for the trigger. If
+ * the provided entity is not a trigger, the function will return NULL.
+ *
+ * @param world The world.
+ * @param trigger The trigger from which to obtain the context.
+ * @return The context.
+ */
+FLECS_API
+void* ecs_get_trigger_ctx(
+    const ecs_world_t *world,
+    ecs_entity_t trigger);
 
 /** @} */
 

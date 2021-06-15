@@ -19,13 +19,13 @@ int resolve_identifier(
         return 0;
     }
 
-    if (identifier->var_kind == EcsVarDefault) {
+    if (identifier->var == EcsVarDefault) {
         if (ecs_identifier_is_var(identifier->name)) {
-            identifier->var_kind = EcsVarIsVariable;
+            identifier->var = EcsVarIsVariable;
         }
     }
 
-    if (identifier->var_kind != EcsVarIsVariable) {
+    if (identifier->var != EcsVarIsVariable) {
         if (ecs_identifier_is_0(identifier->name)) {
             identifier->entity = 0;
         } else {
@@ -89,7 +89,24 @@ int term_resolve_ids(
         return -1;
     }
 
-    if (term->args[1].entity) {
+    /* An explicitly set PAIR role indicates legacy behavior. In the legacy
+     * query language a wildcard object means that the entity should have the
+     * matched object by itself. This is incompatible with the new query parser.
+     * For now, this behavior is mapped to a pair with a 0 object, but in the
+     * future this behavior will be replaced with variables. */
+    if (term->role == ECS_PAIR) {
+        if (term->args[1].entity == EcsWildcard) {
+            term->args[1].entity = 0;
+            if (term->move) {
+                ecs_os_free(term->args[1].name);
+            }
+            term->args[1].name = NULL;
+        } else if (!term->args[1].entity) {
+            term->args[1].entity = EcsWildcard;
+        }
+    }
+
+    if (term->args[1].entity || term->role == ECS_PAIR) {
         term->id = ecs_pair(term->pred.entity, term->args[1].entity);
     } else {
         term->id = term->pred.entity;
@@ -98,6 +115,49 @@ int term_resolve_ids(
     term->id |= term->role;
 
     return 0;
+}
+
+bool ecs_id_match(
+    ecs_id_t id,
+    ecs_id_t pattern)
+{
+    if (id == pattern) {
+        return true;
+    }
+
+    if (ECS_HAS_ROLE(pattern, PAIR)) {
+        if (!ECS_HAS_ROLE(id, PAIR)) {
+            /* legacy roles that are now relations */
+            if (!ECS_HAS_ROLE(id, INSTANCEOF) && !ECS_HAS_ROLE(id, CHILDOF)) {
+                return false;
+            }
+        }
+
+        ecs_entity_t id_rel = ECS_PAIR_RELATION(id);
+        ecs_entity_t id_obj = ECS_PAIR_OBJECT(id);
+        ecs_entity_t pattern_rel = ECS_PAIR_RELATION(pattern);
+        ecs_entity_t pattern_obj = ECS_PAIR_OBJECT(pattern);
+
+        if (pattern_rel == EcsWildcard) {
+            if (pattern_obj == EcsWildcard || !pattern_obj || pattern_obj == id_obj) {
+                return true;
+            }
+        } else if (!pattern_obj || pattern_obj == EcsWildcard) {
+            if (pattern_rel == id_rel) {
+                return true;
+            }
+        }
+    } else {
+        if ((id & ECS_ROLE_MASK) != (pattern & ECS_ROLE_MASK)) {
+            return false;
+        }
+
+        if ((ECS_COMPONENT_MASK & pattern) == EcsWildcard) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 bool ecs_term_is_set(
@@ -117,7 +177,7 @@ bool ecs_term_is_trivial(
         return false;
     }
 
-    if (term->args[0].set != EcsDefaultSet) {
+    if (term->args[0].set.mask != EcsDefaultSet) {
         return false;
     }
 
@@ -138,14 +198,19 @@ int ecs_term_finalize(
     const char *expr,
     ecs_term_t *term)
 {
-    /* If id is set, derive predicate and object */
     if (term->id) {
-        if (term->args[0].entity && term->args[0].entity != EcsThis) {
-            ecs_parser_error(name, expr, 0, 
-                "cannot combine id with subject that is not This");
-            return -1;
+        /* Allow for combining explicit object with id */
+        if (term->args[1].name && !term->args[1].entity) {
+            if (resolve_identifier(world, name, expr, &term->args[1])) {
+                return -1;
+            }
         }
 
+        if (term->args[1].entity) {
+            term->id = ecs_pair(term->id, term->args[1].entity);
+        }
+
+        /* If id is set, check for pair and derive predicate and object */
         if (ECS_HAS_ROLE(term->id, PAIR)) {
             term->pred.entity = ECS_PAIR_RELATION(term->id);
             term->args[1].entity = ECS_PAIR_OBJECT(term->id);
@@ -153,8 +218,17 @@ int ecs_term_finalize(
             term->pred.entity = term->id & ECS_COMPONENT_MASK;
         }
 
-        term->args[0].entity = EcsThis;
-        term->role = term->id & ECS_ROLE_MASK;
+        if (!term->args[0].entity) {
+            term->args[0].entity = EcsThis;
+        }
+
+        if (!term->role) {
+            term->role = term->id & ECS_ROLE_MASK;
+        } else {
+            ecs_assert(!(term->id & ECS_ROLE_MASK), 
+                ECS_INVALID_PARAMETER, NULL);
+            term->id |= term->role;
+        }
     } else {
         if (term_resolve_ids(world, name, expr, term)) {
             /* One or more identifiers could not be resolved */
@@ -165,15 +239,31 @@ int ecs_term_finalize(
     return 0;
 }
 
-void ecs_term_copy(
-    ecs_term_t *dst,
+ecs_term_t ecs_term_copy(
     const ecs_term_t *src)
 {
-    *dst = *src;
-    dst->name = ecs_os_strdup(src->name);
-    dst->pred.name = ecs_os_strdup(src->pred.name);
-    dst->args[0].name = ecs_os_strdup(src->args[0].name);
-    dst->args[1].name = ecs_os_strdup(src->args[1].name);
+    ecs_term_t dst = *src;
+    dst.name = ecs_os_strdup(src->name);
+    dst.pred.name = ecs_os_strdup(src->pred.name);
+    dst.args[0].name = ecs_os_strdup(src->args[0].name);
+    dst.args[1].name = ecs_os_strdup(src->args[1].name);
+
+    return dst;
+}
+
+ecs_term_t ecs_term_move(
+    ecs_term_t *src)
+{
+    if (src->move) {
+        ecs_term_t dst = *src;
+        src->name = NULL;
+        src->pred.name = NULL;
+        src->args[0].name = NULL;
+        src->args[1].name = NULL;
+        return dst;
+    } else {
+        return ecs_term_copy(src);
+    }
 }
 
 void ecs_term_fini(
@@ -202,13 +292,38 @@ int ecs_filter_init(
         .expr = (char*)expr
     };
 
+    if (terms) {
+        terms = desc->terms_buffer;
+        term_count = desc->terms_buffer_count;
+    } else {
+        terms = (ecs_term_t*)desc->terms;
+        for (i = 0; i < ECS_FILTER_DESC_TERM_ARRAY_MAX; i ++) {
+            if (!ecs_term_is_set(&terms[i])) {
+                break;
+            }
+
+            term_count ++;
+        }
+    }
+
+    /* Temporarily set array from desc to filter, until the filter has been
+     * validated. */
+    f.terms = terms;
+    f.term_count = term_count;
+
     if (expr) {
 #ifdef FLECS_PARSER
-        /* Cannot set expression and terms at the same time */
-        ecs_assert(terms == NULL, ECS_INVALID_PARAMETER, NULL);
-        
-        /* Parse expression into array of terms */
         int32_t buffer_count = 0;
+
+        /* If terms have already been set, copy buffer to allocated one */
+        if (terms && term_count) {
+            terms = ecs_os_memdup(terms, term_count * ECS_SIZEOF(ecs_term_t));
+            buffer_count = term_count;
+        } else {
+            terms = NULL;
+        }
+
+        /* Parse expression into array of terms */
         const char *ptr = desc->expr;
         ecs_term_t term = {0};
         while (ptr[0] && (ptr = ecs_parse_term(world, name, expr, ptr, &term))){
@@ -235,25 +350,16 @@ int ecs_filter_init(
 #else
         ecs_abort(ECS_UNSUPPORTED, "parser addon is not available");
 #endif
-    } else {
-        if (terms) {
-            terms = desc->terms_buffer;
-            term_count = desc->terms_buffer_count;
-        } else {
-            terms = (ecs_term_t*)desc->terms;
-            for (i = 0; i < ECS_FILTER_DESC_TERM_ARRAY_MAX; i ++) {
-                if (!ecs_term_is_set(&terms[i])) {
-                    break;
-                }
+    }
 
-                term_count ++;
-            }
+    /* If default substitution is enabled, replace DefaultSet with SuperSet */
+    if (desc->substitute_default) {
+        for (i = 0; i < term_count; i ++) {
+            if (terms[i].args[0].set.mask == EcsDefaultSet) {
+                terms[i].args[0].set.mask = EcsSuperSet | EcsSelf;
+                terms[i].args[0].set.relation = EcsIsA;
+            }            
         }
-
-        /* Temporarily set array from desc to filter, until the filter has been
-         * validated. */
-        f.terms = terms;
-        f.term_count = term_count;
     }
 
     /* Ensure all fields are consistent and properly filled out */
@@ -261,17 +367,17 @@ int ecs_filter_init(
         goto error;
     }
 
-    /* Copy term resources. If an expression was provided, the resources in the
-     * terms are already owned by the filter. */
-    if (!f.expr) {
-        if (term_count) {
+    /* Copy term resources. */
+    if (term_count) {
+        if (!f.expr) {
             f.terms = ecs_os_malloc(term_count * ECS_SIZEOF(ecs_term_t));
-            for (i = 0; i < term_count; i ++) {
-                ecs_term_copy(&f.terms[i], &terms[i]);
-            }
-        } else {
-            f.terms = NULL;
         }
+
+        for (i = 0; i < term_count; i ++) {
+            f.terms[i] = ecs_term_move(&terms[i]);
+        }        
+    } else {
+        f.terms = NULL;
     }
 
     f.name = ecs_os_strdup(desc->name);
@@ -451,7 +557,7 @@ bool ecs_filter_match_entity(
         ecs_term_id_t *subj = &term->args[0];
         ecs_oper_kind_t oper = term->oper;
 
-        if (subj->entity != EcsThis && subj->set & EcsSelf) {
+        if (subj->entity != EcsThis && subj->set.mask & EcsSelf) {
             ecs_type_t type = ecs_get_type(world, subj->entity);
             if (ecs_type_has_id(world, type, term->id)) {
                 if (oper == EcsNot) {

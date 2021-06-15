@@ -210,6 +210,10 @@ void Query_each_shared() {
         .add(flecs::IsA, base);
 
     auto e2 = flecs::entity(world)
+        .set<Position>({20, 30})
+        .add(flecs::IsA, base);
+
+    auto e3 = flecs::entity(world)
         .set<Position>({10, 20})
         .set<Velocity>({3, 4});
 
@@ -225,6 +229,10 @@ void Query_each_shared() {
     test_int(p->y, 22);
 
     p = e2.get<Position>();
+    test_int(p->x, 21);
+    test_int(p->y, 32);
+
+    p = e3.get<Position>();
     test_int(p->x, 13);
     test_int(p->y, 24); 
 }
@@ -614,4 +622,97 @@ void Query_orphaned() {
     q.destruct();
 
     test_assert(sq.orphaned());
+}
+
+void Query_default_ctor() {
+    flecs::world world;
+
+    flecs::query<Position> q_var;
+
+    int count = 0;
+    auto q = world.query<Position>();
+
+    world.entity().set<Position>({10, 20});
+
+    q_var = q;
+    
+    q_var.each([&](flecs::entity e, Position& p) {
+        test_int(p.x, 10);
+        test_int(p.y, 20);
+        count ++;
+    });
+
+    test_int(count, 1);
+}
+
+void Query_expr_w_template() {
+    flecs::world world;
+
+    auto comp = world.component<Template<int>>();
+    test_str(comp.name(), "Template<int>");
+
+    int count = 0;
+    auto q = world.query<Position>("Template<int>");
+
+    world.entity()
+        .set<Position>({10, 20})
+        .set<Template<int>>({30, 40});
+    
+    q.each([&](flecs::entity e, Position& p) {
+        test_int(p.x, 10);
+        test_int(p.y, 20);
+
+        const Template<int> *t = e.get<Template<int>>();
+        test_int(t->x, 30);
+        test_int(t->y, 40);        
+
+        count ++;
+    });
+
+    test_int(count, 1);
+}
+
+void Query_query_type_w_template() {
+    flecs::world world;
+
+    auto comp = world.component<Template<int>>();
+    test_str(comp.name(), "Template<int>");
+
+    int count = 0;
+    auto q = world.query<Position, Template<int>>();
+
+    world.entity()
+        .set<Position>({10, 20})
+        .set<Template<int>>({30, 40});
+    
+    q.each([&](flecs::entity e, Position& p, Template<int>& t) {
+        test_int(p.x, 10);
+        test_int(p.y, 20);
+
+        test_int(t.x, 30);
+        test_int(t.y, 40);        
+
+        count ++;
+    });
+
+    test_int(count, 1);
+}
+
+void Query_compare_term_id() {
+    flecs::world world;
+
+    int count = 0;
+    auto e = world.entity().add<Tag>();
+
+    auto q = world.query_builder<>()
+        .term<Tag>()
+        .build();
+    
+    q.iter([&](flecs::iter& it) {
+        test_assert(it.term_id(1) == it.world().id<Tag>());
+        test_assert(it.entity(0) == e);
+        count ++;
+    });
+
+    test_int(count, 1);
 }

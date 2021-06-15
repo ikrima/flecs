@@ -10,7 +10,7 @@ class world final {
 public:
     /** Create world.
      */
-    world() 
+    explicit world() 
         : m_world( ecs_init() )
         , m_owned( true ) { init_builtin_components(); }
 
@@ -18,13 +18,13 @@ public:
      * Currently command line arguments are not interpreted, but they may be
      * used in the future to configure Flecs parameters.
      */
-    world(int argc, char *argv[])
+    explicit world(int argc, char *argv[])
         : m_world( ecs_init_w_args(argc, argv) )
         , m_owned( true ) { init_builtin_components(); }
 
     /** Create world from C world.
      */
-    explicit world(world_t *w) 
+    explicit world(world_t *w)
         : m_world( w ) 
         , m_owned( false ) { }
 
@@ -98,7 +98,26 @@ public:
      */
     bool should_quit() {
         return ecs_should_quit(m_world);
-    }    
+    }
+
+    /** Get id from a type.
+     */
+    template <typename T>
+    flecs::id id() const;
+
+    /** Get pair id from relation, object
+     */
+    template <typename R, typename O>
+    flecs::id pair() const;
+
+    /** Get pair id from relation, object
+     */
+    template <typename R>
+    flecs::id pair(entity_t o) const;
+
+    /** Get pair id from relation, object
+     */
+    flecs::id pair(entity_t r, entity_t o) const;
 
     /** Begin frame.
      * When an application does not use progress() to control the main loop, it
@@ -265,8 +284,8 @@ public:
      * @param stage_id The index of the stage to retrieve.
      * @return A thread-specific pointer to the world. 
      */
-    flecs::world get_stage(int32_t id) const {
-        return flecs::world(ecs_get_stage(m_world, id));
+    flecs::world get_stage(int32_t stage_id) const {
+        return flecs::world(ecs_get_stage(m_world, stage_id));
     }
 
     /** Create asynchronous stage.
@@ -287,7 +306,9 @@ public:
      * @return The stage.
      */
     flecs::world async_stage() const {
-        return flecs::world(ecs_async_stage_new(m_world));
+        auto result = flecs::world(ecs_async_stage_new(m_world));
+        result.m_owned = true;
+        return result;
     }
 
     /** Get actual world.
@@ -691,15 +712,39 @@ public:
     template <typename Module>
     flecs::entity import(); // Cannot be const because modules accept a non-const world
 
+    /** Create an system from an entity
+     */
+    flecs::system<> system(flecs::entity e) const;
+
     /** Create an system.
      */
     template <typename... Comps, typename... Args>
-    flecs::system<Comps...> system(Args &&... args) const;
+    flecs::system_builder<Comps...> system(Args &&... args) const;
 
     /** Create a query.
      */
     template <typename... Comps, typename... Args>
     flecs::query<Comps...> query(Args &&... args) const;
+
+    /** Create a query builder.
+     */
+    template <typename... Comps, typename... Args>
+    flecs::query_builder<Comps...> query_builder(Args &&... args) const;
+
+    /** Create a term 
+     */
+    template<typename... Args>
+    flecs::term term(Args &&... args) const;
+
+    /** Create a term for a type
+     */
+    template<typename T, typename... Args>
+    flecs::term term(Args &&... args) const;  
+
+    /** Create a term for a pair
+     */
+    template<typename R, typename O, typename... Args>
+    flecs::term term(Args &&... args) const;        
 
     /** Register a component.
      */
@@ -726,6 +771,20 @@ private:
 
     world_t *m_world;
     bool m_owned;
+};
+
+// Downcast utility to make world available to classes in inheritance hierarchy
+template<typename Base>
+class world_base {
+public:
+    template<typename IBuilder>
+    static flecs::world world(const IBuilder *self) {
+        return flecs::world(static_cast<const Base*>(self)->m_world);
+    }
+
+    flecs::world world() const {
+        return flecs::world(static_cast<const Base*>(this)->m_world);
+    }
 };
 
 } // namespace flecs
