@@ -596,9 +596,11 @@ private:
 // Global templated variables that hold component identifier and other info
 template <typename T> entity_t cpp_type<T>::s_id( 0 );
 template <typename T> type_t cpp_type<T>::s_type( nullptr );
+// Beg #TPLibMod-flecs:  Don't allow automatic registering of components
 ES2WRN_DISABLE(CLANG,global-constructors)
 template <typename T> flecs::string cpp_type<T>::s_name;
 ES2WRN_RESTORE(CLANG)
+// End TPLibMod
 template <typename T> bool cpp_type<T>::s_allow_tag( true );
 
 } // namespace _
