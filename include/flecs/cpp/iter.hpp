@@ -17,7 +17,7 @@ struct each_column_base {
     each_column_base(const _::TermPtr& term, size_t row) : m_term(term), m_row(row) { }
 protected:
     const _::TermPtr& m_term;
-    size_t m_row;    
+    size_t m_row;
 };
 
 template <typename T>
@@ -67,7 +67,7 @@ public:
             invoke_callback<each_ref_column>(iter, m_func, 0, terms.m_terms);
         } else {
             invoke_callback<each_column>(iter, m_func, 0, terms.m_terms);
-        }   
+        }
     }
 
     // Static function that can be used as callback for systems/triggers
@@ -95,9 +95,9 @@ private:
         typename std::enable_if<sizeof...(Targs) != sizeof...(Components), void>::type* = nullptr>
     static void invoke_callback(ecs_iter_t *iter, const Func& func, size_t index, Terms& columns, Targs... comps) {
         each_invoker::invoke_callback<ColumnType>(iter, func, index + 1, columns, comps..., columns[index]);
-    }    
+    }
 
-                
+
     Func m_func;
 };
 
@@ -136,11 +136,11 @@ private:
         (void)index;
         (void)columns;
         flecs::iter iter_wrapper(iter);
-        
+
         func(iter_wrapper, (column<typename std::remove_reference<
             typename std::remove_pointer<Components>::type >::type>(
-            static_cast<typename std::remove_reference< 
-                typename std::remove_pointer<Components>::type >::type*>(comps.ptr), 
+            static_cast<typename std::remove_reference<
+                typename std::remove_pointer<Components>::type >::type*>(comps.ptr),
                         iter->count, comps.is_ref))...);
     }
 
@@ -150,7 +150,7 @@ private:
         invoke_callback(iter, func, index + 1, columns, comps..., columns[index]);
     }
 
-                
+
     Func m_func;
 };
 
@@ -186,7 +186,7 @@ private:
     template <typename... Targs,
         typename std::enable_if<sizeof...(Targs) == sizeof...(Components), void>::type* = nullptr>
     // Beg #TPLibMod-flecs: Force inline
-    static ES2INL(FI) void invoke_callback(ecs_iter_t *iter, const Func& func, size_t index, Terms& columns, Targs... comps) {
+    ES2(FI) static void invoke_callback(ecs_iter_t *iter, const Func& func, size_t index, Terms& columns, Targs... comps) {
     // End TPLibMod
         (void)index;
         (void)columns;
@@ -199,7 +199,7 @@ private:
     template <typename... Targs,
         typename std::enable_if<sizeof...(Targs) != sizeof...(Components), void>::type* = nullptr>
     // Beg #TPLibMod-flecs: Force inline
-    static ES2INL(FI) void invoke_callback(ecs_iter_t *iter, const Func& func, size_t index, Terms& columns, Targs... comps) {
+    ES2(FI) static void invoke_callback(ecs_iter_t *iter, const Func& func, size_t index, Terms& columns, Targs... comps) {
     // End TPLibMod
         invoke_callback(iter, func, index + 1, columns, comps..., columns[index]);
     }
